@@ -1,0 +1,27 @@
+# Build outputs
+build/
+bin/
+*.apk
+*.aab
+*.ipa
+
+# Node & JS
+node_modules/
+npm-debug.log
+.env
+
+# Android
+.gradle/
+app/build/
+android-app/app/build/
+android-app/.gradle/
+local.properties
+
+# Xcode / macOS
+.DS_Store
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+
+# Antigravity internal logs
+.system_generated/
+node_modules
