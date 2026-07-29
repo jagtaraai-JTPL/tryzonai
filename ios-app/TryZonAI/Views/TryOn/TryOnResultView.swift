@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 public struct TryOnResultView: View {
     @Environment(\.presentationMode) var presentationMode

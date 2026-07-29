@@ -1,6 +1,8 @@
 import Foundation
 import UserNotifications
+#if canImport(UIKit)
 import UIKit
+#endif
 
 public class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     public static let shared = NotificationManager()

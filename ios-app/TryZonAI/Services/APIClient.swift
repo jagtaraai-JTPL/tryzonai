@@ -1,6 +1,8 @@
 import Foundation
 import Combine
+#if canImport(UIKit)
 import UIKit
+#endif
 
 public class APIClient: ObservableObject {
     public static let shared = APIClient()
