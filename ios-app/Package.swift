@@ -4,16 +4,17 @@ import PackageDescription
 let package = Package(
     name: "TryZonAI",
     platforms: [
+        .macOS(.v13),
         .iOS(.v16)
     ],
     products: [
-        .executable(
+        .library(
             name: "TryZonAI",
             targets: ["TryZonAI"]
         )
     ],
     targets: [
-        .executableTarget(
+        .target(
             name: "TryZonAI",
             path: "TryZonAI"
         )
