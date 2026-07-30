@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "TryZon AI - Virtual Fitting Room",
+  "name": "Virtual Try-On Fits: TryZon AI",
   "version": "1.0.0",
   "description": "Virtual Try-On Fits: TryZon AI - Instant AI Virtual Fitting Room & Fashion Companion",
   "homepage_url": "https://tryzonai.com",
@@ -10,6 +10,6 @@
     "128": "icon.png"
   },
   "action": {
-    "default_title": "TryZon AI"
+    "default_title": "Virtual Try-On Fits: TryZon AI"
   }
 }
