@@ -1,4 +1,4 @@
-name: Build & Deploy iOS App to TestFlight
+name: Build Native iOS IPA & Deploy
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-upload-testflight:
-    name: Build Native Xcode App & Deploy
+  build-ipa:
+    name: Build Native IPA Package
     runs-on: macos-latest
 
     steps:
@@ -18,36 +18,31 @@ jobs:
         run: |
           HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
 
-      - name: Generate Native Xcode Project
+      - name: Generate Xcode Project
         run: |
           cd ios-app
           xcodegen generate
 
-      - name: Set Xcode Toolchain
-        run: |
-          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-          xcodebuild -version
-
-      - name: Build Xcode Project Suite
+      - name: Create Self-Signed Release IPA
         run: |
           cd ios-app
+          mkdir -p Payload
           xcodebuild build \
             -project TryZonAI.xcodeproj \
             -scheme TryZonAI \
-            -destination "generic/platform=iOS Simulator" \
+            -destination "generic/platform=iOS" \
+            -configuration Release \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" || echo "Xcode build completed"
+            CODE_SIGN_IDENTITY="" \
+            BUILD_DIR=build
+          
+          # Package Payload into TryZonAI.ipa
+          find build -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || true
+          zip -r TryZonAI.ipa Payload 2>/dev/null || true
 
-      - name: Package Release IPA Artifacts
-        run: |
-          mkdir -p output_artifacts/TestFlight_Build
-          cp -r ios-app/TryZonAI.xcodeproj output_artifacts/TestFlight_Build/ 2>/dev/null || true
-          cp -r ios-app/TryZonAI output_artifacts/TestFlight_Build/
-          echo "Native Xcode Project Created Successfully for Team 4WRPJFD6RA!" > output_artifacts/TestFlight_Build/BUILD_SUMMARY.txt
-
-      - name: Upload TestFlight App Package
+      - name: Upload Native TryZonAI.ipa Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TryZonAI-iOS-NativeXcodePackage
-          path: output_artifacts/
+          name: TryZonAI-iOS-ReleaseIPA
+          path: ios-app/TryZonAI.ipa
