@@ -35,7 +35,7 @@ jobs:
           xcodebuild build \
             -project TryZonAI.xcodeproj \
             -scheme TryZonAI \
-            -destination "generic/platform=iOS Simulator" \
+            -sdk iphonesimulator \
             -configuration Release \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
