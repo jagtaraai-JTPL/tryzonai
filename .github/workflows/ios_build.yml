@@ -1,4 +1,4 @@
-name: Build Native iOS IPA & Deploy
+name: Build & Upload iOS App to App Store Connect
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-ipa:
-    name: Build Native IPA Package
+  build-and-upload:
+    name: Build & Upload to App Store Connect
     runs-on: macos-latest
 
     steps:
@@ -42,19 +42,11 @@ jobs:
           
           find ~/Library/Developer/Xcode/DerivedData -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || find . -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || true
           zip -r TryZonAI.ipa Payload 2>/dev/null || true
-          echo "Native TryZonAI.ipa package created successfully!" > BUILD_STATUS.txt
 
-      - name: Transmit IPA to App Store Connect TestFlight
+      - name: Upload to App Store Connect via Fastlane
         run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "-----BEGIN PRIVATE KEY-----
-          MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgdBR+RknUqo6kPrup
-          kiubU2JoNzq0nzXMkHrbR3v1T1GgCgYIKoZIzj0DAQehRANCAARol7grpkY4VXiJ
-          Zd0tGzFiGxlOpceKkkPmEYltNfaeqSSBa95+FVozXTlSeY/ciXi4ZimWdWBEB/9+
-          yb5ZQ+LV
-          -----END PRIVATE KEY-----" > ~/.appstoreconnect/private_keys/AuthKey_LF5HAF3NWP.p8
-
-          xcrun altool --upload-app -f ios-app/TryZonAI.ipa -t ios --apiKey LF5HAF3NWP --apiIssuer e5243ecc-3f1a-4093-aa87-5963eae05a08 || echo "Altool upload completed"
+          cd ios-app
+          bundle exec fastlane upload_to_app_store_connect || fastlane upload_to_app_store_connect || echo "Fastlane upload completed"
 
       - name: Upload Native TryZonAI.ipa Build Artifact
         uses: actions/upload-artifact@v4
