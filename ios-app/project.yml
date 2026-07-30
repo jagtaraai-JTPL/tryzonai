@@ -1,0 +1,21 @@
+name: TryZonAI
+options:
+  bundleIdPrefix: com.jagtarapvtltd
+  deploymentTarget:
+    iOS: 16.0
+targets:
+  TryZonAI:
+    type: application
+    platform: iOS
+    deploymentTarget: 16.0
+    sources:
+      - TryZonAI
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.jagtarapvtltd.tryzonai
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_FILE: TryZonAI/Resources/Info.plist
+      MARKETING_VERSION: 1.0.0
+      CURRENT_PROJECT_VERSION: 1
+      DEVELOPMENT_TEAM: 4WRPJFD6RA
+      CODE_SIGNING_REQUIRED: NO
+      CODE_SIGN_IDENTITY: ""

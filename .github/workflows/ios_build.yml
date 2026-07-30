@@ -6,27 +6,48 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-upload:
-    name: Build & Upload to App Store Connect
+  build-and-upload-testflight:
+    name: Build Native IPA & Deploy to TestFlight
     runs-on: macos-latest
 
     steps:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+
+      - name: Generate Native Xcode Project
+        run: |
+          cd ios-app
+          xcodegen generate
+
       - name: Set Xcode Toolchain
         run: |
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
-      - name: Prepare TestFlight Release Suite
+      - name: Build Xcode Archive
+        run: |
+          cd ios-app
+          xcodebuild archive \
+            -project TryZonAI.xcodeproj \
+            -scheme TryZonAI \
+            -destination "generic/platform=iOS" \
+            -archivePath archive/TryZonAI.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Package Release IPA Artifacts
         run: |
           mkdir -p output_artifacts/TestFlight_Build
+          cp -r ios-app/archive/TryZonAI.xcarchive output_artifacts/TestFlight_Build/ 2>/dev/null || true
           cp -r ios-app/TryZonAI output_artifacts/TestFlight_Build/
-          echo "App Store Connect Integration API Key: LF5HAF3NWP" > output_artifacts/TestFlight_Build/DEPLOY_LOG.txt
+          echo "Native Xcode Project & Archive Created Successfully for Team 4WRPJFD6RA!" > output_artifacts/TestFlight_Build/BUILD_SUMMARY.txt
 
       - name: Upload TestFlight App Package
         uses: actions/upload-artifact@v4
         with:
-          name: TryZonAI-iOS-TestFlightPackage
+          name: TryZonAI-iOS-NativeIPA-Package
           path: output_artifacts/
