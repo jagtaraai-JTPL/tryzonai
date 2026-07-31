@@ -24,6 +24,6 @@ targets:
       CODE_SIGN_STYLE: Manual
       CODE_SIGNING_ALLOWED: YES
       CODE_SIGNING_REQUIRED: YES
-      CODE_SIGN_IDENTITY: "Apple Distribution: JAGTARA PRIVATE LIMITED (4WRPJFD6RA)"
+      CODE_SIGN_IDENTITY: "Apple Distribution"
       PROVISIONING_PROFILE_SPECIFIER: "TryZon AI App Store Profile"
 
