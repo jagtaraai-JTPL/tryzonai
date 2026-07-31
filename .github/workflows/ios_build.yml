@@ -16,7 +16,10 @@ jobs:
 
       - name: Install XcodeGen
         run: |
-          HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          export HOMEBREW_NO_REQUIRE_TAP_TRUST=1
+          brew untap aws/tap || true
+          which xcodegen || brew install xcodegen
 
       - name: Generate Xcode Project
         run: |
@@ -34,9 +37,9 @@ jobs:
           
           cat ios-app/cert_base64.txt | base64 --decode > $RUNNER_TEMP/certificate.p12
           security import $RUNNER_TEMP/certificate.p12 -k $KEYCHAIN_PATH -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign || true
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
           security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
           security default-keychain -s $KEYCHAIN_PATH
-
 
       - name: Install App Store Provisioning Profile
         run: |
@@ -46,6 +49,9 @@ jobs:
           echo "Provisioning Profile installed successfully!"
 
       - name: Build & Upload to App Store Connect via Fastlane Gym & Pilot
+        env:
+          KEYCHAIN_PATH: ${{ runner.temp }}/build.keychain
+          KEYCHAIN_PASSWORD: "tryzonpassword123"
         run: |
           cd ios-app
           fastlane upload_to_app_store_connect
@@ -55,3 +61,4 @@ jobs:
         with:
           name: TryZonAI-iOS-SignedReleaseIPA
           path: ios-app/TryZonAI.ipa
+
