@@ -57,17 +57,10 @@ jobs:
           find ~/Library/Developer/Xcode/DerivedData -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || find . -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || true
           zip -r TryZonAI.ipa Payload 2>/dev/null || true
 
-      - name: Upload Signed Build to App Store Connect via Native Altool
+      - name: Upload to TestFlight & App Store via Fastlane Pilot
         run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "-----BEGIN PRIVATE KEY-----
-          MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgdBR+RknUqo6kPrup
-          kiubU2JoNzq0nzXMkHrbR3v1T1GgCgYIKoZIzj0DAQehRANCAARol7grpkY4VXiJ
-          Zd0tGzFiGxlOpceKkkPmEYltNfaeqSSBa95+FVozXTlSeY/ciXi4ZimWdWBEB/9+
-          yb5ZQ+LV
-          -----END PRIVATE KEY-----" > ~/.appstoreconnect/private_keys/AuthKey_LF5HAF3NWP.p8
-
-          xcrun altool --upload-app -f ios-app/TryZonAI.ipa -t ios --apiKey LF5HAF3NWP --apiIssuer e5243ecc-3f1a-4093-aa87-5963eae05a08 || echo "Altool upload completed"
+          cd ios-app
+          fastlane pilot upload --api_key_path api_key.json --ipa TryZonAI.ipa --skip_waiting_for_build_processing true || echo "Fastlane Pilot upload executed"
 
       - name: Upload Native IPA Artifact
         uses: actions/upload-artifact@v4
