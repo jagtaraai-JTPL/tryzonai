@@ -8,6 +8,8 @@
     <string>4WRPJFD6RA</string>
     <key>uploadSymbols</key>
     <true/>
+    <key>signingCertificate</key>
+    <string>Apple Distribution</string>
     <key>signingStyle</key>
     <string>manual</string>
     <key>provisioningProfiles</key>

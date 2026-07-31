@@ -16,20 +16,14 @@ platform :ios do
       in_house: false
     )
 
+    export_options_path = File.expand_path("../ExportOptions.plist", __dir__)
+
     build_app(
       project: project_path,
       scheme: "TryZonAI",
       destination: "generic/platform=iOS",
       export_method: "app-store",
-      export_options: {
-        method: "app-store",
-        teamID: "4WRPJFD6RA",
-        uploadSymbols: true,
-        signingStyle: "manual",
-        provisioningProfiles: {
-          "com.jagtarapvtltd.tryzonai" => "TryZon AI App Store Profile"
-        }
-      },
+      export_options: export_options_path,
       output_directory: output_dir,
       output_name: "TryZonAI.ipa",
       clean: true,
