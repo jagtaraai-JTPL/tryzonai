@@ -71,6 +71,14 @@ jobs:
 
       - name: Archive Native iOS Release App
         run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD="tryzonpassword123"
+          
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
+          security default-keychain -s $KEYCHAIN_PATH
+          echo "=== VALID CODESIGN IDENTITIES IN STEP ==="
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+
           xcodebuild -project ios-app/TryZonAI.xcodeproj \
             -scheme TryZonAI \
             -sdk iphoneos \
@@ -84,6 +92,12 @@ jobs:
 
       - name: Export Release IPA Package
         run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD="tryzonpassword123"
+          
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
+          security default-keychain -s $KEYCHAIN_PATH
+
           xcodebuild -exportArchive \
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
             -exportOptionsPlist ios-app/ExportOptions.plist \
