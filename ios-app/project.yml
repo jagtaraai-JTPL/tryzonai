@@ -27,6 +27,7 @@ targets:
       CODE_SIGNING_ALLOWED: YES
       CODE_SIGNING_REQUIRED: YES
       CODE_SIGN_IDENTITY: "Apple Distribution"
+      PROVISIONING_PROFILE: "eefdb9c3-e6e2-4c13-8b2b-56589855b096"
       PROVISIONING_PROFILE_SPECIFIER: "TryZon AI App Store Profile"
       CODE_SIGN_ENTITLEMENTS: TryZonAI/TryZonAI.entitlements
 
