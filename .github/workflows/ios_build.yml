@@ -59,29 +59,31 @@ jobs:
           ls -la "$PROFILES_DIR"
           echo "Provisioning Profile installed successfully!"
 
-      - name: Build Signed Release IPA via Fastlane Gym
-        env:
-          KEYCHAIN_PATH: ${{ runner.temp }}/build.keychain
-          KEYCHAIN_PASSWORD: "tryzonpassword123"
+      - name: Archive Native iOS Release App
         run: |
-          cd ios-app
-          fastlane build_signed_ipa --verbose
+          xcodebuild -project ios-app/TryZonAI.xcodeproj \
+            -scheme TryZonAI \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
+            archive
 
-      - name: Upload Native IPA Artifact
+      - name: Export Release IPA Package
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
+            -exportOptionsPlist ios-app/ExportOptions.plist \
+            -exportPath ios-app
+
+      - name: Upload Native Signed IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: TryZonAI-iOS-SignedReleaseIPA
-          path: ios-app/TryZonAI.ipa
+          path: ios-app/*.ipa
 
       - name: Upload Signed IPA to App Store Connect / TestFlight via Fastlane Pilot
         continue-on-error: true
         run: |
           cd ios-app
           fastlane upload_to_app_store_connect
-
-      - name: Output Diagnostic Logs on Failure
-        if: failure()
-        run: |
-          echo "=== FASTLANE & GYM DIAGNOSTIC LOGS ==="
-          find ~/Library/Logs -type f -exec echo "--- FILE: {} ---" \; -exec cat {} \; 2>/dev/null || true
 
