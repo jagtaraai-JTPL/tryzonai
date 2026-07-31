@@ -19,6 +19,7 @@ platform :ios do
     build_app(
       project: project_path,
       scheme: "TryZonAI",
+      destination: "generic/platform=iOS",
       export_method: "app-store",
       export_options: {
         method: "app-store",

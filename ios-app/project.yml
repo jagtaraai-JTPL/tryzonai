@@ -1,6 +1,7 @@
 name: TryZonAI
 options:
   bundleIdPrefix: com.jagtarapvtltd
+  createSharedSchemes: true
   deploymentTarget:
     iOS: 16.0
 targets:
