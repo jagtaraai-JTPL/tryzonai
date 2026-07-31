@@ -59,6 +59,14 @@ jobs:
           ls -la "$PROFILES_DIR"
           echo "Provisioning Profile installed successfully!"
 
+      - name: Verify Certificate & Keychain Setup
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          echo "=== CODESIGN IDENTITIES IN KEYCHAIN ==="
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+          echo "=== PROVISIONING PROFILES ==="
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles"
+
       - name: Archive Native iOS Release App
         run: |
           xcodebuild -project ios-app/TryZonAI.xcodeproj \
@@ -68,9 +76,8 @@ jobs:
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
             DEVELOPMENT_TEAM="4WRPJFD6RA" \
             CODE_SIGN_STYLE="Manual" \
-            CODE_SIGN_IDENTITY="Apple Distribution: JAGTARA PRIVATE LIMITED (4WRPJFD6RA)" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
-            PROVISIONING_PROFILE="eefdb9c3-e6e2-4c13-8b2b-56589855b096" \
             archive
 
       - name: Export Release IPA Package
