@@ -86,9 +86,8 @@ jobs:
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
             DEVELOPMENT_TEAM="4WRPJFD6RA" \
             CODE_SIGN_STYLE="Manual" \
-            CODE_SIGN_IDENTITY="Apple Distribution: JAGTARA PRIVATE LIMITED (4WRPJFD6RA)" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
-            PROVISIONING_PROFILE="eefdb9c3-e6e2-4c13-8b2b-56589855b096" \
             clean archive > /tmp/xcodebuild_archive.log 2>&1 || {
               STATUS=$?
               echo "=== XCODEBUILD ARCHIVE FAILURE LOG DUMP ==="
