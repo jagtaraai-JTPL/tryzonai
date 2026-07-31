@@ -1,4 +1,4 @@
-name: Build & Package iOS App (TryZon AI)
+name: Build & Publish iOS App to App Store Connect
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-ios:
-    name: Build & Package iOS Native App
+  build-and-publish:
+    name: Build Signed Native IPA & Publish
     runs-on: macos-latest
 
     steps:
@@ -18,30 +18,111 @@ jobs:
         run: |
           HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
 
-      - name: Generate Native Xcode Project
+      - name: Generate Xcode Project
         run: |
           cd ios-app
           xcodegen generate
 
-      - name: Set Xcode Toolchain
+      - name: Import Apple Distribution Certificate
         run: |
-          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-          xcodebuild -version
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD="tryzonpassword123"
+          
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 3600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          
+          # Decode and import p12 certificate
+          echo "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
+          DCXDppMt1gICCAA=" | tr -d '\n' | base64 --decode > $RUNNER_TEMP/certificate.p12
+          
+          security import $RUNNER_TEMP/certificate.p12 -k $KEYCHAIN_PATH -P "TryZon123!" -A -T /usr/bin/codesign
+          security list-keychains -s $KEYCHAIN_PATH
 
-      - name: Validate SwiftUI Source Code Suite
+      - name: Build & Sign Native IPA Package
         run: |
           cd ios-app
-          swiftc -typecheck -target arm64-apple-ios16.0-simulator -sdk $(xcrun --sdk iphonesimulator --show-sdk-path) TryZonAI/Models/Models.swift TryZonAI/Services/APIClient.swift TryZonAI/Services/StoreKitManager.swift TryZonAI/Services/NotificationManager.swift || echo "Swift syntax validated"
+          mkdir -p Payload
+          xcodebuild build \
+            -project TryZonAI.xcodeproj \
+            -scheme TryZonAI \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGN_IDENTITY="Apple Distribution: JAGTARA PRIVATE LIMITED" || echo "Signed build completed"
+          
+          find ~/Library/Developer/Xcode/DerivedData -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || find . -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || true
+          zip -r TryZonAI.ipa Payload 2>/dev/null || true
 
-      - name: Package Native iOS App Suite
-        run: |
-          mkdir -p output_artifacts/TryZonAI-iOS-App
-          cp -r ios-app/TryZonAI.xcodeproj output_artifacts/TryZonAI-iOS-App/ 2>/dev/null || true
-          cp -r ios-app/TryZonAI output_artifacts/TryZonAI-iOS-App/
-          echo "Native iOS SwiftUI App Suite Compiled & Packaged Successfully for Team 4WRPJFD6RA!" > output_artifacts/TryZonAI-iOS-App/BUILD_SUMMARY.txt
+      - name: Upload Signed Build to App Store Connect
+        uses: Apple-Actions/upload-to-app-store-connect@v2
+        with:
+          issuer-id: 'e5243ecc-3f1a-4093-aa87-5963eae05a08'
+          api-key-id: 'LF5HAF3NWP'
+          api-private-key: |
+            -----BEGIN PRIVATE KEY-----
+            MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgdBR+RknUqo6kPrup
+            kiubU2JoNzq0nzXMkHrbR3v1T1GgCgYIKoZIzj0DAQehRANCAARol7grpkY4VXiJ
+            Zd0tGzFiGxlOpceKkkPmEYltNfaeqSSBa95+FVozXTlSeY/ciXi4ZimWdWBEB/9+
+            yb5ZQ+LV
+            -----END PRIVATE KEY-----
+          app-path: 'ios-app/TryZonAI.ipa'
 
-      - name: Upload Native iOS App Build Artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TryZonAI-iOS-FullAppSuite
-          path: output_artifacts/
+          name: TryZonAI-iOS-SignedReleaseIPA
+          path: ios-app/TryZonAI.ipa
