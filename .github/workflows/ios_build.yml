@@ -101,6 +101,7 @@ jobs:
           
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
           security default-keychain -s $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" -a $KEYCHAIN_PATH || true
 
           cd ios-app
           xcodebuild -exportArchive \
