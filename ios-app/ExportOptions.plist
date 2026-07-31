@@ -9,6 +9,11 @@
     <key>uploadSymbols</key>
     <true/>
     <key>signingStyle</key>
-    <string>automatic</string>
+    <string>manual</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.jagtarapvtltd.tryzonai</key>
+        <string>TryZon AI App Store Profile</string>
+    </dict>
 </dict>
 </plist>
