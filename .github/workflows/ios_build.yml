@@ -88,12 +88,7 @@ jobs:
             CODE_SIGN_STYLE="Manual" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
-            clean archive > /tmp/xcodebuild_archive.log 2>&1 || {
-              STATUS=$?
-              echo "=== XCODEBUILD ARCHIVE FAILURE LOG DUMP ==="
-              cat /tmp/xcodebuild_archive.log
-              exit $STATUS
-            }
+            archive
 
       - name: Export Release IPA Package
         run: |
@@ -107,12 +102,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath . > /tmp/xcodebuild_export.log 2>&1 || {
-              STATUS=$?
-              echo "=== XCODEBUILD EXPORT FAILURE LOG DUMP ==="
-              cat /tmp/xcodebuild_export.log
-              exit $STATUS
-            }
+            -exportPath .
 
       - name: Upload Native Signed IPA Artifact
         uses: actions/upload-artifact@v4
