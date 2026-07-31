@@ -43,22 +43,21 @@ jobs:
           security import $RUNNER_TEMP/AppleWWDRCAG3.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign -T /usr/bin/productsign || true
           security import $RUNNER_TEMP/AppleWWDRCAG6.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign -T /usr/bin/productsign || true
 
-          # Import Apple Distribution Certificate & Private Key
-          cat ios-app/cert_base64.txt | base64 -d > $RUNNER_TEMP/certificate.p12 || cat ios-app/cert_base64.txt | base64 -D > $RUNNER_TEMP/certificate.p12
+          # Decode and Import Apple Distribution Certificate & Private Key
+          python3 -c "import base64; open('$RUNNER_TEMP/certificate.p12', 'wb').write(base64.b64decode(open('ios-app/cert_base64.txt').read()))"
           ls -la $RUNNER_TEMP/certificate.p12
           security import $RUNNER_TEMP/certificate.p12 -k $KEYCHAIN_PATH -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/security || true
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
-          security list-keychains -d user -s "$KEYCHAIN_PATH" /Library/Keychains/System.keychain
           security default-keychain -s $KEYCHAIN_PATH
 
       - name: Install App Store Provisioning Profile
         run: |
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
-          cat ios-app/profile_base64.txt | base64 -d > "$PROFILES_DIR/eefdb9c3-e6e2-4c13-8b2b-56589855b096.mobileprovision" || cat ios-app/profile_base64.txt | base64 -D > "$PROFILES_DIR/eefdb9c3-e6e2-4c13-8b2b-56589855b096.mobileprovision"
-          cat ios-app/profile_base64.txt | base64 -d > "$PROFILES_DIR/TryZon_AI_App_Store_Profile.mobileprovision" || cat ios-app/profile_base64.txt | base64 -D > "$PROFILES_DIR/TryZon_AI_App_Store_Profile.mobileprovision"
+          python3 -c "import base64; open('$PROFILES_DIR/eefdb9c3-e6e2-4c13-8b2b-56589855b096.mobileprovision', 'wb').write(base64.b64decode(open('ios-app/profile_base64.txt').read()))"
+          python3 -c "import base64; open('$PROFILES_DIR/TryZon_AI_App_Store_Profile.mobileprovision', 'wb').write(base64.b64decode(open('ios-app/profile_base64.txt').read()))"
           ls -la "$PROFILES_DIR"
-          echo "Provisioning Profile installed successfully with UUID eefdb9c3-e6e2-4c13-8b2b-56589855b096!"
+          echo "Provisioning Profile installed successfully!"
 
       - name: Build Signed Release IPA via Fastlane Gym
         env:
