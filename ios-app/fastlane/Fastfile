@@ -3,23 +3,31 @@ default_platform(:ios)
 platform :ios do
   desc "Build and Upload iOS App to App Store Connect / TestFlight"
   lane :upload_to_app_store_connect do
+    auth_key_path = File.expand_path("../AuthKey_LF5HAF3NWP.p8", __dir__)
+    export_options_path = File.expand_path("../ExportOptions.plist", __dir__)
+    project_path = File.expand_path("../TryZonAI.xcodeproj", __dir__)
+    output_dir = File.expand_path("..", __dir__)
+    ipa_path = File.expand_path("../TryZonAI.ipa", __dir__)
+
     api_key = app_store_connect_api_key(
       key_id: "LF5HAF3NWP",
       issuer_id: "e5243ecc-3f1a-4093-aa87-5963eae05a08",
-      key_filepath: "AuthKey_LF5HAF3NWP.p8"
+      key_filepath: auth_key_path
     )
+
     build_app(
-      project: "TryZonAI.xcodeproj",
+      project: project_path,
       scheme: "TryZonAI",
       export_method: "app-store",
-      export_options: "ExportOptions.plist",
-      output_directory: ".",
+      export_options: export_options_path,
+      output_directory: output_dir,
       output_name: "TryZonAI.ipa",
       skip_profile_detection: true
     )
+
     upload_to_testflight(
       api_key: api_key,
-      ipa: "TryZonAI.ipa",
+      ipa: ipa_path,
       skip_waiting_for_build_processing: true
     )
   end

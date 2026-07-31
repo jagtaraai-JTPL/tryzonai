@@ -48,7 +48,7 @@ jobs:
       - name: Build & Upload to App Store Connect via Fastlane Gym & Pilot
         run: |
           cd ios-app
-          bundle exec fastlane upload_to_app_store_connect || fastlane upload_to_app_store_connect || echo "Fastlane execution completed"
+          fastlane upload_to_app_store_connect
 
       - name: Upload Native IPA Artifact
         uses: actions/upload-artifact@v4
