@@ -15,6 +15,7 @@ targets:
           - "*.png"
           - "*.p8"
           - "Resources/Info.plist"
+          - "*.entitlements"
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.jagtarapvtltd.tryzonai
       GENERATE_INFOPLIST_FILE: NO

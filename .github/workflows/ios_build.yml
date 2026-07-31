@@ -90,11 +90,7 @@ jobs:
             CODE_SIGN_STYLE="Manual" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
-            archive 2>&1 | tee /tmp/xcodebuild_archive.log || {
-              echo "=== XCODEBUILD ARCHIVE ERROR DETAILS ==="
-              grep -i -C 5 "error:" /tmp/xcodebuild_archive.log || tail -n 60 /tmp/xcodebuild_archive.log
-              exit 65
-            }
+            archive
 
       - name: Export Release IPA Package
         run: |
