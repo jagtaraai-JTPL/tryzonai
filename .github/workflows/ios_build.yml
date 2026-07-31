@@ -14,12 +14,12 @@ jobs:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
-      - name: Install XcodeGen
+      - name: Install XcodeGen (Direct Binary)
         run: |
-          export HOMEBREW_NO_AUTO_UPDATE=1
-          export HOMEBREW_NO_REQUIRE_TAP_TRUST=1
-          brew untap aws/tap || true
-          which xcodegen || brew install xcodegen
+          curl -sL https://github.com/yonaskolb/XcodeGen/releases/download/2.42.0/xcodegen.zip -o /tmp/xcodegen.zip
+          unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen_dist
+          sudo cp /tmp/xcodegen_dist/xcodegen/bin/xcodegen /usr/local/bin/
+          xcodegen --version
 
       - name: Generate Xcode Project
         run: |
@@ -56,6 +56,12 @@ jobs:
         run: |
           cd ios-app
           fastlane upload_to_app_store_connect
+
+      - name: Output Fastlane Logs on Failure
+        if: failure()
+        run: |
+          echo "=== FASTLANE GYM LOGS ==="
+          cat ~/Library/Logs/gym/*.log 2>/dev/null || true
 
       - name: Upload Native IPA Artifact
         uses: actions/upload-artifact@v4
