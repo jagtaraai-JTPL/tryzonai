@@ -45,8 +45,9 @@ jobs:
         run: |
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
+          cat ios-app/profile_base64.txt | base64 --decode > "$PROFILES_DIR/eefdb9c3-e6e2-4c13-8b2b-56589855b096.mobileprovision"
           cat ios-app/profile_base64.txt | base64 --decode > "$PROFILES_DIR/TryZon_AI_App_Store_Profile.mobileprovision"
-          echo "Provisioning Profile installed successfully!"
+          echo "Provisioning Profile installed successfully with UUID eefdb9c3-e6e2-4c13-8b2b-56589855b096!"
 
       - name: Build & Upload to App Store Connect via Fastlane Gym & Pilot
         env:

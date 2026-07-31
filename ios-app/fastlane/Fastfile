@@ -22,7 +22,9 @@ platform :ios do
       export_options: export_options_path,
       output_directory: output_dir,
       output_name: "TryZonAI.ipa",
-      skip_profile_detection: true
+      skip_profile_detection: true,
+      keychain_path: ENV["KEYCHAIN_PATH"],
+      keychain_password: ENV["KEYCHAIN_PASSWORD"]
     )
 
     upload_to_testflight(
