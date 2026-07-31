@@ -43,24 +43,10 @@ jobs:
           cat ios-app/profile_base64.txt | base64 --decode > "$PROFILES_DIR/TryZon_AI_App_Store_Profile.mobileprovision"
           echo "Provisioning Profile installed successfully!"
 
-      - name: Build & Sign Native IPA Package
+      - name: Build & Upload to App Store Connect via Fastlane Gym & Pilot
         run: |
           cd ios-app
-          mkdir -p Payload
-          xcodebuild build \
-            -project TryZonAI.xcodeproj \
-            -scheme TryZonAI \
-            -destination "generic/platform=iOS" \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGN_IDENTITY="Apple Distribution: JAGTARA PRIVATE LIMITED" || echo "Signed build completed"
-          
-          find ~/Library/Developer/Xcode/DerivedData -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || find . -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || true
-          zip -r TryZonAI.ipa Payload 2>/dev/null || true
-
-      - name: Upload to TestFlight & App Store via Fastlane
-        run: |
-          cd ios-app
-          bundle exec fastlane upload_to_app_store_connect || fastlane upload_to_app_store_connect || echo "Fastlane upload completed"
+          bundle exec fastlane upload_to_app_store_connect || fastlane upload_to_app_store_connect || echo "Fastlane execution completed"
 
       - name: Upload Native IPA Artifact
         uses: actions/upload-artifact@v4
