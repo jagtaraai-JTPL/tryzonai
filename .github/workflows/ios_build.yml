@@ -60,23 +60,28 @@ jobs:
           ls -la "$PROFILES_DIR"
           echo "Provisioning Profile installed successfully with UUID eefdb9c3-e6e2-4c13-8b2b-56589855b096!"
 
-      - name: Build & Upload to App Store Connect via Fastlane Gym & Pilot
+      - name: Build Signed Release IPA via Fastlane Gym
         env:
           KEYCHAIN_PATH: ${{ runner.temp }}/build.keychain
           KEYCHAIN_PASSWORD: "tryzonpassword123"
         run: |
           cd ios-app
-          fastlane upload_to_app_store_connect
-
-      - name: Output Fastlane Logs on Failure
-        if: failure()
-        run: |
-          echo "=== FASTLANE & GYM DIAGNOSTIC LOGS ==="
-          find ~/Library/Logs -type f -exec echo "--- FILE: {} ---" \; -exec cat {} \; 2>/dev/null || true
+          fastlane build_signed_ipa
 
       - name: Upload Native IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: TryZonAI-iOS-SignedReleaseIPA
           path: ios-app/TryZonAI.ipa
+
+      - name: Upload Signed IPA to App Store Connect / TestFlight via Fastlane Pilot
+        run: |
+          cd ios-app
+          fastlane upload_to_app_store_connect
+
+      - name: Output Diagnostic Logs on Failure
+        if: failure()
+        run: |
+          echo "=== FASTLANE & GYM DIAGNOSTIC LOGS ==="
+          find ~/Library/Logs -type f -exec echo "--- FILE: {} ---" \; -exec cat {} \; 2>/dev/null || true
 

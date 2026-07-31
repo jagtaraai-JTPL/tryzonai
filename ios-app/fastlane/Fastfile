@@ -1,21 +1,10 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Build and Upload iOS App to App Store Connect / TestFlight"
-  lane :upload_to_app_store_connect do
-    auth_key_path = File.expand_path("../AuthKey_LF5HAF3NWP.p8", __dir__)
+  desc "Build Signed iOS App IPA"
+  lane :build_signed_ipa do
     project_path = File.expand_path("../TryZonAI.xcodeproj", __dir__)
     output_dir = File.expand_path("..", __dir__)
-    ipa_path = File.expand_path("../TryZonAI.ipa", __dir__)
-
-    api_key = app_store_connect_api_key(
-      key_id: "LF5HAF3NWP",
-      issuer_id: "e5243ecc-3f1a-4093-aa87-5963eae05a08",
-      key_filepath: auth_key_path,
-      duration: 1200,
-      in_house: false
-    )
-
     export_options_path = File.expand_path("../ExportOptions.plist", __dir__)
 
     build_app(
@@ -31,6 +20,20 @@ platform :ios do
       keychain_path: ENV["KEYCHAIN_PATH"],
       keychain_password: ENV["KEYCHAIN_PASSWORD"],
       xcargs: "CODE_SIGN_KEYCHAIN=\"#{ENV['KEYCHAIN_PATH']}\" CODE_SIGN_IDENTITY=\"Apple Distribution: JAGTARA PRIVATE LIMITED (4WRPJFD6RA)\""
+    )
+  end
+
+  desc "Upload Signed IPA to App Store Connect / TestFlight"
+  lane :upload_to_app_store_connect do
+    auth_key_path = File.expand_path("../AuthKey_LF5HAF3NWP.p8", __dir__)
+    ipa_path = File.expand_path("../TryZonAI.ipa", __dir__)
+
+    api_key = app_store_connect_api_key(
+      key_id: "LF5HAF3NWP",
+      issuer_id: "e5243ecc-3f1a-4093-aa87-5963eae05a08",
+      key_filepath: auth_key_path,
+      duration: 1200,
+      in_house: false
     )
 
     upload_to_testflight(
