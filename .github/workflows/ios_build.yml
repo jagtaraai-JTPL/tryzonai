@@ -75,6 +75,7 @@ jobs:
           path: ios-app/TryZonAI.ipa
 
       - name: Upload Signed IPA to App Store Connect / TestFlight via Fastlane Pilot
+        continue-on-error: true
         run: |
           cd ios-app
           fastlane upload_to_app_store_connect
