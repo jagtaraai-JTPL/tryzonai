@@ -57,7 +57,8 @@ jobs:
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
           python3 -c "import base64; open('$PROFILES_DIR/eefdb9c3-e6e2-4c13-8b2b-56589855b096.mobileprovision', 'wb').write(base64.b64decode(open('ios-app/profile_base64.txt').read()))"
-          python3 -c "import base64; open('$PROFILES_DIR/TryZon_AI_App_Store_Profile.mobileprovision', 'wb').write(base64.b64decode(open('ios-app/profile_base64.txt').read()))"
+          cp "$PROFILES_DIR/eefdb9c3-e6e2-4c13-8b2b-56589855b096.mobileprovision" "$PROFILES_DIR/TryZon_AI_App_Store_Profile.mobileprovision"
+          cp "$PROFILES_DIR/eefdb9c3-e6e2-4c13-8b2b-56589855b096.mobileprovision" "$PROFILES_DIR/TryZon AI App Store Profile.mobileprovision"
           ls -la "$PROFILES_DIR"
           echo "Provisioning Profile installed successfully!"
 
@@ -79,7 +80,8 @@ jobs:
           echo "=== VALID CODESIGN IDENTITIES IN STEP ==="
           security find-identity -v -p codesigning $KEYCHAIN_PATH
 
-          xcodebuild -project ios-app/TryZonAI.xcodeproj \
+          cd ios-app
+          xcodebuild -project TryZonAI.xcodeproj \
             -scheme TryZonAI \
             -sdk iphoneos \
             -configuration Release \
@@ -102,10 +104,11 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
           security default-keychain -s $KEYCHAIN_PATH
 
+          cd ios-app
           xcodebuild -exportArchive \
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
-            -exportOptionsPlist ios-app/ExportOptions.plist \
-            -exportPath ios-app
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath .
 
       - name: Upload Native Signed IPA Artifact
         uses: actions/upload-artifact@v4
