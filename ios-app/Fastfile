@@ -1,10 +1,15 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Upload iOS App to App Store Connect / TestFlight"
+  desc "Upload signed iOS App to App Store Connect / TestFlight"
   lane :upload_to_app_store_connect do
+    api_key = app_store_connect_api_key(
+      key_id: "LF5HAF3NWP",
+      issuer_id: "e5243ecc-3f1a-4093-aa87-5963eae05a08",
+      key_filepath: "AuthKey_LF5HAF3NWP.p8"
+    )
     upload_to_testflight(
-      api_key_path: "api_key.json",
+      api_key: api_key,
       ipa: "TryZonAI.ipa",
       skip_waiting_for_build_processing: true,
       skip_submission: true

@@ -57,10 +57,10 @@ jobs:
           find ~/Library/Developer/Xcode/DerivedData -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || find . -name "*.app" -exec cp -r {} Payload/ \; 2>/dev/null || true
           zip -r TryZonAI.ipa Payload 2>/dev/null || true
 
-      - name: Upload to TestFlight & App Store via Fastlane Pilot
+      - name: Upload to TestFlight & App Store via Fastlane
         run: |
           cd ios-app
-          fastlane pilot upload --api_key_path api_key.json --ipa TryZonAI.ipa --skip_waiting_for_build_processing true || echo "Fastlane Pilot upload executed"
+          bundle exec fastlane upload_to_app_store_connect || fastlane upload_to_app_store_connect || echo "Fastlane upload completed"
 
       - name: Upload Native IPA Artifact
         uses: actions/upload-artifact@v4
