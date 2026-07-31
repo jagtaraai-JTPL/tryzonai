@@ -82,7 +82,7 @@ jobs:
           cd ios-app
           xcodebuild -project TryZonAI.xcodeproj \
             -scheme TryZonAI \
-            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
             -configuration Release \
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
             DEVELOPMENT_TEAM="4WRPJFD6RA" \
