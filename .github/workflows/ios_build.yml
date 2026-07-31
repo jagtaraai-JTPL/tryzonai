@@ -77,8 +77,6 @@ jobs:
           
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
           security default-keychain -s $KEYCHAIN_PATH
-          echo "=== VALID CODESIGN IDENTITIES IN STEP ==="
-          security find-identity -v -p codesigning $KEYCHAIN_PATH
 
           cd ios-app
           xcodebuild -project TryZonAI.xcodeproj \
@@ -88,9 +86,15 @@ jobs:
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
             DEVELOPMENT_TEAM="4WRPJFD6RA" \
             CODE_SIGN_STYLE="Manual" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
+            CODE_SIGN_IDENTITY="Apple Distribution: JAGTARA PRIVATE LIMITED (4WRPJFD6RA)" \
             PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
-            archive
+            PROVISIONING_PROFILE="eefdb9c3-e6e2-4c13-8b2b-56589855b096" \
+            clean archive > /tmp/xcodebuild_archive.log 2>&1 || {
+              STATUS=$?
+              echo "=== XCODEBUILD ARCHIVE FAILURE LOG DUMP ==="
+              cat /tmp/xcodebuild_archive.log
+              exit $STATUS
+            }
 
       - name: Export Release IPA Package
         run: |
@@ -104,7 +108,12 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath .
+            -exportPath . > /tmp/xcodebuild_export.log 2>&1 || {
+              STATUS=$?
+              echo "=== XCODEBUILD EXPORT FAILURE LOG DUMP ==="
+              cat /tmp/xcodebuild_export.log
+              exit $STATUS
+            }
 
       - name: Upload Native Signed IPA Artifact
         uses: actions/upload-artifact@v4
