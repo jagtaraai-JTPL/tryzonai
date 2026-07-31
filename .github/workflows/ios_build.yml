@@ -65,7 +65,7 @@ jobs:
           KEYCHAIN_PASSWORD: "tryzonpassword123"
         run: |
           cd ios-app
-          fastlane build_signed_ipa
+          fastlane build_signed_ipa --verbose
 
       - name: Upload Native IPA Artifact
         uses: actions/upload-artifact@v4

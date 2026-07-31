@@ -19,7 +19,7 @@ platform :ios do
       skip_profile_detection: true,
       keychain_path: ENV["KEYCHAIN_PATH"],
       keychain_password: ENV["KEYCHAIN_PASSWORD"],
-      xcargs: "CODE_SIGN_KEYCHAIN=\"#{ENV['KEYCHAIN_PATH']}\" CODE_SIGN_IDENTITY=\"Apple Distribution: JAGTARA PRIVATE LIMITED (4WRPJFD6RA)\""
+      xcargs: "OTHER_CODE_SIGN_FLAGS=\"--keychain #{ENV['KEYCHAIN_PATH']}\""
     )
   end
 
