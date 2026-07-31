@@ -22,9 +22,10 @@ jobs:
           xcodegen --version
 
       - name: Generate Xcode Project
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           cd ios-app
-          sed -i '' "s/CURRENT_PROJECT_VERSION: 1/CURRENT_PROJECT_VERSION: ${{ github.run_number }}/g" project.yml || sed -i "s/CURRENT_PROJECT_VERSION: 1/CURRENT_PROJECT_VERSION: ${{ github.run_number }}/g" project.yml
           xcodegen generate
 
       - name: Setup Apple Distribution Certificate & Keychain
@@ -44,8 +45,8 @@ jobs:
 
           # Import Apple Distribution Certificate & Private Key
           cat ios-app/cert_base64.txt | base64 --decode > $RUNNER_TEMP/certificate.p12
-          security import $RUNNER_TEMP/certificate.p12 -k $KEYCHAIN_PATH -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign || true
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
+          security import $RUNNER_TEMP/certificate.p12 -k $KEYCHAIN_PATH -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/security || true
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
           security list-keychains -d user -s "$KEYCHAIN_PATH" /Library/Keychains/System.keychain
           security default-keychain -s $KEYCHAIN_PATH
 
@@ -68,8 +69,8 @@ jobs:
       - name: Output Fastlane Logs on Failure
         if: failure()
         run: |
-          echo "=== FASTLANE GYM LOGS ==="
-          cat ~/Library/Logs/gym/*.log 2>/dev/null || true
+          echo "=== FASTLANE & GYM DIAGNOSTIC LOGS ==="
+          find ~/Library/Logs -type f -exec echo "--- FILE: {} ---" \; -exec cat {} \; 2>/dev/null || true
 
       - name: Upload Native IPA Artifact
         uses: actions/upload-artifact@v4
