@@ -34,7 +34,8 @@ platform :ios do
       clean: true,
       skip_profile_detection: true,
       keychain_path: ENV["KEYCHAIN_PATH"],
-      keychain_password: ENV["KEYCHAIN_PASSWORD"]
+      keychain_password: ENV["KEYCHAIN_PASSWORD"],
+      xcargs: "CODE_SIGN_KEYCHAIN=\"#{ENV['KEYCHAIN_PATH']}\" CODE_SIGN_IDENTITY=\"Apple Distribution: JAGTARA PRIVATE LIMITED (4WRPJFD6RA)\""
     )
 
     upload_to_testflight(
