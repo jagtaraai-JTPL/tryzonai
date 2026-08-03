@@ -10,12 +10,10 @@ targets:
     platform: iOS
     deploymentTarget: 16.0
     sources:
-      - path: TryZonAI
-        excludes:
-          - "*.png"
-          - "*.p8"
-          - "Resources/Info.plist"
-          - "*.entitlements"
+      - path: TryZonAI/App
+      - path: TryZonAI/Models
+      - path: TryZonAI/Services
+      - path: TryZonAI/Views
     settings:
       PRODUCT_NAME: TryZonAI
       SWIFT_VERSION: "5.0"
