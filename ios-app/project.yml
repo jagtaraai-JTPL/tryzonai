@@ -20,8 +20,9 @@ targets:
       SWIFT_COMPILATION_MODE: wholemodule
       ALWAYS_SEARCH_USER_PATHS: "NO"
       PRODUCT_BUNDLE_IDENTIFIER: com.jagtarapvtltd.tryzonai
-      GENERATE_INFOPLIST_FILE: NO
-      INFOPLIST_FILE: TryZonAI/Resources/Info.plist
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_KEY_NSCameraUsageDescription: "TryZon AI requires camera access to capture your body photo for instant virtual outfit fitting."
+      INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "TryZon AI requires photo library access to select outfit garments and model pictures for try-on."
       MARKETING_VERSION: 1.0.0
       CURRENT_PROJECT_VERSION: ${BUILD_NUMBER:1}
       DEVELOPMENT_TEAM: 4WRPJFD6RA
