@@ -54,7 +54,7 @@ public class StoreKitManager: ObservableObject {
 
         switch result {
         case .success(let verification):
-            let transaction = try checkVerified(verification)
+            let transaction = try Self.checkVerified(verification)
             await updatePurchasedProducts()
             await transaction.finish()
             
@@ -83,8 +83,8 @@ public class StoreKitManager: ObservableObject {
         }
     }
 
-    // MARK: - Transaction Verification
-    nonisolated private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+    // MARK: - Transaction Verification Helper
+    private static func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified(_, let error):
             throw error
@@ -95,10 +95,10 @@ public class StoreKitManager: ObservableObject {
 
     // MARK: - Transaction Updates Observer
     private func observeTransactionUpdates() -> Task<Void, Never> {
-        Task {
+        Task.detached {
             for await result in Transaction.updates {
                 do {
-                    let transaction = try self.checkVerified(result)
+                    let transaction = try Self.checkVerified(result)
                     await self.updatePurchasedProducts()
                     await transaction.finish()
                 } catch {
