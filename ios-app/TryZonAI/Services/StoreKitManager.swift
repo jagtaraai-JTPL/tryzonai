@@ -95,7 +95,7 @@ public class StoreKitManager: ObservableObject {
 
     // MARK: - Transaction Updates Observer
     private func observeTransactionUpdates() -> Task<Void, Never> {
-        Task.detached {
+        Task {
             for await result in Transaction.updates {
                 do {
                     let transaction = try Self.checkVerified(result)
