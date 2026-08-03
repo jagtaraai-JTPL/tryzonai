@@ -83,6 +83,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" -a $KEYCHAIN_PATH || true
 
           cd ios-app
+          set -o pipefail
           xcodebuild -project TryZonAI.xcodeproj \
             -scheme TryZonAI \
             -destination "generic/platform=iOS" \
@@ -93,7 +94,11 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
             CODE_SIGN_ENTITLEMENTS="TryZonAI/TryZonAI.entitlements" \
-            archive
+            archive 2>&1 | tee /tmp/xcodebuild.log || {
+              echo "=== XCODEBUILD DETAILED ERROR LOG ==="
+              grep -C 5 -i "error:" /tmp/xcodebuild.log || tail -n 100 /tmp/xcodebuild.log
+              exit 65
+            }
 
       - name: Export Release IPA Package
         run: |
