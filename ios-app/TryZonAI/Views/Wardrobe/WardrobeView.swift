@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct WardrobeView: View {
     public init() {}

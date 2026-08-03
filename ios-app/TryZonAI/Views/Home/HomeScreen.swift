@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct HomeScreen: View {
     @StateObject private var apiClient = APIClient.shared

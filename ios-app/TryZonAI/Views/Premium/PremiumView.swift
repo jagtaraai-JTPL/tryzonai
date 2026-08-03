@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreKit
+import UIKit
 
 public struct PremiumView: View {
     @Environment(\.presentationMode) var presentationMode

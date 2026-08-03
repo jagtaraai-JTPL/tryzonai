@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UIKit
 
 public struct TryOnUploadView: View {
     @Environment(\.presentationMode) var presentationMode
