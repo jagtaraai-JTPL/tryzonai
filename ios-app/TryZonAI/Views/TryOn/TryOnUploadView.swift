@@ -66,7 +66,7 @@ public struct TryOnUploadView: View {
                                     }
                                 }
                             }
-                            .onChange(of: selectedPersonItem) { newItem in
+                            .onChange(of: selectedPersonItem) { _, newItem in
                                 Task {
                                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                                        let image = UIImage(data: data) {
@@ -107,7 +107,7 @@ public struct TryOnUploadView: View {
                                     }
                                 }
                             }
-                            .onChange(of: selectedGarmentItem) { newItem in
+                            .onChange(of: selectedGarmentItem) { _, newItem in
                                 Task {
                                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                                        let image = UIImage(data: data) {
