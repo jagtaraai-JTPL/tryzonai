@@ -17,6 +17,8 @@ targets:
           - "Resources/Info.plist"
           - "*.entitlements"
     settings:
+      PRODUCT_NAME: TryZonAI
+      SWIFT_VERSION: "5.0"
       PRODUCT_BUNDLE_IDENTIFIER: com.jagtarapvtltd.tryzonai
       GENERATE_INFOPLIST_FILE: NO
       INFOPLIST_FILE: TryZonAI/Resources/Info.plist
