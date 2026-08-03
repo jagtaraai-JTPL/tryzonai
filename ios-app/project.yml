@@ -19,6 +19,7 @@ targets:
     settings:
       PRODUCT_NAME: TryZonAI
       SWIFT_VERSION: "5.0"
+      SWIFT_COMPILATION_MODE: wholemodule
       ALWAYS_SEARCH_USER_PATHS: "NO"
       PRODUCT_BUNDLE_IDENTIFIER: com.jagtarapvtltd.tryzonai
       GENERATE_INFOPLIST_FILE: NO
