@@ -50,13 +50,10 @@ jobs:
           security import $RUNNER_TEMP/AppleWWDRCAG3.cer -k "$HOME/Library/Keychains/login.keychain-db" -T /usr/bin/codesign -T /usr/bin/productsign || true
           security import $RUNNER_TEMP/AppleWWDRCAG6.cer -k "$HOME/Library/Keychains/login.keychain-db" -T /usr/bin/codesign -T /usr/bin/productsign || true
 
-          # Decode and Import Apple Distribution Certificate & Private Key
+          # Decode and Import Apple Distribution Certificate & Private Key directly
           python3 -c "import base64; open('$RUNNER_TEMP/raw_cert.p12', 'wb').write(base64.b64decode(open('ios-app/cert_base64.txt').read()))"
-          openssl pkcs12 -in $RUNNER_TEMP/raw_cert.p12 -passin pass:"TryZon123!" -nodes -out $RUNNER_TEMP/cert.pem || true
-          openssl pkcs12 -export -in $RUNNER_TEMP/cert.pem -out $RUNNER_TEMP/apple_cert.p12 -passout pass:"TryZon123!" -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1 || true
-          
-          security import $RUNNER_TEMP/apple_cert.p12 -k $KEYCHAIN_PATH -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/security || true
-          security import $RUNNER_TEMP/apple_cert.p12 -k "$HOME/Library/Keychains/login.keychain-db" -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/security || true
+          security import $RUNNER_TEMP/raw_cert.p12 -k $KEYCHAIN_PATH -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/security || true
+          security import $RUNNER_TEMP/raw_cert.p12 -k "$HOME/Library/Keychains/login.keychain-db" -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/security || true
 
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -p "" "$HOME/Library/Keychains/login.keychain-db" || true
@@ -106,7 +103,7 @@ jobs:
             DEVELOPMENT_TEAM="4WRPJFD6RA" \
             CODE_SIGN_STYLE="Manual" \
             CODE_SIGN_KEYCHAIN="$KEYCHAIN_PATH" \
-            CODE_SIGN_IDENTITY="Apple Distribution: JAGTARA PRIVATE LIMITED (4WRPJFD6RA)" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE="eefdb9c3-e6e2-4c13-8b2b-56589855b096" \
             PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
             CODE_SIGN_ENTITLEMENTS="TryZonAI/TryZonAI.entitlements" \
