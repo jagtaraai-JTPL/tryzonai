@@ -1,4 +1,3 @@
-kya mera account ban ho jayega 
 import SwiftUI
 import UIKit
 
