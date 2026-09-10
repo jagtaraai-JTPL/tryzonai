@@ -4,7 +4,6 @@ platform :ios do
   desc "Build Signed iOS App IPA & Upload to App Store Connect / TestFlight"
   lane :build_and_upload do
     project_path = File.expand_path("../TryZonAI.xcodeproj", __dir__)
-    export_options_path = File.expand_path("../ExportOptions.plist", __dir__)
     auth_key_path = File.expand_path("../AuthKey_LF5HAF3NWP.p8", __dir__)
     output_dir = File.expand_path("..", __dir__)
 
@@ -18,9 +17,15 @@ platform :ios do
     build_app(
       project: project_path,
       scheme: "TryZonAI",
-      destination: "generic/platform=iOS",
       export_method: "app-store",
-      export_options: export_options_path,
+      export_options: {
+        method: "app-store",
+        teamID: "4WRPJFD6RA",
+        signingStyle: "manual",
+        provisioningProfiles: {
+          "com.jagtarapvtltd.tryzonai" => "TryZon AI App Store Profile"
+        }
+      },
       output_directory: output_dir,
       output_name: "TryZonAI.ipa",
       clean: true

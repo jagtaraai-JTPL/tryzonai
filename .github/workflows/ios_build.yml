@@ -95,7 +95,7 @@ jobs:
           cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
           
           cd ios-app
-          bundle exec fastlane build_and_upload || fastlane build_and_upload
+          bundle exec fastlane build_and_upload --verbose || fastlane build_and_upload --verbose
 
       - name: Upload Native Signed IPA Artifact
         if: always()
