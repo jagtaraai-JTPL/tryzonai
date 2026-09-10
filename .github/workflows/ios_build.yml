@@ -97,7 +97,6 @@ jobs:
             -destination "generic/platform=iOS" \
             -configuration Release \
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
-            -allowProvisioningUpdates \
             DEVELOPMENT_TEAM="4WRPJFD6RA" \
             CODE_SIGN_STYLE="Manual" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
@@ -105,6 +104,8 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
             CODE_SIGN_ENTITLEMENTS="TryZonAI/TryZonAI.entitlements" \
             archive 2>&1 | tee /tmp/xcodebuild.log || {
+              echo "=== XCODEBUILD FAILED - LOG OUTPUT ==="
+              cat /tmp/xcodebuild.log | tail -n 100 || true
               echo "=== RETRYING WITH UNSIGNED ARCHIVE ==="
               xcodebuild -project TryZonAI.xcodeproj \
                 -scheme TryZonAI \
