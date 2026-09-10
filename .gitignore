@@ -4,11 +4,19 @@ bin/
 *.apk
 *.aab
 *.ipa
+*.zip
+*.log
 
 # Node & JS
 node_modules/
 npm-debug.log
 .env
+
+# Python & Backend
+venv/
+backend/venv/
+__pycache__/
+*.pyc
 
 # Android
 .gradle/
@@ -24,4 +32,5 @@ local.properties
 
 # Antigravity internal logs
 .system_generated/
+node_modules
 node_modules

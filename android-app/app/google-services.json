@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "190030026417",
+    "project_id": "tryzonai0",
+    "storage_bucket": "tryzonai0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190030026417:android:f00eafa45f681a9db33490",
+        "android_client_info": {
+          "package_name": "com.jagtarapvtltd.tryzonai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190030026417-1pi4iuevii3s08lk0q1f7ev4g7089i5j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jagtarapvtltd.tryzonai",
+            "certificate_hash": "6916238dcab1aeb5d396a356befbb7269c6a3528"
+          }
+        },
+        {
+          "client_id": "190030026417-releasekey.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jagtarapvtltd.tryzonai",
+            "certificate_hash": "949c70911cd5eeba1777dcb7438a7b8e843ec889"
+          }
+        },
+        {
+          "client_id": "190030026417-g88ivnm5hoemljrl6knm8t1hn1c0h1sl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBIPUWFY9-egMhm4laCgI21gQUQI86U2JE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190030026417-g88ivnm5hoemljrl6knm8t1hn1c0h1sl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -60,7 +60,7 @@ public class APIClient: ObservableObject {
     // MARK: - Multipart Image Upload for Try-On
     public func generateTryOn(personImage: UIImage, garmentImage: UIImage, category: String) async throws -> TryOnTaskResponse {
         let boundary = "Boundary-\(UUID().uuidString)"
-        var request = URLRequest(url: baseURL.appendingPathComponent("try-on/generate"))
+        var request = URLRequest(url: baseURL.appendingPathComponent("tryon"))
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue(sessionID, forHTTPHeaderField: "X-Session-ID")
@@ -108,7 +108,7 @@ public class APIClient: ObservableObject {
 
     // MARK: - Task Status Polling
     public func pollTaskStatus(taskId: String) async throws -> TryOnTaskResponse {
-        var request = URLRequest(url: baseURL.appendingPathComponent("try-on/status/\(taskId)"))
+        var request = URLRequest(url: baseURL.appendingPathComponent("tryon/status/\(taskId)"))
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 

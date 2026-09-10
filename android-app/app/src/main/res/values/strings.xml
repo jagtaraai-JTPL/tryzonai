@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">TryZon AI</string>
+    <string name="shortcut_tryon_short">Quick Try-On</string>
+    <string name="shortcut_tryon_long">Start New AI Try-On</string>
+    <string name="shortcut_wardrobe_short">My Closet</string>
+    <string name="shortcut_wardrobe_long">View My Generated Outfits</string>
+</resources>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shortcut_tryon"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_camera"
+        android:shortcutShortLabel="@string/shortcut_tryon_short"
+        android:shortcutLongLabel="@string/shortcut_tryon_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jagtarapvtltd.tryzonai"
+            android:targetClass="com.jagtarapvtltd.tryzonai.MainActivity"
+            android:data="tryzon://action/tryon" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_wardrobe"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_gallery"
+        android:shortcutShortLabel="@string/shortcut_wardrobe_short"
+        android:shortcutLongLabel="@string/shortcut_wardrobe_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.jagtarapvtltd.tryzonai"
+            android:targetClass="com.jagtarapvtltd.tryzonai.MainActivity"
+            android:data="tryzon://action/wardrobe" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>
