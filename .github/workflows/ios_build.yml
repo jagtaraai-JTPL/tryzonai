@@ -182,6 +182,13 @@ jobs:
           name: TryZonAI-iOS-SignedReleaseIPA
           path: ios-app/*.ipa
 
+      - name: Upload Xcode Build Logs Artifact
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: XcodeBuildLogs
+          path: /tmp/xcodebuild*.log
+
       - name: Upload Signed IPA to App Store Connect / TestFlight via Fastlane Pilot
         continue-on-error: true
         env:
