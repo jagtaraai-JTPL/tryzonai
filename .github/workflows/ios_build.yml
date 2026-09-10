@@ -58,8 +58,8 @@ jobs:
           security import $RUNNER_TEMP/apple_cert.p12 -k $KEYCHAIN_PATH -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/security || true
           security import $RUNNER_TEMP/apple_cert.p12 -k "$HOME/Library/Keychains/login.keychain-db" -P "TryZon123!" -A -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/security || true
 
-          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" -a $KEYCHAIN_PATH || true
-          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "" -a "$HOME/Library/Keychains/login.keychain-db" || true
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -p "" "$HOME/Library/Keychains/login.keychain-db" || true
           
           security list-keychains -d user -s $KEYCHAIN_PATH "$HOME/Library/Keychains/login.keychain-db"
           security default-keychain -s $KEYCHAIN_PATH
@@ -93,7 +93,7 @@ jobs:
           
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
           security default-keychain -s $KEYCHAIN_PATH
-          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" -a $KEYCHAIN_PATH || true
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
 
           cd ios-app
           set -o pipefail
@@ -105,11 +105,12 @@ jobs:
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
             DEVELOPMENT_TEAM="4WRPJFD6RA" \
             CODE_SIGN_STYLE="Manual" \
+            CODE_SIGN_KEYCHAIN="$KEYCHAIN_PATH" \
             CODE_SIGN_IDENTITY="Apple Distribution: JAGTARA PRIVATE LIMITED (4WRPJFD6RA)" \
             PROVISIONING_PROFILE="eefdb9c3-e6e2-4c13-8b2b-56589855b096" \
             PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
             CODE_SIGN_ENTITLEMENTS="TryZonAI/TryZonAI.entitlements" \
-            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/build.keychain" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
             archive 2>&1 | tee /tmp/xcodebuild.log || {
               echo "=== XCODEBUILD FAILED - LOG OUTPUT ==="
               cat /tmp/xcodebuild.log | tail -n 100 || true
