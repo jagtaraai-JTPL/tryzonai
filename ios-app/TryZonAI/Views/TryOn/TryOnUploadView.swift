@@ -67,7 +67,7 @@ public struct TryOnUploadView: View {
                                     }
                                 }
                             }
-                            .onChange(of: selectedPersonItem) { _, newItem in
+                            .onChange(of: selectedPersonItem) { newItem in
                                 Task {
                                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                                        let image = UIImage(data: data) {
@@ -108,7 +108,7 @@ public struct TryOnUploadView: View {
                                     }
                                 }
                             }
-                            .onChange(of: selectedGarmentItem) { _, newItem in
+                            .onChange(of: selectedGarmentItem) { newItem in
                                 Task {
                                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                                        let image = UIImage(data: data) {
@@ -164,7 +164,7 @@ public struct TryOnUploadView: View {
                     }
                 }
             }
-            .sheet(item: Binding(
+            .sheet(item: Binding<ResultSheetItem?>(
                 get: {
                     if let res = resultResponse, res.status == "completed", let url = res.resultImageUrl {
                         return ResultSheetItem(id: res.id, url: url)
