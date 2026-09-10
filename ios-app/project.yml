@@ -21,6 +21,7 @@ targets:
       SWIFT_COMPILATION_MODE: wholemodule
       ALWAYS_SEARCH_USER_PATHS: "NO"
       PRODUCT_BUNDLE_IDENTIFIER: com.jagtarapvtltd.tryzonai
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       GENERATE_INFOPLIST_FILE: NO
       INFOPLIST_FILE: TryZonAI/Resources/Info.plist
       INFOPLIST_KEY_NSCameraUsageDescription: "TryZon AI requires camera access to capture your body photo for instant virtual outfit fitting."
