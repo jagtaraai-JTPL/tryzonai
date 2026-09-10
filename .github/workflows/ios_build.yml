@@ -182,7 +182,16 @@ jobs:
 
       - name: Upload Signed IPA to App Store Connect / TestFlight via Fastlane Pilot
         continue-on-error: true
+        env:
+          APP_STORE_CONNECT_API_KEY_KEY_ID: "LF5HAF3NWP"
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: "e5243ecc-3f1a-4093-aa87-5963eae05a08"
         run: |
+          mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys
+          cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.appstoreconnect/private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
+          cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
           cd ios-app
-          fastlane upload_to_app_store_connect
+          fastlane upload_to_app_store_connect --verbose || {
+            echo "=== RETRYING DIRECT ALTOOL UPLOAD ==="
+            xcrun altool --upload-app --type ios --file TryZonAI.ipa --apiKey LF5HAF3NWP --apiIssuer e5243ecc-3f1a-4093-aa87-5963eae05a08 || true
+          }
 
