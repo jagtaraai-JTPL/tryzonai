@@ -82,122 +82,25 @@ jobs:
           echo "=== PROVISIONING PROFILES ==="
           ls -la "$HOME/Library/MobileDevice/Provisioning Profiles"
 
-      - name: Archive Native iOS Release App
-        continue-on-error: true
+      - name: Build & Publish Signed IPA to App Store Connect / TestFlight via Fastlane
         run: |
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD="tryzonpassword123"
           
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
-          security default-keychain -s $KEYCHAIN_PATH
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
 
-          cd ios-app
-          set -o pipefail
-          echo "=== TRYING SIGNED XCODEBUILD ARCHIVE ==="
-          xcodebuild -project TryZonAI.xcodeproj \
-            -scheme TryZonAI \
-            -destination "generic/platform=iOS" \
-            -configuration Release \
-            -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
-            DEVELOPMENT_TEAM="4WRPJFD6RA" \
-            CODE_SIGN_STYLE="Manual" \
-            CODE_SIGN_KEYCHAIN="$KEYCHAIN_PATH" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE="eefdb9c3-e6e2-4c13-8b2b-56589855b096" \
-            PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
-            CODE_SIGN_ENTITLEMENTS="TryZonAI/TryZonAI.entitlements" \
-            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
-            archive 2>&1 | tee /tmp/xcodebuild.log || {
-              echo "=== XCODEBUILD FAILED - LOG OUTPUT ==="
-              cat /tmp/xcodebuild.log | tail -n 100 || true
-              echo "=== RETRYING WITH UNSIGNED ARCHIVE ==="
-              xcodebuild -project TryZonAI.xcodeproj \
-                -scheme TryZonAI \
-                -destination "generic/platform=iOS" \
-                -configuration Release \
-                -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
-                CODE_SIGNING_ALLOWED=NO \
-                CODE_SIGNING_REQUIRED=NO \
-                CODE_SIGN_IDENTITY="" \
-                CODE_SIGN_STYLE="Automatic" \
-                PROVISIONING_PROFILE="" \
-                PROVISIONING_PROFILE_SPECIFIER="" \
-                archive 2>&1 | tee /tmp/xcodebuild_fallback.log || {
-                  echo "=== RETRYING WITH BUILD ONLY ==="
-                  xcodebuild -project TryZonAI.xcodeproj \
-                    -scheme TryZonAI \
-                    -destination "generic/platform=iOS" \
-                    -configuration Release \
-                    CODE_SIGNING_ALLOWED=NO \
-                    CODE_SIGNING_REQUIRED=NO \
-                    CODE_SIGN_IDENTITY="" \
-                    CODE_SIGN_STYLE="Automatic" \
-                    PROVISIONING_PROFILE="" \
-                    PROVISIONING_PROFILE_SPECIFIER="" \
-                    build 2>&1 | tee /tmp/xcodebuild_build.log
-                }
-            }
-
-      - name: Export Release IPA Package
-        continue-on-error: true
-        run: |
-          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
-          KEYCHAIN_PASSWORD="tryzonpassword123"
+          mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys
+          cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.appstoreconnect/private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
+          cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
           
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
-          security default-keychain -s $KEYCHAIN_PATH
-          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" -a $KEYCHAIN_PATH || true
-
           cd ios-app
-          xcodebuild -exportArchive \
-            -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath . || {
-              echo "=== IPA EXPORT FALLBACK: Packaging & Signing Payload directly ==="
-              mkdir -p /tmp/Payload
-              PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-              PROFILE_FILE=$(find "$PROFILES_DIR" -name "*.mobileprovision" 2>/dev/null | head -n 1)
-              APP_PATH=$(find $RUNNER_TEMP/TryZonAI.xcarchive/Products/Applications $GITHUB_WORKSPACE/ios-app -name "TryZonAI.app" -type d 2>/dev/null | head -n 1)
-              
-              if [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ]; then
-                echo "Found compiled app bundle at: $APP_PATH"
-                cp -R "$APP_PATH" /tmp/Payload/
-                if [ -n "$PROFILE_FILE" ]; then
-                  cp "$PROFILE_FILE" "/tmp/Payload/TryZonAI.app/embedded.mobileprovision"
-                fi
-                codesign --force --deep --sign "Apple Distribution" --entitlements "TryZonAI/TryZonAI.entitlements" --keychain "$KEYCHAIN_PATH" "/tmp/Payload/TryZonAI.app" || true
-              fi
-              cd /tmp && zip -r "$GITHUB_WORKSPACE/ios-app/TryZonAI.ipa" Payload
-            }
-
-          ls -la "$GITHUB_WORKSPACE/ios-app/TryZonAI.ipa" || true
+          bundle exec fastlane build_and_upload || fastlane build_and_upload
 
       - name: Upload Native Signed IPA Artifact
-        continue-on-error: true
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: TryZonAI-iOS-SignedReleaseIPA
           path: ios-app/*.ipa
-
-      - name: Upload Xcode Build Logs Artifact
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: XcodeBuildLogs
-          path: /tmp/xcodebuild*.log
-
-      - name: Upload Signed IPA to App Store Connect / TestFlight via Fastlane Pilot
-        continue-on-error: true
-        env:
-          APP_STORE_CONNECT_API_KEY_KEY_ID: "LF5HAF3NWP"
-          APP_STORE_CONNECT_API_KEY_ISSUER_ID: "e5243ecc-3f1a-4093-aa87-5963eae05a08"
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys
-          cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.appstoreconnect/private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
-          cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
-          cd ios-app
-          echo "=== LISTING IPA FILES IN IOS-APP ==="
-          ls -la *.ipa || true
-          bundle exec fastlane upload_to_app_store_connect --verbose || fastlane upload_to_app_store_connect --verbose
 
