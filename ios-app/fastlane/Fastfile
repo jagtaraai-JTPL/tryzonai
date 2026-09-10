@@ -26,7 +26,10 @@ platform :ios do
   desc "Upload Signed IPA to App Store Connect / TestFlight"
   lane :upload_to_app_store_connect do
     auth_key_path = File.expand_path("../AuthKey_LF5HAF3NWP.p8", __dir__)
-    ipa_path = File.expand_path("../TryZonAI.ipa", __dir__)
+    ipa_path = Dir.glob(File.expand_path("../*.ipa", __dir__)).first || File.expand_path("../TryZonAI.ipa", __dir__)
+
+    UI.important("Checking IPA path: #{ipa_path}")
+    UI.user_error!("No IPA file found to upload at #{ipa_path}") unless File.exist?(ipa_path)
 
     api_key = app_store_connect_api_key(
       key_id: "LF5HAF3NWP",
@@ -36,6 +39,7 @@ platform :ios do
       in_house: false
     )
 
+    UI.important("Starting TestFlight Upload for app com.jagtarapvtltd.tryzonai...")
     upload_to_testflight(
       api_key: api_key,
       app_identifier: "com.jagtarapvtltd.tryzonai",

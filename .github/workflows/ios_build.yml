@@ -199,5 +199,7 @@ jobs:
           cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.appstoreconnect/private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
           cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
           cd ios-app
-          fastlane upload_to_app_store_connect --verbose
+          echo "=== LISTING IPA FILES IN IOS-APP ==="
+          ls -la *.ipa || true
+          bundle exec fastlane upload_to_app_store_connect --verbose || fastlane upload_to_app_store_connect --verbose
 
