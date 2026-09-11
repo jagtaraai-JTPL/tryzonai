@@ -278,28 +278,19 @@ public struct TryOnResultView: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
 
-                // Buy Outfit CTA
-                Button(action: {
-                    if let url = URL(string: "https://myntra.com") {
-                        UIApplication.shared.open(url)
+                // Buy Outfit Multi-Store Pills (Matching Android)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("SHOP THIS LOOK ON OFFICIAL STORES")
+                        .font(.system(size: 9.5, weight: .black))
+                        .foregroundColor(TryZonTheme.primaryGold)
+                        .tracking(1)
+
+                    HStack(spacing: 8) {
+                        storeButton(name: "Myntra 🛍️", urlStr: "https://myntra.com", color: Color.pink)
+                        storeButton(name: "Ajio 🏬", urlStr: "https://ajio.com", color: Color.yellow)
+                        storeButton(name: "Flipkart ⚡", urlStr: "https://flipkart.com", color: Color.blue)
+                        storeButton(name: "Amazon 📦", urlStr: "https://amazon.in", color: Color.orange)
                     }
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "bag.fill")
-                        Text("Shop This Look on Myntra / Ajio")
-                            .font(.system(size: 13, weight: .bold))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.pink.opacity(0.8), Color.purple.opacity(0.7)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(14)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -370,6 +361,24 @@ public struct TryOnResultView: View {
                     showShareSheet = true
                 }
             }
+        }
+    }
+
+    private func storeButton(name: String, urlStr: String, color: Color) -> some View {
+        Button(action: {
+            if let url = URL(string: urlStr) {
+                UIApplication.shared.open(url)
+            }
+        }) {
+            Text(name)
+                .font(.system(size: 10.5, weight: .bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .background(color.opacity(0.3))
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(color.opacity(0.6), lineWidth: 1))
         }
     }
 

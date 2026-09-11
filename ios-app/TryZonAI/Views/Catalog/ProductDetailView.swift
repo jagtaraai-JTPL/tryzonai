@@ -88,28 +88,6 @@ public struct ProductDetailView: View {
                                 .foregroundColor(.white)
                         }
 
-                        // Price & Discount Row
-                        HStack(spacing: 10) {
-                            Text("₹\(item.price)")
-                                .font(.system(size: 24, weight: .black))
-                                .foregroundColor(TryZonTheme.primaryGold)
-
-                            if let orig = item.original_price, orig > item.price {
-                                Text("₹\(orig)")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.white.opacity(0.4))
-                                    .strikethrough()
-
-                                Text("50% OFF")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(Color.red)
-                                    .cornerRadius(6)
-                            }
-                        }
-
                         Divider().background(Color.white.opacity(0.12))
 
                         // Size Selection Row

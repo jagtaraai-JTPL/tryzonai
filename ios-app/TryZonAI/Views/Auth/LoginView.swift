@@ -182,12 +182,21 @@ public struct LoginView: View {
 
     private func performGoogleSignIn() {
         isLoading = true
+        errorMessage = nil
         Task {
-            // Simulated One-Tap Google Auth Sync
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            DispatchQueue.main.async {
-                self.isLoading = false
-                dismiss()
+            do {
+                _ = try await apiClient.ensureSessionAuthToken()
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.apiClient.isLoggedIn = true
+                    self.apiClient.fetchUserProfile()
+                    dismiss()
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.errorMessage = "Sign in failed: \(error.localizedDescription)"
+                }
             }
         }
     }
@@ -195,7 +204,14 @@ public struct LoginView: View {
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
         switch result {
         case .success:
-            dismiss()
+            Task {
+                _ = try? await apiClient.ensureSessionAuthToken()
+                DispatchQueue.main.async {
+                    self.apiClient.isLoggedIn = true
+                    self.apiClient.fetchUserProfile()
+                    dismiss()
+                }
+            }
         case .failure(let error):
             errorMessage = error.localizedDescription
         }

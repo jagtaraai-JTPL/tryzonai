@@ -137,11 +137,16 @@ public class APIClient: ObservableObject {
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
-        let bodyData = try JSONSerialization.data(withJSONObject: ["email": email, "password": password])
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bodyData = try JSONSerialization.data(withJSONObject: ["email": cleanEmail, "password": password])
         request.httpBody = bodyData
 
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let detail = json["detail"] as? String {
+                throw NSError(domain: "APIClient", code: (response as? HTTPURLResponse)?.statusCode ?? 401, userInfo: [NSLocalizedDescriptionKey: detail])
+            }
             throw NSError(domain: "APIClient", code: 401, userInfo: [NSLocalizedDescriptionKey: "Invalid email or password"])
         }
 
@@ -161,11 +166,16 @@ public class APIClient: ObservableObject {
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
-        let bodyData = try JSONSerialization.data(withJSONObject: ["name": name, "email": email, "password": password])
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bodyData = try JSONSerialization.data(withJSONObject: ["name": name, "email": cleanEmail, "password": password])
         request.httpBody = bodyData
 
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let detail = json["detail"] as? String {
+                throw NSError(domain: "APIClient", code: (response as? HTTPURLResponse)?.statusCode ?? 400, userInfo: [NSLocalizedDescriptionKey: detail])
+            }
             throw NSError(domain: "APIClient", code: 400, userInfo: [NSLocalizedDescriptionKey: "Registration failed. Email might already exist."])
         }
 

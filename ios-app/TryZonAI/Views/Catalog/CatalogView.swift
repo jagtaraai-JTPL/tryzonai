@@ -259,19 +259,6 @@ public struct CatalogView: View {
                         .foregroundColor(.white)
                         .lineLimit(1)
 
-                    HStack(spacing: 6) {
-                        Text("₹\(product.price)")
-                            .font(.system(size: 13, weight: .black))
-                            .foregroundColor(TryZonTheme.primaryGold)
-
-                        if let orig = product.original_price, orig > product.price {
-                            Text("₹\(orig)")
-                                .font(.system(size: 10))
-                                .foregroundColor(.white.opacity(0.4))
-                                .strikethrough()
-                        }
-                    }
-
                     Spacer(minLength: 8)
 
                     Button(action: { onSelectGarmentForTryOn(product) }) {
