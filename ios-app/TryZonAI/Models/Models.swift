@@ -46,7 +46,7 @@ public struct TryOnTaskResponse: Codable, Identifiable {
     public var status: String // "pending", "processing", "completed", "failed"
     public var resultImageUrl: String?
     public var originalPhotoUrl: String?
-    case errorMessage: String?
+    public var errorMessage: String?
 
     enum CodingKeys: String, CodingKey {
         case id = "task_id"
@@ -87,9 +87,9 @@ public struct TryOnHistoryItem: Codable, Identifiable {
     public var task_id: String
     public var result_image: String
     public var original_photo: String
-    case category: String?
-    case created_at: String?
-    case is_favorite: Bool?
+    public var category: String?
+    public var created_at: String?
+    public var is_favorite: Bool?
 }
 
 // MARK: - Pricing Models
