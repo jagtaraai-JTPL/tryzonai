@@ -131,6 +131,28 @@ public class APIClient: ObservableObject {
         }.resume()
     }
 
+    public func claimRewardCredit(amount: Int = 1) async throws {
+        let count = max(1, amount)
+        for _ in 0..<count {
+            var request = URLRequest(url: baseURL.appendingPathComponent("tryon/claim-reward-credit"))
+            request.httpMethod = "POST"
+            makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+            if let (data, _) = try? await session.data(for: request),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let newCredits = json["credits"] as? Int {
+                DispatchQueue.main.async {
+                    self.userCredits = newCredits
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.userCredits += 1
+                }
+            }
+        }
+        fetchUserProfile()
+    }
+
     // MARK: - Auth API
     public func loginWithGoogle(idToken: String = "google_demo_token_2026") async throws -> AuthResponse {
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/google"))

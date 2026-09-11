@@ -156,7 +156,9 @@ public struct ShareAndEarnView: View {
 
         if !hasClaimedReward {
             hasClaimedReward = true
-            apiClient.userCredits += 2
+            Task {
+                try? await apiClient.claimRewardCredit(amount: 2)
+            }
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
@@ -178,7 +180,9 @@ public struct ShareAndEarnView: View {
 
         if !hasClaimedReward {
             hasClaimedReward = true
-            apiClient.userCredits += 2
+            Task {
+                try? await apiClient.claimRewardCredit(amount: 2)
+            }
         }
     }
 
@@ -186,7 +190,9 @@ public struct ShareAndEarnView: View {
         showShareSheet = true
         if !hasClaimedReward {
             hasClaimedReward = true
-            apiClient.userCredits += 2
+            Task {
+                try? await apiClient.claimRewardCredit(amount: 2)
+            }
         }
     }
 }

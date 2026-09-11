@@ -218,7 +218,10 @@ public struct SpinWheelView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.1) {
             isSpinning = false
             wonPrize = winningPrize
-            apiClient.userCredits += winningPrize.credits
+            
+            Task {
+                try? await apiClient.claimRewardCredit(amount: winningPrize.credits)
+            }
             
             let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
             impactHeavy.impactOccurred()
