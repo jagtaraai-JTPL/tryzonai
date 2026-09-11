@@ -91,6 +91,10 @@ public struct TryOnStatusResponse: Codable, Identifiable {
     }
 
     public var fullResultURL: URL? {
+        return resolveURL(result_url)
+    }
+
+    public var fullHighresURL: URL? {
         return resolveURL(highres_url ?? result_url)
     }
 

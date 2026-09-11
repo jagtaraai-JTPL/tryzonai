@@ -3,6 +3,7 @@ import UIKit
 
 public struct TryOnResultView: View {
     let resultImageUrl: String
+    let highresUrl: String?
     let originalPhotoUrl: String?
     let onTryAnother: () -> Void
 
@@ -11,22 +12,35 @@ public struct TryOnResultView: View {
     @State private var heartPosition: CGPoint = .zero
     @State private var isSavedToWardrobe = false
     @State private var showToastMessage: String? = nil
+    @State private var isDownloading = false
+    @State private var showShareSheet = false
+    @State private var sharedItems: [Any] = []
 
-    public init(resultImageUrl: String, originalPhotoUrl: String? = nil, onTryAnother: @escaping () -> Void) {
+    public init(
+        resultImageUrl: String,
+        highresUrl: String? = nil,
+        originalPhotoUrl: String? = nil,
+        onTryAnother: @escaping () -> Void
+    ) {
         self.resultImageUrl = resultImageUrl
+        self.highresUrl = highresUrl
         self.originalPhotoUrl = originalPhotoUrl
         self.onTryAnother = onTryAnother
+    }
+
+    private var displayUrl: String {
+        resultImageUrl
     }
 
     public var body: some View {
         ZStack {
             TryZonTheme.darkBackground.ignoresSafeArea()
 
-            VStack(spacing: 16) {
+            VStack(spacing: 0) {
                 // Top Header Bar
                 HStack {
                     Button(action: onTryAnother) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 6) {
                             Image(systemName: "chevron.left")
                             Text("Try Another")
                         }
@@ -36,9 +50,14 @@ public struct TryOnResultView: View {
 
                     Spacer()
 
-                    Text("FITTING RESULT 👑")
-                        .font(.system(size: 14, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
+                    VStack(spacing: 2) {
+                        Text("FITTING RESULT 👑")
+                            .font(.system(size: 13, weight: .black, design: .rounded))
+                            .foregroundColor(.white)
+                        Text("AI Virtual Try-On")
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
 
                     Spacer()
 
@@ -49,21 +68,60 @@ public struct TryOnResultView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 12)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
+
+                // Result Banner Chip
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 12))
+                    Text("AI Generation Complete • Swipe to Compare")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(Color.green.opacity(0.15))
+                .cornerRadius(20)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.green.opacity(0.4), lineWidth: 1)
+                )
+                .padding(.bottom, 10)
 
                 // Interactive Split-Screen Comparison Viewport
                 GeometryReader { geo in
                     ZStack {
-                        // Background Layer: AI Result Image
-                        AsyncImage(url: URL(string: resultImageUrl)) { img in
-                            img.resizable().scaledToFill()
-                        } placeholder: {
-                            TryZonTheme.surfaceVariant
+                        // Background Layer: AI Result Image (always visible)
+                        AsyncImage(url: URL(string: displayUrl)) { phase in
+                            switch phase {
+                            case .success(let img):
+                                img.resizable().scaledToFill()
+                            case .failure:
+                                VStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .foregroundColor(.red)
+                                    Text("Failed to load result")
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.5))
+                                }
+                            case .empty:
+                                VStack(spacing: 12) {
+                                    ProgressView()
+                                        .tint(TryZonTheme.primaryGold)
+                                    Text("Loading HD Result...")
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                            @unknown default:
+                                EmptyView()
+                            }
                         }
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
 
-                        // Foreground Clipped Layer: Original Photo (if present)
+                        // Foreground: Original Photo with sliding mask
                         if let origUrl = originalPhotoUrl, let url = URL(string: origUrl) {
                             AsyncImage(url: url) { img in
                                 img.resizable().scaledToFill()
@@ -80,23 +138,46 @@ public struct TryOnResultView: View {
                             )
                             .clipped()
 
-                            // Vertical Drag Handle Divider Bar
+                            // Labels
+                            HStack {
+                                Text("BEFORE")
+                                    .font(.system(size: 9, weight: .black))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(6)
+                                    .padding(12)
+                                    .opacity(sliderOffset > 0.15 ? 1 : 0)
+                                Spacer()
+                                Text("AFTER ✨")
+                                    .font(.system(size: 9, weight: .black))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(6)
+                                    .padding(12)
+                                    .opacity(sliderOffset < 0.85 ? 1 : 0)
+                            }
+                            .frame(maxHeight: .infinity, alignment: .bottom)
+
+                            // Drag Handle
                             Rectangle()
                                 .fill(TryZonTheme.primaryGold)
-                                .frame(width: 3)
+                                .frame(width: 2)
                                 .offset(x: (geo.size.width * sliderOffset) - (geo.size.width / 2))
                                 .overlay(
                                     ZStack {
                                         Circle()
                                             .fill(TryZonTheme.primaryGold)
-                                            .frame(width: 36, height: 36)
-                                            .shadow(color: .black.opacity(0.5), radius: 4)
-
+                                            .frame(width: 40, height: 40)
+                                            .shadow(color: .black.opacity(0.6), radius: 6)
                                         HStack(spacing: 2) {
                                             Image(systemName: "chevron.left")
                                             Image(systemName: "chevron.right")
                                         }
-                                        .font(.system(size: 10, weight: .bold))
+                                        .font(.system(size: 10, weight: .black))
                                         .foregroundColor(.black)
                                     }
                                     .offset(x: (geo.size.width * sliderOffset) - (geo.size.width / 2))
@@ -110,7 +191,7 @@ public struct TryOnResultView: View {
                                 )
                         }
 
-                        // Floating Heart Animation overlay on Double-Tap
+                        // Double-tap Heart Animation
                         if showHeartAnimation {
                             Image(systemName: "heart.fill")
                                 .font(.system(size: 80))
@@ -133,101 +214,162 @@ public struct TryOnResultView: View {
                 }
                 .frame(maxHeight: .infinity)
                 .cornerRadius(20)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 12)
 
-                // Action Buttons Bar
-                HStack(spacing: 12) {
-                    // Save to Wardrobe Button
+                // Action Buttons
+                HStack(spacing: 10) {
+                    // Save / Heart
                     Button(action: {
-                        isSavedToWardrobe.toggle()
-                        showToast("Saved to Wardrobe Closet!")
+                        withAnimation(.spring()) { isSavedToWardrobe.toggle() }
+                        showToast(isSavedToWardrobe ? "❤️ Saved to Wardrobe!" : "Removed from Wardrobe")
                     }) {
-                        HStack(spacing: 6) {
+                        VStack(spacing: 3) {
                             Image(systemName: isSavedToWardrobe ? "heart.fill" : "heart")
-                                .foregroundColor(isSavedToWardrobe ? .red : TryZonTheme.primaryGold)
-                            Text(isSavedToWardrobe ? "Saved" : "Save")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(size: 18))
+                                .foregroundColor(isSavedToWardrobe ? .red : .white)
+                                .scaleEffect(isSavedToWardrobe ? 1.2 : 1.0)
+                            Text("Save")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.white.opacity(0.7))
                         }
                         .padding(.vertical, 10)
                         .padding(.horizontal, 14)
                         .background(TryZonTheme.surfaceVariant)
-                        .cornerRadius(12)
+                        .cornerRadius(14)
                     }
 
-                    // Download HD Button
+                    // Download HD
                     Button(action: downloadHDImage) {
                         HStack(spacing: 6) {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .foregroundColor(.black)
-                            Text("Download HD")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.black)
+                            if isDownloading {
+                                ProgressView()
+                                    .tint(.black)
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.down.circle.fill")
+                            }
+                            Text(isDownloading ? "Saving..." : "Download HD")
+                                .font(.system(size: 13, weight: .bold))
                         }
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 16)
+                        .foregroundColor(.black)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
                         .background(TryZonTheme.primaryGold)
-                        .cornerRadius(12)
+                        .cornerRadius(14)
                     }
+                    .disabled(isDownloading)
 
-                    // Affiliate Store Buy Link
-                    Button(action: {
-                        if let url = URL(string: "https://myntra.com") {
-                            UIApplication.shared.open(url)
+                    // Share
+                    Button(action: shareResultImage) {
+                        VStack(spacing: 3) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                            Text("Share")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.white.opacity(0.7))
                         }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "bag.fill")
-                            Text("Buy Outfit")
-                        }
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
                         .padding(.vertical, 10)
                         .padding(.horizontal, 14)
-                        .background(Color.pink.opacity(0.8))
-                        .cornerRadius(12)
+                        .background(TryZonTheme.surfaceVariant)
+                        .cornerRadius(14)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+
+                // Buy Outfit CTA
+                Button(action: {
+                    if let url = URL(string: "https://myntra.com") {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bag.fill")
+                        Text("Shop This Look on Myntra / Ajio")
+                            .font(.system(size: 13, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.pink.opacity(0.8), Color.purple.opacity(0.7)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(14)
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
                 .padding(.bottom, 16)
             }
 
-            // Toast Message Notification Overlay
+            // Toast Overlay
             if let toast = showToastMessage {
                 VStack {
                     Spacer()
                     Text(toast)
-                        .font(.system(size: 12, weight: .bold))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.black.opacity(0.85))
+                        .font(.system(size: 13, weight: .bold))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.black.opacity(0.88))
                         .foregroundColor(TryZonTheme.primaryGold)
-                        .cornerRadius(20)
-                        .padding(.bottom, 80)
+                        .cornerRadius(24)
+                        .shadow(color: .black.opacity(0.4), radius: 8)
+                        .padding(.bottom, 100)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(10)
             }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            ActivityViewController(activityItems: sharedItems)
         }
     }
 
     private func downloadHDImage() {
-        guard let url = URL(string: resultImageUrl) else { return }
+        let urlToDownload = highresUrl ?? resultImageUrl
+        guard let url = URL(string: urlToDownload) else {
+            showToast("Invalid image URL")
+            return
+        }
+        isDownloading = true
         Task {
-            if let (data, _) = try? await URLSession.shared.data(from: url),
-               let image = UIImage(data: data) {
-                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let image = UIImage(data: data) {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    DispatchQueue.main.async {
+                        isDownloading = false
+                        showToast("📸 HD Photo Saved to Camera Roll!")
+                    }
+                }
+            } catch {
                 DispatchQueue.main.async {
-                    showToast("HD Image Saved to Photos Gallery! 📸")
+                    isDownloading = false
+                    showToast("Download failed — please retry")
                 }
             }
         }
     }
 
     private func shareResultImage() {
-        guard let url = URL(string: resultImageUrl) else { return }
-        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first?.rootViewController {
-            rootVC.present(activityVC, animated: true)
+        guard let url = URL(string: highresUrl ?? resultImageUrl) else { return }
+        Task {
+            if let (data, _) = try? await URLSession.shared.data(from: url),
+               let image = UIImage(data: data) {
+                DispatchQueue.main.async {
+                    sharedItems = [image, "Check out my AI virtual try-on! 🤩 #TryZonAI"]
+                    showShareSheet = true
+                }
+            } else {
+                DispatchQueue.main.async {
+                    sharedItems = [url]
+                    showShareSheet = true
+                }
+            }
         }
     }
 
@@ -237,4 +379,15 @@ public struct TryOnResultView: View {
             withAnimation { showToastMessage = nil }
         }
     }
+}
+
+// MARK: - UIKit Share Sheet Wrapper
+struct ActivityViewController: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
