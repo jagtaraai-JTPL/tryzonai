@@ -30,10 +30,7 @@ public struct SideDrawer: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Header with White Logo & Close Button
                 HStack(spacing: 12) {
-                    Image("AppLogoTransparent")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 36, height: 36)
+                    DynamicAppLogo(width: 36, height: 36)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(apiClient.currentUser?.name ?? (apiClient.currentUser != nil ? "TryZon Member" : "Guest Stylist"))

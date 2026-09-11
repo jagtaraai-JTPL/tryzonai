@@ -2,21 +2,19 @@ import SwiftUI
 
 public struct TopBar: View {
     @ObservedObject var apiClient: APIClient
+    @Environment(\.colorScheme) private var colorScheme
     let onOpenDrawer: () -> Void
     let onOpenPremium: () -> Void
 
     public var body: some View {
         HStack {
-            // White Transparent Brand Official Logo Badge
+            // Dynamic Brand Official Logo Badge
             HStack(spacing: 8) {
-                Image("AppLogoTransparent")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 32, height: 32)
+                DynamicAppLogo(width: 32, height: 32)
 
                 Text("TryZon AI")
                     .font(.system(size: 18, weight: .black, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(TryZonTheme.textColor(for: colorScheme))
             }
 
             Spacer()
@@ -34,12 +32,12 @@ public struct TopBar: View {
                             .foregroundColor(TryZonTheme.primaryGold)
                         Text("\(apiClient.userCredits) Credits")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                     }
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(TryZonTheme.surfaceVariant)
+                .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
                 .cornerRadius(20)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
@@ -51,16 +49,16 @@ public struct TopBar: View {
             Button(action: onOpenDrawer) {
                 ZStack {
                     Circle()
-                        .fill(TryZonTheme.surfaceVariant)
+                        .fill(TryZonTheme.surfaceVariantColor(for: colorScheme))
                         .frame(width: 34, height: 34)
                     Image(systemName: "line.3.horizontal")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                 }
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(TryZonTheme.darkBackground)
+        .background(TryZonTheme.backgroundColor(for: colorScheme))
     }
 }

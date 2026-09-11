@@ -154,10 +154,7 @@ public struct TryOnUploadView: View {
                 // Header Banner
                 VStack(spacing: 6) {
                     HStack(spacing: 6) {
-                        Image("AppLogoTransparent")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 28, height: 28)
+                        DynamicAppLogo(width: 28, height: 28)
                         Text("TRY-ON FITTING ROOM")
                             .font(.system(size: 18, weight: .black, design: .rounded))
                             .foregroundColor(TryZonTheme.primaryGold)

@@ -7,6 +7,45 @@ public struct TryZonTheme {
     public static let darkSurface = Color(red: 26/255, green: 26/255, blue: 30/255) // #1A1A1E
     public static let surfaceVariant = Color(red: 36/255, green: 36/255, blue: 42/255) // #24242A
     public static let cardBorder = Color.white.opacity(0.12)
+
+    public static func backgroundColor(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? darkBackground : Color(red: 250/255, green: 249/255, blue: 246/255)
+    }
+
+    public static func surfaceColor(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? darkSurface : Color.white
+    }
+
+    public static func surfaceVariantColor(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? surfaceVariant : Color(red: 243/255, green: 243/255, blue: 245/255)
+    }
+
+    public static func textColor(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? .white : Color(red: 26/255, green: 26/255, blue: 26/255)
+    }
+
+    public static func subtextColor(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.7) : Color(red: 102/255, green: 102/255, blue: 102/255)
+    }
+}
+
+// MARK: - Dynamic Theme App Logo (Dark mode -> White transparent logo, Light mode -> Brand logo)
+public struct DynamicAppLogo: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let width: CGFloat
+    let height: CGFloat
+
+    public init(width: CGFloat = 32, height: CGFloat = 32) {
+        self.width = width
+        self.height = height
+    }
+
+    public var body: some View {
+        Image(colorScheme == .dark ? "AppLogoTransparent" : "AppLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: width, height: height)
+    }
 }
 
 public struct ShimmeringGoldButton: View {

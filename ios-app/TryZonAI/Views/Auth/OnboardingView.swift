@@ -142,10 +142,7 @@ public struct OnboardingView: View {
     // MARK: - Top Bar
     private var topBar: some View {
         HStack(spacing: 8) {
-            Image("AppLogoTransparent")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 28, height: 28)
+            DynamicAppLogo(width: 28, height: 28)
 
             Text("TRYZON AI")
                 .font(.system(size: 16, weight: .black))

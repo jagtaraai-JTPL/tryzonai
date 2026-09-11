@@ -4,13 +4,22 @@ import AuthenticationServices
 public struct LoginView: View {
     @ObservedObject var apiClient: APIClient
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var email = ""
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorMessage: String? = nil
+    @State private var currentHeroIndex = 0
 
     let onNavigateToRegister: () -> Void
+
+    private let heroOutfits: [(String, String)] = [
+        ("https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp", "Monaco Atelier Linen Suit 🇲🇨"),
+        ("https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_formal_ceo_black_suit_1778055862174.webp", "New York Executive Tuxedo 🇺🇸"),
+        ("https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp", "Seoul K-Style Minimalist 🇰🇷"),
+        ("https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_royal_queen_emerald_gold_1778038089053.webp", "Dubai Royal Velvet Couture 🇦🇪"),
+    ]
 
     public init(apiClient: APIClient, onNavigateToRegister: @escaping () -> Void) {
         self.apiClient = apiClient
@@ -19,48 +28,95 @@ public struct LoginView: View {
 
     public var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                Spacer(minLength: 20)
+            VStack(spacing: 18) {
+                Spacer(minLength: 10)
 
-                // Header Branding
-                VStack(spacing: 8) {
-                    Image("AppLogoTransparent")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 76, height: 76)
-                        .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 10)
+                // ── 1. DOMINANT HERO FASHION CANVAS (Matching Android Rounded 30dp) ──
+                ZStack(alignment: .bottomLeading) {
+                    AsyncImage(url: URL(string: heroOutfits[currentHeroIndex].0)) { phase in
+                        if let img = phase.image {
+                            img.resizable().aspectRatio(contentMode: .fill)
+                        } else {
+                            TryZonTheme.surfaceVariantColor(for: colorScheme)
+                        }
+                    }
+                    .frame(height: 220)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
 
-                    Text("Welcome Back ⚡")
+                    LinearGradient(
+                        colors: [Color.clear, Color.black.opacity(0.75)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(heroOutfits[currentHeroIndex].1)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                        Text("AI Virtual Outfit Fitting • 1 Free Try Daily")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding(16)
+                }
+                .frame(height: 220)
+                .cornerRadius(30)
+                .clipped()
+                .shadow(color: Color.black.opacity(0.15), radius: 8, y: 4)
+
+                // ── 2. HEADER BRANDING & DYNAMIC LOGO ──
+                VStack(spacing: 6) {
+                    DynamicAppLogo(width: 56, height: 56)
+                        .shadow(color: TryZonTheme.primaryGold.opacity(0.3), radius: 8)
+
+                    Text("Enter Your Virtual Studio")
                         .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(TryZonTheme.textColor(for: colorScheme))
 
-                    Text("Sign in to your TryZon AI Virtual Fitting Room")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.7))
+                    Text("Your private wardrobe, one tap away.")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
                         .multilineTextAlignment(.center)
                 }
 
-                // ── 1. SOCIAL SIGN IN BUTTONS (Matching Android) ──
+                if let err = errorMessage {
+                    Text(err)
+                        .font(.caption.bold())
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                }
+
+                // ── 3. FLOATING ROUND PILL SOCIAL LOGIN BUTTONS ──
                 VStack(spacing: 12) {
-                    // Google Sign In Button
+                    // Google Pill Button (Gol shape height 50)
                     Button(action: performGoogleSignIn) {
-                        HStack(spacing: 12) {
-                            Text("G")
-                                .font(.system(size: 18, weight: .black, design: .rounded))
-                                .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
-                            Text("Continue with Google")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.black)
+                        HStack(spacing: 10) {
+                            if isLoading {
+                                ProgressView()
+                                    .tint(colorScheme == .dark ? .black : .white)
+                            } else {
+                                Text("G")
+                                    .font(.system(size: 20, weight: .black, design: .rounded))
+                                    .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
+                                Text("Continue with Google")
+                                    .font(.system(size: 14.5, weight: .bold))
+                                    .foregroundColor(colorScheme == .dark ? .black : .primary)
+                            }
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
-                        .background(Color.white)
-                        .cornerRadius(16)
-                        .shadow(color: Color.black.opacity(0.2), radius: 4, y: 2)
+                        .frame(height: 50)
+                        .background(colorScheme == .dark ? Color.white : Color(.systemBackground))
+                        .clipShape(Capsule())
+                        .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
+                        .overlay(
+                            Capsule().stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                        )
                     }
                     .buttonStyle(BounceButtonStyle())
 
-                    // Apple Sign In Button
+                    // Apple Pill Button (Gol shape height 50)
                     SignInWithAppleButton(
                         .continue,
                         onRequest: { request in
@@ -70,77 +126,83 @@ public struct LoginView: View {
                             handleAppleSignIn(result)
                         }
                     )
-                    .signInWithAppleButtonStyle(.white)
-                    .frame(height: 48)
-                    .cornerRadius(16)
+                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                    .frame(height: 50)
+                    .clipShape(Capsule())
 
-                    // Continue as Guest Button
-                    Button(action: {
-                        dismiss()
-                    }) {
+                    // Guest Login Link
+                    Button(action: { dismiss() }) {
                         HStack(spacing: 6) {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 13))
-                            Text("Continue as Guest (1st Try Free)")
-                                .font(.system(size: 12, weight: .bold))
+                            Text("✦ 1 free try-on every day · No card required")
+                                .font(.system(size: 11.5, weight: .semibold))
                         }
                         .foregroundColor(TryZonTheme.primaryGold)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                     }
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 8)
 
                 // Divider Line
                 HStack {
-                    Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1)
+                    Rectangle().fill(TryZonTheme.textColor(for: colorScheme).opacity(0.12)).frame(height: 1)
                     Text("OR EMAIL")
                         .font(.system(size: 10, weight: .black))
-                        .foregroundColor(.white.opacity(0.4))
-                    Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1)
+                        .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
+                    Rectangle().fill(TryZonTheme.textColor(for: colorScheme).opacity(0.12)).frame(height: 1)
                 }
 
-                // ── 2. EMAIL & PASSWORD FORM ──
-                VStack(spacing: 12) {
+                // ── 4. EMAIL & PASSWORD FORM (Pill Curved inputs) ──
+                VStack(spacing: 10) {
                     HStack {
                         Image(systemName: "envelope.fill")
                             .foregroundColor(TryZonTheme.primaryGold)
                         TextField("Email Address", text: $email)
                             .font(.system(size: 13))
-                            .foregroundColor(.white)
+                            .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                             .autocapitalization(.none)
                     }
                     .padding(14)
-                    .background(TryZonTheme.surfaceVariant)
-                    .cornerRadius(14)
+                    .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
+                    .clipShape(Capsule())
 
                     HStack {
                         Image(systemName: "lock.fill")
                             .foregroundColor(TryZonTheme.primaryGold)
                         SecureField("Password", text: $password)
                             .font(.system(size: 13))
-                            .foregroundColor(.white)
+                            .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                     }
                     .padding(14)
-                    .background(TryZonTheme.surfaceVariant)
-                    .cornerRadius(14)
+                    .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
+                    .clipShape(Capsule())
                 }
 
-                if let err = errorMessage {
-                    Text(err)
-                        .font(.caption.bold())
-                        .foregroundColor(.red)
+                // Sign In CTA Button (Pill shape)
+                Button(action: performLogin) {
+                    HStack {
+                        if isLoading {
+                            ProgressView().tint(.black)
+                        } else {
+                            Text("SIGN IN WITH EMAIL 🚀")
+                                .font(.system(size: 14, weight: .black, design: .rounded))
+                                .foregroundColor(.black)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(TryZonTheme.primaryGold)
+                    .clipShape(Capsule())
+                    .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 8, y: 3)
                 }
-
-                // Sign In CTA
-                ShimmeringGoldButton(title: isLoading ? "LOGGING IN..." : "SIGN IN WITH EMAIL 🚀", subtitle: "Access Your Wardrobe & Credits") {
-                    performLogin()
-                }
+                .buttonStyle(BounceButtonStyle())
 
                 // Register Link
                 Button(action: onNavigateToRegister) {
                     HStack {
                         Text("Don't have an account?")
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
                         Text("Register Now")
                             .foregroundColor(TryZonTheme.primaryGold)
                             .fontWeight(.bold)
@@ -150,9 +212,16 @@ public struct LoginView: View {
 
                 Spacer(minLength: 20)
             }
-            .padding(24)
+            .padding(20)
         }
-        .background(TryZonTheme.darkBackground.ignoresSafeArea())
+        .background(TryZonTheme.backgroundColor(for: colorScheme).ignoresSafeArea())
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+                withAnimation(.easeInOut(duration: 0.6)) {
+                    currentHeroIndex = (currentHeroIndex + 1) % heroOutfits.count
+                }
+            }
+        }
     }
 
     private func performLogin() {
