@@ -35,11 +35,11 @@ public struct SideDrawer: View {
                     DynamicAppLogo(width: 36, height: 36)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(apiClient.currentUser?.name ?? (apiClient.currentUser != nil ? "TryZon Member" : "Guest Stylist"))
+                        Text(apiClient.isRealUser ? (apiClient.currentUser?.name ?? "TryZon Member") : "Guest Stylist")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.white)
                             .lineLimit(1)
-                        Text(apiClient.currentUser?.email ?? "Sign in for cloud sync & bonus")
+                        Text(apiClient.isRealUser ? (apiClient.currentUser?.email ?? "") : "Sign in for cloud sync & bonus")
                             .font(.system(size: 11))
                             .foregroundColor(.white.opacity(0.6))
                             .lineLimit(1)
@@ -57,19 +57,22 @@ public struct SideDrawer: View {
                 .padding(16)
                 .background(TryZonTheme.surfaceVariant)
 
-                if apiClient.currentUser == nil {
+                if !apiClient.isRealUser {
                     Button(action: { showLoginSheet = true }) {
                         HStack {
                             Image(systemName: "person.crop.circle.badge.plus")
                                 .font(.system(size: 14))
-                            Text("SIGN IN / REGISTER 🚀")
+                            Text("SIGN IN / REGISTER 🚀 (+2 BONUS)")
                                 .font(.system(size: 12, weight: .black))
                         }
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 10)
                         .background(TryZonTheme.primaryGold)
+                        .cornerRadius(8)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
                 }
 
                 Divider().background(TryZonTheme.cardBorder)
@@ -202,7 +205,7 @@ public struct SideDrawer: View {
                                 }
                             }
 
-                            if apiClient.currentUser != nil {
+                            if apiClient.isRealUser {
                                 Button(action: { showLogoutConfirm = true }) {
                                     HStack {
                                         Image(systemName: "rectangle.portrait.and.arrow.right")

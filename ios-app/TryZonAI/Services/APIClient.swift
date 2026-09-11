@@ -45,6 +45,12 @@ public class APIClient: ObservableObject {
         }
     }
 
+    public var isRealUser: Bool {
+        guard let user = currentUser else { return false }
+        let lower = user.email.lowercased()
+        return !lower.contains("ios_guest_") && !lower.contains("guest_")
+    }
+
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 60
@@ -52,7 +58,6 @@ public class APIClient: ObservableObject {
         self.session = URLSession(configuration: config)
 
         if authToken != nil {
-            isLoggedIn = true
             fetchUserProfile()
         } else {
             fetchUserCredits()
@@ -86,6 +91,11 @@ public class APIClient: ObservableObject {
         let pass = "GuestPass123!"
 
         let res = try await register(name: name, email: email, password: pass)
+        // Guest user is not a real user, so keep isLoggedIn = false
+        DispatchQueue.main.async {
+            self.isLoggedIn = false
+            AuthViewModel.shared.isLoggedIn = false
+        }
         return res.token
     }
 
@@ -107,7 +117,11 @@ public class APIClient: ObservableObject {
                     self?.currentUser = user
                     self?.userCredits = user.credits
                     self?.paidCredits = user.paidCredits
-                    self?.isLoggedIn = true
+                    let isGuest = user.email.lowercased().contains("ios_guest_") || user.email.lowercased().contains("guest_")
+                    let realLoggedIn = !isGuest
+                    self?.isLoggedIn = realLoggedIn
+                    AuthViewModel.shared.isLoggedIn = realLoggedIn
+                    AuthViewModel.shared.currentUser = user
                 } else {
                     self?.fetchUserCredits()
                 }

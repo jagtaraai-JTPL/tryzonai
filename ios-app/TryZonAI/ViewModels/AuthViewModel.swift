@@ -19,9 +19,12 @@ public class AuthViewModel: ObservableObject {
         self.isLifetimeFirstTryOnDone = UserDefaults.standard.bool(forKey: "is_lifetime_first_tryon_done")
         self.dailyTryCount = UserDefaults.standard.integer(forKey: "daily_try_count")
         
-        if apiClient.authToken != nil {
+        if apiClient.authToken != nil && apiClient.isRealUser {
             self.isLoggedIn = true
             self.currentUser = apiClient.currentUser
+        } else {
+            self.isLoggedIn = false
+            self.currentUser = nil
         }
     }
 
