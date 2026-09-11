@@ -51,7 +51,7 @@ public struct MainTabView: View {
                     case .tryon:
                         TryOnUploadView(apiClient: apiClient, onNavigateToResult: { _ in })
                     case .catalog:
-                        CatalogView(apiClient: apiClient, onSelectProduct: { item in
+                        CatalogView(apiClient: apiClient, onSelectGarmentForTryOn: { _ in
                             selectedTab = .tryon
                         })
                     case .wardrobe:

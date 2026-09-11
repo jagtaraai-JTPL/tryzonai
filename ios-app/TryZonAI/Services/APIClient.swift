@@ -6,14 +6,16 @@ public class APIClient: ObservableObject {
     public static let shared = APIClient()
 
     @Published public var currentUser: UserProfile?
-    @Published public var userCredits: Int = 3
+    @Published public var userCredits: Int = 1
+    @Published public var paidCredits: Int = 0
+    @Published public var isLoggedIn: Bool = false
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String?
 
     private let baseURL = URL(string: "https://tryzonai.com/api")!
     private let session: URLSession
 
-    private var sessionID: String {
+    public var sessionID: String {
         if let existing = UserDefaults.standard.string(forKey: "tryzon_session_id") {
             return existing
         }
@@ -22,25 +24,80 @@ public class APIClient: ObservableObject {
         return newID
     }
 
+    public var deviceID: String {
+        if let existing = UserDefaults.standard.string(forKey: "tryzon_device_id") {
+            return existing
+        }
+        let newID = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        UserDefaults.standard.set(newID, forKey: "tryzon_device_id")
+        return newID
+    }
+
+    public var authToken: String? {
+        get { UserDefaults.standard.string(forKey: "auth_token") }
+        set {
+            if let val = newValue {
+                UserDefaults.standard.set(val, forKey: "auth_token")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "auth_token")
+            }
+        }
+    }
+
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 120
         self.session = URLSession(configuration: config)
-        
-        fetchUserCredits()
+
+        if authToken != nil {
+            isLoggedIn = true
+            fetchUserProfile()
+        } else {
+            fetchUserCredits()
+        }
     }
 
     // MARK: - Headers
-    private func makeHeaders() -> [String: String] {
-        return [
+    public func makeHeaders() -> [String: String] {
+        var headers: [String: String] = [
             "Content-Type": "application/json",
             "X-Session-ID": sessionID,
+            "X-Device-ID": deviceID,
             "Accept": "application/json"
         ]
+        if let token = authToken {
+            headers["Authorization"] = "Bearer \(token)"
+        }
+        return headers
     }
 
-    // MARK: - User & Credits API
+    // MARK: - User Profile & Credits API
+    public func fetchUserProfile() {
+        guard authToken != nil else {
+            fetchUserCredits()
+            return
+        }
+
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/me"))
+        request.httpMethod = "GET"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+        session.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                if let data = data,
+                   let user = try? JSONDecoder().decode(UserProfile.self, from: data) {
+                    self?.currentUser = user
+                    self?.userCredits = user.credits
+                    self?.paidCredits = user.paidCredits
+                    self?.isLoggedIn = true
+                } else {
+                    self?.fetchUserCredits()
+                }
+            }
+        }.resume()
+    }
+
     public func fetchUserCredits() {
         var request = URLRequest(url: baseURL.appendingPathComponent("user/credits"))
         request.httpMethod = "GET"
@@ -57,20 +114,80 @@ public class APIClient: ObservableObject {
         }.resume()
     }
 
+    // MARK: - Auth API
+    public func login(email: String, password: String) async throws -> AuthResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/login"))
+        request.httpMethod = "POST"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+        let bodyData = try JSONSerialization.data(withJSONObject: ["email": email, "password": password])
+        request.httpBody = bodyData
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(domain: "APIClient", code: 401, userInfo: [NSLocalizedDescriptionKey: "Invalid email or password"])
+        }
+
+        let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
+        DispatchQueue.main.async {
+            self.authToken = authRes.token
+            self.currentUser = authRes.user
+            self.userCredits = authRes.user.credits
+            self.paidCredits = authRes.user.paidCredits
+            self.isLoggedIn = true
+        }
+        return authRes
+    }
+
+    public func register(name: String, email: String, password: String) async throws -> AuthResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/register"))
+        request.httpMethod = "POST"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+        let bodyData = try JSONSerialization.data(withJSONObject: ["name": name, "email": email, "password": password])
+        request.httpBody = bodyData
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(domain: "APIClient", code: 400, userInfo: [NSLocalizedDescriptionKey: "Registration failed. Email might already exist."])
+        }
+
+        let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
+        DispatchQueue.main.async {
+            self.authToken = authRes.token
+            self.currentUser = authRes.user
+            self.userCredits = authRes.user.credits
+            self.paidCredits = authRes.user.paidCredits
+            self.isLoggedIn = true
+        }
+        return authRes
+    }
+
     // MARK: - Multipart Image Upload for Try-On
-    public func generateTryOn(personImage: UIImage, garmentImage: UIImage, category: String) async throws -> TryOnTaskResponse {
+    public func generateTryOn(personImage: UIImage, garmentImage: UIImage, category: String, productId: String? = nil) async throws -> TryOnSubmissionResponse {
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: baseURL.appendingPathComponent("tryon"))
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue(sessionID, forHTTPHeaderField: "X-Session-ID")
+        request.setValue(deviceID, forHTTPHeaderField: "X-Device-ID")
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         var body = Data()
-        
+
         // Append Category
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"category\"\r\n\r\n".data(using: .utf8)!)
         body.append("\(category)\r\n".data(using: .utf8)!)
+
+        // Append Product ID if present
+        if let pid = productId {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"product_id\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(pid)\r\n".data(using: .utf8)!)
+        }
 
         // Append Person Image
         if let personData = personImage.jpegData(compressionQuality: 0.85) {
@@ -95,39 +212,87 @@ public class APIClient: ObservableObject {
 
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let detail = json["detail"] as? String {
+                throw NSError(domain: "APIClient", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: detail])
+            }
             throw NSError(domain: "APIClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to submit Try-On task"])
         }
 
         let decoder = JSONDecoder()
-        let result = try decoder.decode(TryOnTaskResponse.self, from: data)
-        
-        // Update credits balance locally
-        fetchUserCredits()
+        let result = try decoder.decode(TryOnSubmissionResponse.self, from: data)
+
+        if let rem = result.credits_remaining {
+            DispatchQueue.main.async {
+                self.userCredits = rem
+            }
+        }
         return result
     }
 
     // MARK: - Task Status Polling
-    public func pollTaskStatus(taskId: String) async throws -> TryOnTaskResponse {
-        var request = URLRequest(url: baseURL.appendingPathComponent("tryon/status/\(taskId)"))
+    public func pollTaskStatus(sessionId: Int) async throws -> TryOnStatusResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("tryon/status/\(sessionId)"))
+        request.httpMethod = "GET"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(domain: "APIClient", code: 404, userInfo: [NSLocalizedDescriptionKey: "Task status not found"])
+        }
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(TryOnStatusResponse.self, from: data)
+    }
+
+    // MARK: - Catalog API
+    public func fetchCatalog(category: String? = nil, gender: String? = nil, search: String? = nil) async throws -> [CatalogItem] {
+        var components = URLComponents(url: baseURL.appendingPathComponent("catalog"), resolvingAgainstBaseURL: false)!
+        var queryItems: [URLQueryItem] = [URLQueryItem(name: "limit", value: "30")]
+        if let cat = category, cat != "All" {
+            queryItems.append(URLQueryItem(name: "category", value: cat))
+        }
+        if let g = gender, g != "All" {
+            queryItems.append(URLQueryItem(name: "gender", value: g))
+        }
+        if let q = search, !q.isEmpty {
+            queryItems.append(URLQueryItem(name: "search", value: q))
+        }
+        components.queryItems = queryItems
+
+        var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
         let (data, _) = try await session.data(for: request)
         let decoder = JSONDecoder()
-        return try decoder.decode(TryOnTaskResponse.self, from: data)
+        let res = try decoder.decode(CatalogResponse.self, from: data)
+        return res.products
+    }
+
+    // MARK: - History API
+    public func fetchHistory() async throws -> [TryOnHistoryItem] {
+        var request = URLRequest(url: baseURL.appendingPathComponent("tryon/history"))
+        request.httpMethod = "GET"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+        let (data, _) = try await session.data(for: request)
+        let decoder = JSONDecoder()
+        return try decoder.decode([TryOnHistoryItem].self, from: data)
     }
 
     // MARK: - Auth & Account Management
     public func logout() {
         UserDefaults.standard.removeObject(forKey: "tryzon_session_id")
         UserDefaults.standard.removeObject(forKey: "auth_token")
+        authToken = nil
         currentUser = nil
+        isLoggedIn = false
         userCredits = 1
+        paidCredits = 0
     }
 
     public func deleteAccount() {
         logout()
     }
 }
-
-

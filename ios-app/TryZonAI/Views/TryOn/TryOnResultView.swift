@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct TryOnResultView: View {
     let resultImageUrl: String
@@ -6,186 +7,234 @@ public struct TryOnResultView: View {
     let onTryAnother: () -> Void
 
     @State private var sliderOffset: CGFloat = 0.5
-    @State private var showHeart: Bool = false
-    @State private var isFullscreen: Bool = false
+    @State private var showHeartAnimation = false
+    @State private var heartPosition: CGPoint = .zero
+    @State private var isSavedToWardrobe = false
+    @State private var showToastMessage: String? = nil
 
-    public init(resultImageUrl: String, originalPhotoUrl: String? = nil, onTryAnother: @escaping () -> Void = {}) {
+    public init(resultImageUrl: String, originalPhotoUrl: String? = nil, onTryAnother: @escaping () -> Void) {
         self.resultImageUrl = resultImageUrl
         self.originalPhotoUrl = originalPhotoUrl
         self.onTryAnother = onTryAnother
     }
 
     public var body: some View {
-        VStack(spacing: 16) {
-            // Header
-            HStack {
-                Text("HD AI Fitting Result ✨")
-                    .font(.system(size: 18, weight: .black))
-                    .foregroundColor(TryZonTheme.primaryGold)
-                Spacer()
-                Button(action: onTryAnother) {
-                    Text("Try Another Outfit 🔄")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(TryZonTheme.primaryGold)
-                        .cornerRadius(14)
-                }
-            }
-            .padding(.horizontal, 16)
+        ZStack {
+            TryZonTheme.darkBackground.ignoresSafeArea()
 
-            // Interactive Split-Screen Comparison Slider
-            GeometryReader { geo in
-                ZStack {
-                    // Result AI Outfit Image (Background layer)
-                    AsyncImage(url: URL(string: resultImageUrl)) { img in
-                        img.resizable().scaledToFill()
-                    } placeholder: {
-                        TryZonTheme.surfaceVariant
+            VStack(spacing: 16) {
+                // Top Header Bar
+                HStack {
+                    Button(action: onTryAnother) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("Try Another")
+                        }
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(TryZonTheme.primaryGold)
                     }
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .clipped()
 
-                    // Original User Photo (Foreground clipped layer)
-                    if let origUrl = originalPhotoUrl, !origUrl.isEmpty {
-                        AsyncImage(url: URL(string: origUrl)) { img in
+                    Spacer()
+
+                    Text("FITTING RESULT 👑")
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundColor(.white)
+
+                    Spacer()
+
+                    Button(action: shareResultImage) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(TryZonTheme.primaryGold)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+
+                // Interactive Split-Screen Comparison Viewport
+                GeometryReader { geo in
+                    ZStack {
+                        // Background Layer: AI Result Image
+                        AsyncImage(url: URL(string: resultImageUrl)) { img in
                             img.resizable().scaledToFill()
                         } placeholder: {
-                            TryZonTheme.darkSurface
+                            TryZonTheme.surfaceVariant
                         }
                         .frame(width: geo.size.width, height: geo.size.height)
-                        .mask(
-                            HStack(spacing: 0) {
-                                Rectangle()
-                                    .frame(width: geo.size.width * sliderOffset)
-                                Spacer(minLength: 0)
-                            }
-                        )
                         .clipped()
-                    }
 
-                    // Floating Slider Handle
-                    Rectangle()
-                        .fill(TryZonTheme.primaryGold)
-                        .frame(width: 3, height: geo.size.height)
-                        .offset(x: (sliderOffset - 0.5) * geo.size.width)
-                        .overlay(
-                            Circle()
-                                .fill(TryZonTheme.primaryGold)
-                                .frame(width: 32, height: 32)
-                                .overlay(
-                                    Image(systemName: "chevron.left.chevron.right")
-                                        .font(.system(size: 12, weight: .black))
-                                        .foregroundColor(.black)
-                                )
-                                .offset(x: (sliderOffset - 0.5) * geo.size.width)
-                        )
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    let newOffset = value.location.x / geo.size.width
-                                    sliderOffset = min(max(newOffset, 0.05), 0.95)
+                        // Foreground Clipped Layer: Original Photo (if present)
+                        if let origUrl = originalPhotoUrl, let url = URL(string: origUrl) {
+                            AsyncImage(url: url) { img in
+                                img.resizable().scaledToFill()
+                            } placeholder: {
+                                TryZonTheme.darkSurface
+                            }
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .mask(
+                                HStack(spacing: 0) {
+                                    Rectangle()
+                                        .frame(width: geo.size.width * sliderOffset)
+                                    Spacer(minLength: 0)
                                 }
-                        )
+                            )
+                            .clipped()
 
-                    // Double Tap Heart Overlay
-                    if showHeart {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 80))
-                            .foregroundColor(.red)
-                            .shadow(radius: 10)
-                            .transition(.scale.combined(with: .opacity))
-                    }
-                }
-                .cornerRadius(24)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1.5)
-                )
-                .onTapGesture(count: 2) {
-                    withAnimation(.spring()) {
-                        showHeart = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        withAnimation { showHeart = false }
-                    }
-                }
-            }
-            .frame(height: 380)
-            .padding(.horizontal, 16)
+                            // Vertical Drag Handle Divider Bar
+                            Rectangle()
+                                .fill(TryZonTheme.primaryGold)
+                                .frame(width: 3)
+                                .offset(x: (geo.size.width * sliderOffset) - (geo.size.width / 2))
+                                .overlay(
+                                    ZStack {
+                                        Circle()
+                                            .fill(TryZonTheme.primaryGold)
+                                            .frame(width: 36, height: 36)
+                                            .shadow(color: .black.opacity(0.5), radius: 4)
 
-            // Instruction Pill
-            Text("👈 Drag handle to compare • Double tap to ❤️")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.white.opacity(0.6))
-
-            // Action Buttons (Save HD, Share, Store Links)
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    Button(action: {
-                        // Share Image
-                    }) {
-                        HStack {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("Share Look")
+                                        HStack(spacing: 2) {
+                                            Image(systemName: "chevron.left")
+                                            Image(systemName: "chevron.right")
+                                        }
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.black)
+                                    }
+                                    .offset(x: (geo.size.width * sliderOffset) - (geo.size.width / 2))
+                                )
+                                .gesture(
+                                    DragGesture()
+                                        .onChanged { value in
+                                            let newOffset = value.location.x / geo.size.width
+                                            sliderOffset = min(max(newOffset, 0.05), 0.95)
+                                        }
+                                )
                         }
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+
+                        // Floating Heart Animation overlay on Double-Tap
+                        if showHeartAnimation {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 80))
+                                .foregroundColor(.red)
+                                .shadow(color: .black.opacity(0.5), radius: 10)
+                                .position(heartPosition)
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture(count: 2) { location in
+                        heartPosition = location
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                            showHeartAnimation = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                            withAnimation { showHeartAnimation = false }
+                        }
+                    }
+                }
+                .frame(maxHeight: .infinity)
+                .cornerRadius(20)
+                .padding(.horizontal, 16)
+
+                // Action Buttons Bar
+                HStack(spacing: 12) {
+                    // Save to Wardrobe Button
+                    Button(action: {
+                        isSavedToWardrobe.toggle()
+                        showToast("Saved to Wardrobe Closet!")
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: isSavedToWardrobe ? "heart.fill" : "heart")
+                                .foregroundColor(isSavedToWardrobe ? .red : TryZonTheme.primaryGold)
+                            Text(isSavedToWardrobe ? "Saved" : "Save")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
                         .background(TryZonTheme.surfaceVariant)
-                        .cornerRadius(14)
+                        .cornerRadius(12)
                     }
 
-                    Button(action: {
-                        // Download Image
-                    }) {
-                        HStack {
-                            Image(systemName: "arrow.down.to.line")
-                            Text("Save HD")
+                    // Download HD Button
+                    Button(action: downloadHDImage) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .foregroundColor(.black)
+                            Text("Download HD")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.black)
                         }
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 16)
                         .background(TryZonTheme.primaryGold)
-                        .cornerRadius(14)
+                        .cornerRadius(12)
+                    }
+
+                    // Affiliate Store Buy Link
+                    Button(action: {
+                        if let url = URL(string: "https://myntra.com") {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bag.fill")
+                            Text("Buy Outfit")
+                        }
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .background(Color.pink.opacity(0.8))
+                        .cornerRadius(12)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+            }
 
-                // Affiliate Store Links
-                HStack(spacing: 8) {
-                    StoreButton(name: "Myntra", color: .pink)
-                    StoreButton(name: "Ajio", color: .black)
-                    StoreButton(name: "Flipkart", color: .blue)
-                    StoreButton(name: "Amazon", color: .orange)
+            // Toast Message Notification Overlay
+            if let toast = showToastMessage {
+                VStack {
+                    Spacer()
+                    Text(toast)
+                        .font(.system(size: 12, weight: .bold))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.black.opacity(0.85))
+                        .foregroundColor(TryZonTheme.primaryGold)
+                        .cornerRadius(20)
+                        .padding(.bottom, 80)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
+    private func downloadHDImage() {
+        guard let url = URL(string: resultImageUrl) else { return }
+        Task {
+            if let (data, _) = try? await URLSession.shared.data(from: url),
+               let image = UIImage(data: data) {
+                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                DispatchQueue.main.async {
+                    showToast("HD Image Saved to Photos Gallery! 📸")
                 }
             }
-            .padding(.horizontal, 16)
         }
-        .padding(.vertical, 12)
-        .background(TryZonTheme.darkBackground)
     }
-}
 
-struct StoreButton: View {
-    let name: String
-    let color: Color
+    private func shareResultImage() {
+        guard let url = URL(string: resultImageUrl) else { return }
+        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(activityVC, animated: true)
+        }
+    }
 
-    var body: some View {
-        Button(action: {
-            if let url = URL(string: "https://\(name.lowercased()).com") {
-                UIApplication.shared.open(url)
-            }
-        }) {
-            Text(name)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(color.opacity(0.8))
-                .cornerRadius(10)
+    private func showToast(_ msg: String) {
+        withAnimation { showToastMessage = msg }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            withAnimation { showToastMessage = nil }
         }
     }
 }

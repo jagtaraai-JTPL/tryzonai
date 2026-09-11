@@ -2,41 +2,82 @@ import SwiftUI
 
 public struct CatalogView: View {
     @ObservedObject var apiClient: APIClient
-    let onSelectProduct: (CatalogItem) -> Void
+    let onSelectGarmentForTryOn: (CatalogItem) -> Void
 
     @State private var selectedCategory: String = "All"
-    @AppStorage("user_gender") private var userGender: String = "Women"
-    @State private var catalogItems: [CatalogItem] = []
+    @AppStorage("user_gender") private var selectedGender: String = "Women"
+    @State private var searchText: String = ""
+    @State private var items: [CatalogItem] = []
     @State private var isLoading: Bool = false
+    @State private var errorMessage: String? = nil
 
-    private let categories = ["All", "Tops", "Dresses", "Bottoms", "Outerwear"]
+    private let categories = ["All", "Tops", "Bottoms", "Dresses", "Suits", "Outerwear"]
 
-    public init(apiClient: APIClient, onSelectProduct: @escaping (CatalogItem) -> Void) {
+    public init(apiClient: APIClient, onSelectGarmentForTryOn: @escaping (CatalogItem) -> Void) {
         self.apiClient = apiClient
-        self.onSelectProduct = onSelectProduct
+        self.onSelectGarmentForTryOn = onSelectGarmentForTryOn
     }
 
     public var body: some View {
         VStack(spacing: 12) {
-            // Category & Gender Filter Bar
+            // Search Bar & Gender Filter Pill
+            HStack(spacing: 10) {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(TryZonTheme.primaryGold)
+                    TextField("Search outfits, brands...", text: $searchText)
+                        .font(.system(size: 13))
+                        .foregroundColor(.white)
+                        .onSubmit {
+                            loadCatalogData()
+                        }
+                }
+                .padding(10)
+                .background(TryZonTheme.surfaceVariant)
+                .cornerRadius(12)
+
+                // Gender Selector Pill
+                Menu {
+                    Button("Women") { selectedGender = "Women"; loadCatalogData() }
+                    Button("Men") { selectedGender = "Men"; loadCatalogData() }
+                    Button("Unisex") { selectedGender = "Unisex"; loadCatalogData() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "figure.dress.line.vertical.figure")
+                        Text(selectedGender)
+                    }
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(TryZonTheme.primaryGold)
+                    .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal, 16)
+
+            // Category Selector Tabs
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(categories, id: \.self) { cat in
-                        Button(action: { selectedCategory = cat }) {
+                        Button(action: {
+                            selectedCategory = cat
+                            loadCatalogData()
+                        }) {
                             Text(cat)
                                 .font(.system(size: 12, weight: .bold))
                                 .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
+                                .padding(.vertical, 7)
                                 .background(selectedCategory == cat ? TryZonTheme.primaryGold : TryZonTheme.surfaceVariant)
                                 .foregroundColor(selectedCategory == cat ? .black : .white)
-                                .cornerRadius(20)
+                                .cornerRadius(18)
                         }
                     }
                 }
                 .padding(.horizontal, 16)
             }
 
-            // Catalog Grid
+            // Main Catalog Grid
             if isLoading {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: TryZonTheme.primaryGold))
@@ -44,15 +85,11 @@ public struct CatalogView: View {
             } else {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                        ForEach(sampleCatalogItems.filter { item in
-                            (selectedCategory == "All" || item.category.lowercased() == selectedCategory.lowercased())
-                        }) { item in
+                        ForEach(displayedItems) { item in
                             VStack(alignment: .leading, spacing: 6) {
                                 ZStack(alignment: .topTrailing) {
-                                    AsyncImage(url: URL(string: item.image_url)) { image in
-                                        image
-                                            .resizable()
-                                            .scaledToFill()
+                                    AsyncImage(url: item.fullImageURL) { img in
+                                        img.resizable().scaledToFill()
                                     } placeholder: {
                                         TryZonTheme.surfaceVariant
                                     }
@@ -60,14 +97,16 @@ public struct CatalogView: View {
                                     .cornerRadius(16)
                                     .clipped()
 
-                                    Text("⚡ Try On")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(TryZonTheme.primaryGold)
-                                        .foregroundColor(.black)
-                                        .cornerRadius(8)
-                                        .padding(8)
+                                    if let badge = item.badge {
+                                        Text(badge)
+                                            .font(.system(size: 9, weight: .bold))
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(TryZonTheme.primaryGold)
+                                            .foregroundColor(.black)
+                                            .cornerRadius(6)
+                                            .padding(8)
+                                    }
                                 }
 
                                 Text(item.name)
@@ -76,45 +115,74 @@ public struct CatalogView: View {
                                     .lineLimit(1)
 
                                 HStack {
-                                    if let price = item.price_inr {
-                                        Text("₹\(price)")
-                                            .font(.system(size: 12, weight: .bold))
-                                            .foregroundColor(TryZonTheme.primaryGold)
-                                    }
+                                    Text("₹\(item.price)")
+                                        .font(.system(size: 13, weight: .black))
+                                        .foregroundColor(TryZonTheme.primaryGold)
+
                                     Spacer()
-                                    Text(item.brand ?? "Fashion")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.white.opacity(0.5))
+
+                                    // 1-Tap Try On Button
+                                    Button(action: {
+                                        onSelectGarmentForTryOn(item)
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "sparkles")
+                                            Text("Try On")
+                                        }
+                                        .font(.system(size: 11, weight: .bold))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(TryZonTheme.primaryGold)
+                                        .foregroundColor(.black)
+                                        .cornerRadius(10)
+                                    }
                                 }
                             }
-                            .padding(8)
+                            .padding(10)
                             .background(TryZonTheme.darkSurface)
-                            .cornerRadius(18)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18)
-                                    .stroke(TryZonTheme.cardBorder, lineWidth: 1)
-                            )
-                            .onTapGesture {
-                                onSelectProduct(item)
-                            }
+                            .cornerRadius(16)
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
                 }
             }
         }
         .background(TryZonTheme.darkBackground)
+        .onAppear {
+            loadCatalogData()
+        }
+    }
+
+    private var displayedItems: [CatalogItem] {
+        if items.isEmpty {
+            return sampleCatalogItems
+        }
+        return items
+    }
+
+    private func loadCatalogData() {
+        isLoading = true
+        Task {
+            do {
+                let fetched = try await apiClient.fetchCatalog(category: selectedCategory, gender: selectedGender, search: searchText)
+                DispatchQueue.main.async {
+                    self.items = fetched
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                }
+            }
+        }
     }
 
     private var sampleCatalogItems: [CatalogItem] {
-        return [
-            CatalogItem(product_id: "c1", name: "Floral Summer Sundress", category: "Dresses", image_url: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500", price_inr: 1299, store_url: "https://myntr.it/sQ4bpfb", brand: "Zara", gender: "Women"),
-            CatalogItem(product_id: "c2", name: "Classic Denim Jacket", category: "Outerwear", image_url: "https://images.unsplash.com/photo-1544441893-675973e31985?w=500", price_inr: 2499, store_url: "https://myntr.it/sQ4bpfb", brand: "Levi's", gender: "Women"),
-            CatalogItem(product_id: "c3", name: "Silk Satin Blouse", category: "Tops", image_url: "https://images.unsplash.com/photo-1564257631407-4deb1f99d992?w=500", price_inr: 1799, store_url: "https://myntr.it/sQ4bpfb", brand: "H&M", gender: "Women"),
-            CatalogItem(product_id: "c4", name: "High-Waist Trousers", category: "Bottoms", image_url: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=500", price_inr: 1999, store_url: "https://myntr.it/sQ4bpfb", brand: "Mango", gender: "Women"),
-            CatalogItem(product_id: "c5", name: "Elegance Evening Gown", category: "Dresses", image_url: "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=500", price_inr: 3499, store_url: "https://myntr.it/sQ4bpfb", brand: "Forever New", gender: "Women"),
-            CatalogItem(product_id: "c6", name: "Casual Cotton Tee", category: "Tops", image_url: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500", price_inr: 799, store_url: "https://myntr.it/sQ4bpfb", brand: "Uniqlo", gender: "Women")
+        [
+            CatalogItem(id: "1", name: "Monaco Riviera Linen Blazer", brand: "TryZon AI", price: 2999, original_price: 4999, image_url: "/inputs/sample1.jpg", category: "Suits", store: "TryZon AI", gender: "Men", badge: "👑 OLD MONEY"),
+            CatalogItem(id: "2", name: "NYC Fifth Ave Evening Gown", brand: "TryZon AI", price: 4499, original_price: 6999, image_url: "/inputs/sample2.jpg", category: "Dresses", store: "TryZon AI", gender: "Women", badge: "✨ ELEGANT"),
+            CatalogItem(id: "3", name: "Tokyo Cyberpunk Jacket", brand: "TryZon AI", price: 3499, original_price: 5499, image_url: "/inputs/sample3.jpg", category: "Tops", store: "TryZon AI", gender: "Unisex", badge: "⚡ NEON AI"),
+            CatalogItem(id: "4", name: "Seoul Black Slim Tuxedo", brand: "TryZon AI", price: 5299, original_price: 7999, image_url: "/inputs/sample4.jpg", category: "Suits", store: "TryZon AI", gender: "Men", badge: "🫰 K-STYLE")
         ]
     }
 }
