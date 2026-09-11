@@ -37,7 +37,7 @@ public struct TryOnUploadView: View {
 
     @State private var selectedPersonItem: PhotosPickerItem? = nil
     @State private var selectedGarmentItem: PhotosPickerItem? = nil
-
+    @State private var selectedOutfitUrl: String = ""
     @State private var showingCameraForPerson = false
     @State private var showingCameraForGarment = false
 
@@ -80,7 +80,6 @@ public struct TryOnUploadView: View {
                             sessionId: sessionId,
                             apiClient: apiClient,
                             onCompleted: { statusRes in
-                                // FIX: Use single NavigationStack push — no double-sheet timing issue
                                 navPath = [.result(statusRes)]
                             },
                             onCancel: {
@@ -103,6 +102,13 @@ public struct TryOnUploadView: View {
                         .navigationBarHidden(true)
                     }
                 }
+        }
+        .onAppear {
+            if viewModel.selectedGarmentImage == nil && !sampleOutfits.isEmpty {
+                let firstOutfit = sampleOutfits[0]
+                selectedOutfitUrl = firstOutfit.imageUrl
+                loadSampleGarmentImage(urlStr: firstOutfit.imageUrl)
+            }
         }
         .overlay(
             Group {
@@ -384,19 +390,31 @@ public struct TryOnUploadView: View {
 
     // MARK: - Sample Outfit Card
     private func sampleOutfitCard(_ outfit: SampleOutfit) -> some View {
-        Button(action: {
+        let isSelected = selectedOutfitUrl == outfit.imageUrl
+        return Button(action: {
+            selectedOutfitUrl = outfit.imageUrl
             viewModel.selectedCategory = outfit.category
             loadSampleGarmentImage(urlStr: outfit.imageUrl)
         }) {
             VStack(alignment: .leading, spacing: 6) {
-                AsyncImage(url: URL(string: outfit.imageUrl)) { img in
-                    img.resizable().scaledToFill()
-                } placeholder: {
-                    outfit.color.opacity(0.5)
+                ZStack(alignment: .topTrailing) {
+                    AsyncImage(url: URL(string: outfit.imageUrl)) { img in
+                        img.resizable().scaledToFill()
+                    } placeholder: {
+                        outfit.color.opacity(0.5)
+                    }
+                    .frame(width: 90, height: 110)
+                    .clipped()
+                    .cornerRadius(10)
+
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(TryZonTheme.primaryGold)
+                            .background(Circle().fill(Color.black))
+                            .padding(6)
+                    }
                 }
-                .frame(width: 90, height: 110)
-                .clipped()
-                .cornerRadius(10)
 
                 Text(outfit.badge)
                     .font(.system(size: 8, weight: .bold))
@@ -413,11 +431,11 @@ public struct TryOnUploadView: View {
             }
             .frame(width: 100)
             .padding(8)
-            .background(TryZonTheme.surfaceVariant)
+            .background(isSelected ? TryZonTheme.primaryGold.opacity(0.18) : TryZonTheme.surfaceVariant)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1)
+                    .stroke(isSelected ? TryZonTheme.primaryGold : TryZonTheme.primaryGold.opacity(0.3), lineWidth: isSelected ? 2 : 1)
             )
         }
     }

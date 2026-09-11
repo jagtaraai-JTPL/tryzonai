@@ -301,9 +301,9 @@ public struct TryOnResultView: View {
                     )
                     .cornerRadius(14)
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 16)
                 .padding(.top, 8)
-                .padding(.bottom, 16)
+                .padding(.bottom, 24)
             }
 
             // Toast Overlay
