@@ -33,7 +33,25 @@ public struct MainTabView: View {
     @State private var selectedTab: TabItem = .home
     @State private var isDrawerOpen: Bool = false
 
-    public init() {}
+    public init() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(red: 18/255, green: 18/255, blue: 20/255, alpha: 1.0)
+
+        let goldColor = UIColor(red: 255/255, green: 215/255, blue: 0/255, alpha: 1.0)
+        let unselectedColor = UIColor.white.withAlphaComponent(0.45)
+
+        appearance.stackedLayoutAppearance.selected.iconColor = goldColor
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: goldColor]
+
+        appearance.stackedLayoutAppearance.normal.iconColor = unselectedColor
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: unselectedColor]
+
+        UITabBar.appearance().standardAppearance = appearance
+        if #available(iOS 15.0, *) {
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
+    }
 
     public var body: some View {
         ZStack {
@@ -47,48 +65,54 @@ public struct MainTabView: View {
                     onOpenPremium: { withAnimation { selectedTab = .premium } }
                 )
 
-                // Tab Content
-                ZStack {
-                    switch selectedTab {
-                    case .home:
-                        HomeScreen(
-                            apiClient: apiClient,
-                            onNavigateToTryOn: {
-                                withAnimation(.spring(response: 0.3)) { selectedTab = .tryon }
-                            },
-                            onNavigateToCatalog: {
-                                withAnimation { selectedTab = .catalog }
-                            }
-                        )
-
-                    case .tryon:
-                        TryOnUploadView(
-                            apiClient: apiClient,
-                            onNavigateToResult: { _ in }
-                        )
-
-                    case .catalog:
-                        CatalogView(
-                            apiClient: apiClient,
-                            onSelectGarmentForTryOn: { _ in
-                                withAnimation(.spring(response: 0.3)) { selectedTab = .tryon }
-                            }
-                        )
-
-                    case .wardrobe:
-                        WardrobeView(apiClient: apiClient)
-
-                    case .premium:
-                        PremiumView(apiClient: apiClient)
+                // Native iOS TabView (100% Touch Responsive across all iPhones & iPads)
+                TabView(selection: $selectedTab) {
+                    HomeScreen(
+                        apiClient: apiClient,
+                        onNavigateToTryOn: { selectedTab = .tryon },
+                        onNavigateToCatalog: { selectedTab = .catalog }
+                    )
+                    .tabItem {
+                        Label("Home", systemImage: "house.fill")
                     }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .tag(TabItem.home)
 
-                // Custom Gold Bottom Tab Bar
-                customTabBar
+                    TryOnUploadView(
+                        apiClient: apiClient,
+                        onNavigateToResult: { _ in }
+                    )
+                    .tabItem {
+                        Label("Fitting", systemImage: "camera.fill")
+                    }
+                    .tag(TabItem.tryon)
+
+                    CatalogView(
+                        apiClient: apiClient,
+                        onSelectGarmentForTryOn: { _ in
+                            selectedTab = .tryon
+                        }
+                    )
+                    .tabItem {
+                        Label("Catalog", systemImage: "tshirt.fill")
+                    }
+                    .tag(TabItem.catalog)
+
+                    WardrobeView(apiClient: apiClient)
+                        .tabItem {
+                            Label("Wardrobe", systemImage: "photo.on.rectangle.angled")
+                        }
+                        .tag(TabItem.wardrobe)
+
+                    PremiumView(apiClient: apiClient)
+                        .tabItem {
+                            Label("VIP Pro", systemImage: "crown.fill")
+                        }
+                        .tag(TabItem.premium)
+                }
+                .accentColor(TryZonTheme.primaryGold)
             }
 
-            // Side Drawer Overlay (Only mounted when isDrawerOpen == true to prevent blocking bottom tabs)
+            // Side Drawer Overlay (Only mounted when isDrawerOpen == true)
             if isDrawerOpen {
                 SideDrawer(isOpen: $isDrawerOpen, apiClient: apiClient)
                     .zIndex(100)
@@ -96,84 +120,5 @@ public struct MainTabView: View {
         }
         .preferredColorScheme(.dark)
     }
-
-    // MARK: - Premium Custom Tab Bar (100% Touch Responsive)
-    private var customTabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(TabItem.allCases, id: \.self) { tab in
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        selectedTab = tab
-                    }
-                }) {
-                    VStack(spacing: 4) {
-                        ZStack {
-                            if selectedTab == tab {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(TryZonTheme.primaryGold.opacity(0.18))
-                                    .frame(width: 44, height: 30)
-                            }
-
-                            Image(systemName: tab.iconName)
-                                .font(.system(
-                                    size: selectedTab == tab ? 19 : 17,
-                                    weight: selectedTab == tab ? .black : .medium
-                                ))
-                                .foregroundColor(
-                                    selectedTab == tab ? TryZonTheme.primaryGold : .white.opacity(0.45)
-                                )
-                                .scaleEffect(selectedTab == tab ? 1.1 : 1.0)
-                        }
-                        .frame(height: 30)
-
-                        Text(tab.title)
-                            .font(.system(
-                                size: 9.5,
-                                weight: selectedTab == tab ? .black : .regular
-                            ))
-                            .foregroundColor(
-                                selectedTab == tab ? TryZonTheme.primaryGold : .white.opacity(0.45)
-                            )
-
-                        // Active indicator dot
-                        Circle()
-                            .fill(TryZonTheme.primaryGold)
-                            .frame(width: 4, height: 4)
-                            .opacity(selectedTab == tab ? 1 : 0)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-        }
-        .padding(.bottom, max(8, safeAreaBottomInset))
-        .background(
-            ZStack(alignment: .top) {
-                TryZonTheme.darkSurface
-                    .opacity(0.98)
-                    .ignoresSafeArea(edges: .bottom)
-
-                // Shimmer top border line
-                LinearGradient(
-                    colors: [
-                        TryZonTheme.primaryGold.opacity(0.6),
-                        TryZonTheme.primaryGold.opacity(0.2),
-                        Color.clear
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(height: 1)
-            }
-        )
-    }
-
-    private var safeAreaBottomInset: CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first?
-            .safeAreaInsets.bottom ?? 0
-    }
 }
+
