@@ -24,6 +24,19 @@ jobs:
           sudo cp /tmp/xcodegen_dist/xcodegen/bin/xcodegen /usr/local/bin/
           xcodegen --version
 
+      - name: Inject Dynamic Build Number into Info.plist
+        run: |
+          python3 -c "
+          import plistlib
+          plist_path = 'ios-app/TryZonAI/Resources/Info.plist'
+          with open(plist_path, 'rb') as f:
+              data = plistlib.load(f)
+          data['CFBundleVersion'] = '${{ github.run_number }}'
+          with open(plist_path, 'wb') as f:
+              plistlib.dump(data, f)
+          print('Injected CFBundleVersion:', '${{ github.run_number }}')
+          "
+
       - name: Generate Xcode Project
         env:
           BUILD_NUMBER: ${{ github.run_number }}
