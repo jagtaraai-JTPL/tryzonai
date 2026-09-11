@@ -509,3 +509,22 @@ public struct TryOnUploadView: View {
         }
     }
 }
+
+// MARK: - Supporting Sample Outfit Struct
+public struct SampleOutfit: Identifiable {
+    public let id = UUID().uuidString
+    public let name: String
+    public let badge: String
+    public let category: String
+    public let color: Color
+    public let imageUrl: String
+
+    public init(name: String, badge: String, category: String, color: Color, imageUrl: String) {
+        self.name = name
+        self.badge = badge
+        self.category = category
+        self.color = color
+        self.imageUrl = imageUrl
+    }
+}
+
