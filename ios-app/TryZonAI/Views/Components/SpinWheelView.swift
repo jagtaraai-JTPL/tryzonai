@@ -9,6 +9,7 @@ public struct SpinWheelView: View {
     @State private var isSpinning: Bool = false
     @State private var wonPrize: PrizeItem? = nil
     @State private var showRewardAlert: Bool = false
+    @State private var hasSpunTodayState: Bool = false
 
     public struct PrizeItem: Identifiable {
         public let id = UUID()
@@ -20,12 +21,20 @@ public struct SpinWheelView: View {
 
     private let prizes: [PrizeItem] = [
         PrizeItem(label: "1 Credit", icon: "⚡", credits: 1, color: Color(red: 0.95, green: 0.6, blue: 0.1)),
-        PrizeItem(label: "2 Credits", icon: "🎁", credits: 2, color: Color(red: 0.6, green: 0.3, blue: 0.9)),
-        PrizeItem(label: "3 Credits", icon: "🚀", credits: 3, color: Color(red: 0.1, green: 0.6, blue: 0.95)),
-        PrizeItem(label: "Jackpot 5!", icon: "👑", credits: 5, color: Color(red: 0.95, green: 0.75, blue: 0.1)),
+        PrizeItem(label: "1 Credit", icon: "🎁", credits: 1, color: Color(red: 0.6, green: 0.3, blue: 0.9)),
+        PrizeItem(label: "2 Credits", icon: "🚀", credits: 2, color: Color(red: 0.1, green: 0.6, blue: 0.95)),
+        PrizeItem(label: "1 Credit", icon: "🌟", credits: 1, color: Color(red: 0.95, green: 0.75, blue: 0.1)),
         PrizeItem(label: "1 Credit", icon: "⚡", credits: 1, color: Color(red: 0.1, green: 0.8, blue: 0.7)),
-        PrizeItem(label: "Fast Pass", icon: "🌟", credits: 2, color: Color(red: 0.95, green: 0.3, blue: 0.6))
+        PrizeItem(label: "2 Credits VIP", icon: "👑", credits: 2, color: Color(red: 0.95, green: 0.3, blue: 0.6))
     ]
+
+    private var canSpinToday: Bool {
+        let lastSpinTime = UserDefaults.standard.double(forKey: "tryzon_last_spin_time")
+        if lastSpinTime == 0 { return true }
+
+        let lastDate = Date(timeIntervalSince1970: lastSpinTime)
+        return !Calendar.current.isDateInToday(lastDate)
+    }
 
     public init(apiClient: APIClient) {
         self.apiClient = apiClient
@@ -55,10 +64,11 @@ public struct SpinWheelView: View {
                         .foregroundColor(TryZonTheme.primaryGold)
                         .tracking(1)
 
-                    Text("Spin daily to win bonus try-on credits & VIP passes!")
+                    Text(canSpinToday && !hasSpunTodayState ? "Spin once daily to win bonus try-on credits!" : "You've already spun today! Come back tomorrow 🌙")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
                 }
 
                 Spacer(minLength: 10)
@@ -128,6 +138,10 @@ public struct SpinWheelView: View {
                             Text("SPINNING...")
                                 .font(.system(size: 16, weight: .black, design: .rounded))
                                 .foregroundColor(.black)
+                        } else if !canSpinToday || hasSpunTodayState {
+                            Text("ALREADY SPUN TODAY 🌙")
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundColor(.white.opacity(0.6))
                         } else {
                             Text("SPIN NOW! 🎰")
                                 .font(.system(size: 16, weight: .black, design: .rounded))
@@ -136,12 +150,12 @@ public struct SpinWheelView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
-                    .background(isSpinning ? Color.gray : TryZonTheme.primaryGold)
+                    .background((!canSpinToday || hasSpunTodayState) ? Color.gray.opacity(0.4) : (isSpinning ? Color.gray : TryZonTheme.primaryGold))
                     .clipShape(Capsule())
-                    .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 10, y: 4)
+                    .shadow(color: TryZonTheme.primaryGold.opacity(canSpinToday && !hasSpunTodayState ? 0.4 : 0), radius: 10, y: 4)
                     .padding(.horizontal, 30)
                 }
-                .disabled(isSpinning)
+                .disabled(isSpinning || !canSpinToday || hasSpunTodayState)
                 .buttonStyle(BounceButtonStyle())
 
                 Spacer(minLength: 20)
@@ -163,7 +177,7 @@ public struct SpinWheelView: View {
                         .font(.system(size: 18, weight: .black, design: .rounded))
                         .foregroundColor(TryZonTheme.primaryGold)
 
-                    Text("You won \(prize.label) (\(prize.credits) Try-On Credits)!")
+                    Text("You won \(prize.label) (\(prize.credits) Try-On Credit\(prize.credits > 1 ? "s" : ""))!")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
@@ -173,7 +187,7 @@ public struct SpinWheelView: View {
                         showRewardAlert = false
                         dismiss()
                     }) {
-                        Text("CLAIM CREDITS 🚀")
+                        Text("CLAIM CREDIT 🚀")
                             .font(.system(size: 14, weight: .black, design: .rounded))
                             .foregroundColor(.black)
                             .frame(maxWidth: .infinity)
@@ -195,15 +209,19 @@ public struct SpinWheelView: View {
     }
 
     private func spinWheel() {
-        guard !isSpinning else { return }
+        guard canSpinToday, !hasSpunTodayState, !isSpinning else { return }
         isSpinning = true
         wonPrize = nil
         showRewardAlert = false
 
+        // Record spin timestamp immediately so user can't spin twice
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "tryzon_last_spin_time")
+        hasSpunTodayState = true
+
         let impactMed = UIImpactFeedbackGenerator(style: .medium)
         impactMed.impactOccurred()
 
-        // Choose random winning index (e.g. index 1 = 2 credits)
+        // Choose random winning index (e.g. index 0, 1, 3, 4 = 1 credit, index 2, 5 = 2 credits)
         let winningIndex = Int.random(in: 0..<prizes.count)
         let winningPrize = prizes[winningIndex]
 

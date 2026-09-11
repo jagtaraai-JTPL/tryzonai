@@ -261,6 +261,14 @@ public struct LoginView: View {
     private func performGoogleSignIn() {
         isLoading = true
         errorMessage = nil
+
+        // Safety fallback: Reset spinner if network takes longer than 4.5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
+            if self.isLoading && !self.apiClient.isLoggedIn {
+                self.isLoading = false
+            }
+        }
+
         Task {
             do {
                 _ = try await apiClient.loginWithGoogle()

@@ -92,12 +92,14 @@ public struct TryOnResultView: View {
 
                 // Interactive Split-Screen Comparison Viewport
                 GeometryReader { geo in
-                    ZStack {
-                        // Background Layer: AI Result Image (always visible)
+                    let validOrigUrl = (originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty) ? originalPhotoUrl! : displayUrl
+
+                    ZStack(alignment: .leading) {
+                        // Background Layer: AI Result Image (Always visible)
                         AsyncImage(url: URL(string: displayUrl)) { phase in
                             switch phase {
                             case .success(let img):
-                                img.resizable().scaledToFill()
+                                img.resizable().aspectRatio(contentMode: .fill)
                             case .failure:
                                 VStack(spacing: 8) {
                                     Image(systemName: "exclamationmark.triangle")
@@ -108,8 +110,7 @@ public struct TryOnResultView: View {
                                 }
                             case .empty:
                                 VStack(spacing: 12) {
-                                    ProgressView()
-                                        .tint(TryZonTheme.primaryGold)
+                                    ProgressView().tint(TryZonTheme.primaryGold)
                                     Text("Loading HD Result...")
                                         .font(.caption)
                                         .foregroundColor(.white.opacity(0.7))
@@ -121,77 +122,83 @@ public struct TryOnResultView: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
 
-                        // Foreground: Original Photo with sliding mask
-                        if let origUrl = originalPhotoUrl, let url = URL(string: origUrl) {
-                            AsyncImage(url: url) { img in
-                                img.resizable().scaledToFill()
-                            } placeholder: {
+                        // Foreground Layer: Original Image (Clipped by sliderOffset)
+                        AsyncImage(url: URL(string: validOrigUrl)) { phase in
+                            if let img = phase.image {
+                                img.resizable().aspectRatio(contentMode: .fill)
+                            } else {
                                 TryZonTheme.darkSurface
                             }
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .mask(
-                                HStack(spacing: 0) {
-                                    Rectangle()
-                                        .frame(width: geo.size.width * sliderOffset)
-                                    Spacer(minLength: 0)
-                                }
-                            )
-                            .clipped()
-
-                            // Labels
-                            HStack {
-                                Text("BEFORE")
-                                    .font(.system(size: 9, weight: .black))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.black.opacity(0.6))
-                                    .cornerRadius(6)
-                                    .padding(12)
-                                    .opacity(sliderOffset > 0.15 ? 1 : 0)
-                                Spacer()
-                                Text("AFTER ✨")
-                                    .font(.system(size: 9, weight: .black))
-                                    .foregroundColor(TryZonTheme.primaryGold)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.black.opacity(0.6))
-                                    .cornerRadius(6)
-                                    .padding(12)
-                                    .opacity(sliderOffset < 0.85 ? 1 : 0)
+                        }
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .mask(
+                            HStack(spacing: 0) {
+                                Rectangle()
+                                    .frame(width: geo.size.width * sliderOffset)
+                                Spacer(minLength: 0)
                             }
-                            .frame(maxHeight: .infinity, alignment: .bottom)
+                        )
+                        .clipped()
 
-                            // Drag Handle
+                        // Floating Badges ("BEFORE" & "AFTER ✨")
+                        HStack {
+                            Text("BEFORE")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.black.opacity(0.7))
+                                .cornerRadius(8)
+                                .padding(12)
+                                .opacity(sliderOffset > 0.12 ? 1 : 0)
+
+                            Spacer()
+
+                            Text("AFTER ✨")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.black.opacity(0.7))
+                                .cornerRadius(8)
+                                .padding(12)
+                                .opacity(sliderOffset < 0.88 ? 1 : 0)
+                        }
+                        .frame(maxHeight: .infinity, alignment: .top)
+
+                        // Vertical Divider Line & Golden Touch Handle
+                        ZStack {
                             Rectangle()
                                 .fill(TryZonTheme.primaryGold)
-                                .frame(width: 2)
-                                .offset(x: (geo.size.width * sliderOffset) - (geo.size.width / 2))
+                                .frame(width: 3, height: geo.size.height)
+
+                            Circle()
+                                .fill(TryZonTheme.primaryGold)
+                                .frame(width: 44, height: 44)
+                                .shadow(color: Color.black.opacity(0.6), radius: 8, y: 2)
                                 .overlay(
-                                    ZStack {
-                                        Circle()
-                                            .fill(TryZonTheme.primaryGold)
-                                            .frame(width: 40, height: 40)
-                                            .shadow(color: .black.opacity(0.6), radius: 6)
-                                        HStack(spacing: 2) {
-                                            Image(systemName: "chevron.left")
-                                            Image(systemName: "chevron.right")
-                                        }
-                                        .font(.system(size: 10, weight: .black))
-                                        .foregroundColor(.black)
+                                    HStack(spacing: 3) {
+                                        Image(systemName: "chevron.left")
+                                        Image(systemName: "chevron.right")
                                     }
-                                    .offset(x: (geo.size.width * sliderOffset) - (geo.size.width / 2))
-                                )
-                                .gesture(
-                                    DragGesture()
-                                        .onChanged { value in
-                                            let newOffset = value.location.x / geo.size.width
-                                            sliderOffset = min(max(newOffset, 0.05), 0.95)
-                                        }
+                                    .font(.system(size: 11, weight: .black))
+                                    .foregroundColor(.black)
                                 )
                         }
+                        .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
 
-                        // Double-tap Heart Animation
+                        // Full Viewport Drag Gesture Surface
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { val in
+                                        let newRatio = val.location.x / geo.size.width
+                                        sliderOffset = min(max(newRatio, 0.02), 0.98)
+                                    }
+                            )
+
+                        // Double-tap Heart Animation Overlay
                         if showHeartAnimation {
                             Image(systemName: "heart.fill")
                                 .font(.system(size: 80))
