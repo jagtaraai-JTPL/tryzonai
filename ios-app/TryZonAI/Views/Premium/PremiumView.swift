@@ -262,3 +262,149 @@ public struct PremiumView: View {
         }
     }
 }
+
+// MARK: - Supporting Credit Pack Card
+public struct CreditPackCard: View {
+    public let id: String
+    public let name: String
+    public let price: String
+    public let subtitle: String
+    public let tag: String
+    public let isSelected: Bool
+    public let onSelect: () -> Void
+
+    public init(id: String, name: String, price: String, subtitle: String, tag: String, isSelected: Bool, onSelect: @escaping () -> Void) {
+        self.id = id
+        self.name = name
+        self.price = price
+        self.subtitle = subtitle
+        self.tag = tag
+        self.isSelected = isSelected
+        self.onSelect = onSelect
+    }
+
+    public var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? TryZonTheme.primaryGold : Color.white.opacity(0.3), lineWidth: 2)
+                        .frame(width: 22, height: 22)
+                    if isSelected {
+                        Circle()
+                            .fill(TryZonTheme.primaryGold)
+                            .frame(width: 12, height: 12)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    if !tag.isEmpty {
+                        Text(tag)
+                            .font(.system(size: 9, weight: .black))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(TryZonTheme.primaryGold)
+                            .foregroundColor(.black)
+                            .cornerRadius(6)
+                    }
+
+                    Text(name)
+                        .font(.system(size: 13.5, weight: .bold))
+                        .foregroundColor(.white)
+
+                    Text(subtitle)
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.white.opacity(0.6))
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Text(price)
+                    .font(.system(size: 13.5, weight: .black))
+                    .foregroundColor(TryZonTheme.primaryGold)
+            }
+            .padding(12)
+            .background(isSelected ? TryZonTheme.primaryGold.opacity(0.12) : TryZonTheme.surfaceVariant)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isSelected ? TryZonTheme.primaryGold : Color.white.opacity(0.08), lineWidth: isSelected ? 1.5 : 1)
+            )
+        }
+        .buttonStyle(BounceButtonStyle())
+    }
+}
+
+// MARK: - Supporting Subscription Card
+public struct SubscriptionCard: View {
+    public let id: String
+    public let name: String
+    public let price: String
+    public let subtitle: String
+    public let tag: String
+    public let isSelected: Bool
+    public let onSelect: () -> Void
+
+    public init(id: String, name: String, price: String, subtitle: String, tag: String, isSelected: Bool, onSelect: @escaping () -> Void) {
+        self.id = id
+        self.name = name
+        self.price = price
+        self.subtitle = subtitle
+        self.tag = tag
+        self.isSelected = isSelected
+        self.onSelect = onSelect
+    }
+
+    public var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? TryZonTheme.primaryGold : Color.white.opacity(0.3), lineWidth: 2)
+                        .frame(width: 22, height: 22)
+                    if isSelected {
+                        Circle()
+                            .fill(TryZonTheme.primaryGold)
+                            .frame(width: 12, height: 12)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    if !tag.isEmpty {
+                        Text(tag)
+                            .font(.system(size: 9, weight: .black))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(TryZonTheme.primaryGold)
+                            .foregroundColor(.black)
+                            .cornerRadius(6)
+                    }
+
+                    Text(name)
+                        .font(.system(size: 13.5, weight: .bold))
+                        .foregroundColor(.white)
+
+                    Text(subtitle)
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.white.opacity(0.6))
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Text(price)
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundColor(TryZonTheme.primaryGold)
+            }
+            .padding(12)
+            .background(isSelected ? TryZonTheme.primaryGold.opacity(0.12) : TryZonTheme.surfaceVariant)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isSelected ? TryZonTheme.primaryGold : Color.white.opacity(0.08), lineWidth: isSelected ? 1.5 : 1)
+            )
+        }
+        .buttonStyle(BounceButtonStyle())
+    }
+}
