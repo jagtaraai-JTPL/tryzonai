@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - TryZon AI Home Screen (Android Parity)
+// MARK: - HomeScreen — Exact Android Native Replica
 public struct HomeScreen: View {
     @ObservedObject var apiClient: APIClient
     let onNavigateToTryOn: () -> Void
@@ -9,36 +9,25 @@ public struct HomeScreen: View {
     @State private var trendingProducts: [CatalogItem] = []
     @State private var heroIndex: Int = 0
     @State private var isLoadingProducts = false
-    @State private var fashionTipIndex: Int = 0
+    @State private var showSpinWheel = false
 
-    // Hero outfit images (using server preset catalog)
+    // Ambient pulse animation
+    @State private var glowAlpha: Double = 0.12
+
     private let heroOutfits: [(String, String, String)] = [
-        ("Old Money Riviera", "👑 LUXURY", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp"),
-        ("Executive Formals", "💼 CEO LOOK", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_formal_ceo_black_suit_1778055862174.webp"),
-        ("Teal Knit Dress", "✨ ELEGANT", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp"),
-        ("Royal Emerald Gown", "🏆 ROYAL", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_royal_queen_emerald_gold_1778038089053.webp"),
+        ("Monaco Riviera Linen 🇲🇨", "👑 OLD MONEY", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp"),
+        ("NYC Executive Tuxedo 🇺🇸", "💼 CEO LOOK", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_formal_ceo_black_suit_1778055862174.webp"),
+        ("Seoul K-Style Knit 🇰🇷", "✨ ELEGANT", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp"),
+        ("Dubai Royal Gown 🇦🇪", "🏆 LUXURY", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_royal_queen_emerald_gold_1778038089053.webp"),
     ]
 
-    private let fashionTips = [
+    private let fashionQuotes = [
         "\"Style is a way to say who you are without having to speak.\" — Rachel Zoe",
-        "\"Fashion is the armor to survive the reality of everyday life.\" — Bill Cunningham",
+        "\"Fashion is the armor to survive everyday life.\" — Bill Cunningham",
         "\"Elegance is not about being noticed, it's about being remembered.\" — Giorgio Armani",
-        "\"Dress shabbily and they remember the dress; dress impeccably and they remember the woman.\" — Coco Chanel",
+        "\"Dress impeccably and they remember the woman.\" — Coco Chanel",
     ]
-
-    private let stats: [(String, String)] = [
-        ("2.4M+", "Try-Ons Done"),
-        ("98%", "Accuracy Rate"),
-        ("< 3s", "GPU Speed"),
-        ("50K+", "Outfits Catalog"),
-    ]
-
-    private let howItWorksSteps: [(String, String, String)] = [
-        ("1", "photo.badge.plus", "Upload Your Photo"),
-        ("2", "tshirt.fill", "Pick an Outfit"),
-        ("3", "sparkles", "AI Generates Fit"),
-        ("4", "crown.fill", "Look Stunning"),
-    ]
+    @State private var quoteIndex: Int = 0
 
     public init(apiClient: APIClient, onNavigateToTryOn: @escaping () -> Void, onNavigateToCatalog: @escaping () -> Void) {
         self.apiClient = apiClient
@@ -49,61 +38,68 @@ public struct HomeScreen: View {
     public var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                // 1. HERO SECTION
-                heroSection
 
-                // 2. STATS MARQUEE
-                statsMarquee
+                // ── 1. HERO SECTION (Compact & Premium like Android) ──
+                heroSection
+                    .padding(.horizontal, 12)
+                    .padding(.top, 12)
+
+                // ── 2. STATS BAR ──
+                statsBar
+                    .padding(.horizontal, 24)
                     .padding(.top, 20)
 
-                // 3. QUICK ACTIONS
-                quickActionsRow
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
+                // ── 3. GAMIFICATION ROW (Streak + Refer) ──
+                gamificationRow
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
 
-                // 4. FASHION QUOTE OF THE DAY
-                fashionQuoteCard
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
+                // ── 4. SPIN THE WHEEL BANNER ──
+                spinWheelBanner
+                    .padding(.horizontal, 24)
+                    .padding(.top, 14)
 
-                // 5. TRENDING CATALOG
-                trendingSection
-                    .padding(.top, 28)
+                // ── 5. FASHION QUOTE OF THE DAY ──
+                dailyFashionQuote
+                    .padding(.horizontal, 24)
+                    .padding(.top, 32)
 
-                // 6. HOW IT WORKS
+                // ── 6. DISCOVER TRENDING ──
+                discoverSection
+                    .padding(.top, 32)
+
+                // ── 7. HOW IT WORKS ──
                 howItWorksSection
-                    .padding(.top, 36)
+                    .padding(.top, 48)
 
-                // 7. FINAL CTA BANNER
-                finalCtaBanner
-                    .padding(.horizontal, 20)
-                    .padding(.top, 28)
-                    .padding(.bottom, 40)
+                Spacer(minLength: 60)
             }
         }
-        .background(TryZonTheme.darkBackground)
+        .background(Color(red: 18/255, green: 18/255, blue: 20/255))
         .onAppear {
-            loadTrendingProducts()
-            startHeroCycling()
-            startTipCycling()
+            loadTrending()
+            startTimers()
         }
     }
 
-    // MARK: - 1. Hero Section
+    // ─────────────────────────────────────
+    // MARK: 1. HERO
+    // ─────────────────────────────────────
     private var heroSection: some View {
         ZStack(alignment: .bottomLeading) {
-            // Background: Animated outfit cycling
+            // Crossfade outfit images
             ZStack {
-                ForEach(Array(heroOutfits.enumerated()), id: \.offset) { idx, outfit in
+                ForEach(Array(heroOutfits.enumerated()), id: \.offset) { i, outfit in
                     AsyncImage(url: URL(string: outfit.2)) { img in
                         img.resizable().scaledToFill()
                     } placeholder: {
                         TryZonTheme.surfaceVariant
+                            .overlay(ProgressView().tint(TryZonTheme.primaryGold))
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 480)
                     .clipped()
-                    .opacity(idx == heroIndex ? 1.0 : 0.0)
+                    .opacity(i == heroIndex ? 1 : 0)
                     .animation(.easeInOut(duration: 0.8), value: heroIndex)
                 }
             }
@@ -111,19 +107,14 @@ public struct HomeScreen: View {
 
             // Gradient overlay
             LinearGradient(
-                colors: [
-                    Color.clear,
-                    Color.black.opacity(0.4),
-                    Color.black.opacity(0.85),
-                ],
+                colors: [Color.clear, Color.black.opacity(0.45), Color.black.opacity(0.85)],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(maxWidth: .infinity)
             .frame(height: 480)
 
-            // Hero Text + CTA
-            VStack(alignment: .leading, spacing: 16) {
+            // Text content
+            VStack(alignment: .leading, spacing: 14) {
                 // Badge chip
                 Text(heroOutfits[heroIndex].1)
                     .font(.system(size: 10, weight: .black))
@@ -131,14 +122,12 @@ public struct HomeScreen: View {
                     .foregroundColor(TryZonTheme.primaryGold)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(TryZonTheme.primaryGold.opacity(0.15))
+                    .background(TryZonTheme.primaryGold.opacity(0.2))
                     .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1)
-                    )
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
                     .animation(.easeInOut, value: heroIndex)
 
+                // Headline
                 Text("Try Any Outfit\nVirtually ✨")
                     .font(.system(size: 36, weight: .black, design: .rounded))
                     .foregroundColor(.white)
@@ -149,9 +138,9 @@ public struct HomeScreen: View {
                     .font(.system(size: 14))
                     .foregroundColor(.white.opacity(0.85))
 
-                // START NOW CTA
+                // CTA Button
                 Button(action: onNavigateToTryOn) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 10) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 16, weight: .bold))
                         Text("START NOW")
@@ -163,14 +152,15 @@ public struct HomeScreen: View {
                     .padding(.vertical, 16)
                     .background(TryZonTheme.primaryGold)
                     .cornerRadius(16)
-                    .shadow(color: TryZonTheme.primaryGold.opacity(0.5), radius: 12, y: 4)
+                    .shadow(color: TryZonTheme.primaryGold.opacity(0.5), radius: 14, y: 4)
                 }
+                .buttonStyle(BounceButtonStyle())
 
-                // Outfit indicator dots
+                // Outfit dots
                 HStack(spacing: 6) {
                     ForEach(0..<heroOutfits.count, id: \.self) { i in
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(i == heroIndex ? TryZonTheme.primaryGold : Color.white.opacity(0.4))
+                            .fill(i == heroIndex ? TryZonTheme.primaryGold : Color.white.opacity(0.35))
                             .frame(width: i == heroIndex ? 20 : 6, height: 6)
                             .animation(.spring(response: 0.3), value: heroIndex)
                     }
@@ -180,443 +170,392 @@ public struct HomeScreen: View {
             .padding(.bottom, 28)
         }
         .frame(height: 480)
-        .cornerRadius(28)
+        .cornerRadius(32)
+    }
+
+    // ─────────────────────────────────────
+    // MARK: 2. STATS BAR (Android StatsMarquee replica)
+    // ─────────────────────────────────────
+    private var statsBar: some View {
+        HStack(spacing: 0) {
+            statItem("50K+", "GLOBAL STYLES")
+            divider
+            statItem("98.5%", "ACCURACY")
+            divider
+            statItem("2M+", "TRY-ONS")
+        }
+        .padding(.vertical, 12)
         .padding(.horizontal, 12)
-        .padding(.top, 12)
+        .background(TryZonTheme.surfaceVariant.opacity(0.4))
+        .cornerRadius(24)
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 
-    // MARK: - 2. Stats Marquee
-    private var statsMarquee: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                ForEach(stats + stats, id: \.0) { stat in
-                    HStack(spacing: 8) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(stat.0)
-                                .font(.system(size: 18, weight: .black, design: .rounded))
-                                .foregroundColor(TryZonTheme.primaryGold)
-                            Text(stat.1)
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+    private var divider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.12))
+            .frame(width: 1, height: 20)
+    }
 
-                        Rectangle()
-                            .fill(TryZonTheme.primaryGold.opacity(0.3))
-                            .frame(width: 1, height: 36)
-                    }
-                }
-            }
+    private func statItem(_ value: String, _ label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(.white)
+            Text(label)
+                .font(.system(size: 9.5, weight: .semibold))
+                .foregroundColor(.white.opacity(0.6))
+                .tracking(0.3)
         }
-        .background(TryZonTheme.surfaceVariant.opacity(0.6))
+        .frame(maxWidth: .infinity)
     }
 
-    // MARK: - 3. Quick Actions
-    private var quickActionsRow: some View {
+    // ─────────────────────────────────────
+    // MARK: 3. GAMIFICATION ROW
+    // ─────────────────────────────────────
+    private var gamificationRow: some View {
         HStack(spacing: 14) {
-            quickActionButton(
-                icon: "camera.fill",
-                title: "Try On Now",
-                subtitle: "Upload & Fit",
-                gradient: [TryZonTheme.primaryGold, Color.yellow],
-                action: onNavigateToTryOn
-            )
+            // Streak Widget
+            streakWidget
 
-            quickActionButton(
-                icon: "tshirt.fill",
-                title: "Browse Catalog",
-                subtitle: "5000+ Outfits",
-                gradient: [Color.purple.opacity(0.8), Color.pink.opacity(0.7)],
-                action: onNavigateToCatalog
-            )
+            // Refer & Earn Banner
+            referAndEarnBanner
         }
     }
 
-    private func quickActionButton(icon: String, title: String, subtitle: String, gradient: [Color], action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.black)
-                }
+    private var streakWidget: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Text("🔥")
+                    .font(.system(size: 18))
+                Text("DAILY STREAK")
+                    .font(.system(size: 9, weight: .black))
+                    .foregroundColor(TryZonTheme.primaryGold)
+                    .tracking(1)
+            }
+            Text("1 Day")
+                .font(.system(size: 22, weight: .black))
+                .foregroundColor(.white)
+            Text("Keep trying daily!")
+                .font(.system(size: 10))
+                .foregroundColor(.white.opacity(0.5))
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(TryZonTheme.surfaceVariant)
+        .cornerRadius(20)
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(TryZonTheme.primaryGold.opacity(0.25), lineWidth: 1))
+    }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                    Text(subtitle)
-                        .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.5))
-                }
+    private var referAndEarnBanner: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("🎁 REFER & EARN")
+                .font(.system(size: 9, weight: .black))
+                .foregroundColor(TryZonTheme.primaryGold)
+                .tracking(1)
+            Text("Get 2 Free Credits per referral")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.white)
+            Button("Share Now →") {}
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.black)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(TryZonTheme.primaryGold)
+                .cornerRadius(100)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(TryZonTheme.primaryGold.opacity(0.08))
+        .cornerRadius(20)
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1))
+    }
 
+    // ─────────────────────────────────────
+    // MARK: 4. SPIN WHEEL BANNER
+    // ─────────────────────────────────────
+    private var spinWheelBanner: some View {
+        Button(action: { showSpinWheel = true }) {
+            HStack(spacing: 14) {
+                Text("🎡")
+                    .font(.system(size: 30))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("SPIN THE WHEEL")
+                        .font(.system(size: 12, weight: .black))
+                        .foregroundColor(TryZonTheme.primaryGold)
+                        .tracking(1)
+                    Text("Win Free Credits & Exclusive Try-Ons!")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.8))
+                }
                 Spacer()
-
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.white.opacity(0.4))
+                    .font(.system(size: 13, weight: .bold))
             }
             .padding(16)
-            .background(TryZonTheme.surfaceVariant)
-            .cornerRadius(18)
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(TryZonTheme.primaryGold.opacity(0.2), lineWidth: 1)
+            .background(
+                LinearGradient(
+                    colors: [TryZonTheme.primaryGold.opacity(0.12), Color.purple.opacity(0.08)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
             )
+            .cornerRadius(20)
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1))
         }
+        .buttonStyle(BounceButtonStyle())
     }
 
-    // MARK: - 4. Fashion Quote
-    private var fashionQuoteCard: some View {
+    // ─────────────────────────────────────
+    // MARK: 5. FASHION QUOTE
+    // ─────────────────────────────────────
+    private var dailyFashionQuote: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("STYLE QUOTE OF THE DAY")
+                Text("🗣 STYLE QUOTE OF THE DAY")
                     .font(.system(size: 10, weight: .black))
                     .foregroundColor(TryZonTheme.primaryGold)
                     .tracking(1.2)
                 Spacer()
-                Image(systemName: "quote.bubble.fill")
-                    .foregroundColor(TryZonTheme.primaryGold.opacity(0.6))
             }
-
-            Text(fashionTips[fashionTipIndex])
+            Text(fashionQuotes[quoteIndex])
                 .font(.system(size: 14, weight: .medium, design: .serif))
                 .foregroundColor(.white.opacity(0.9))
                 .lineSpacing(5)
-                .multilineTextAlignment(.leading)
-                .id(fashionTipIndex)
+                .id(quoteIndex)
                 .transition(.opacity)
         }
         .padding(20)
-        .background(
-            LinearGradient(
-                colors: [TryZonTheme.primaryGold.opacity(0.08), TryZonTheme.surfaceVariant],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .cornerRadius(20)
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(TryZonTheme.primaryGold.opacity(0.2), lineWidth: 1)
-        )
-    }
-
-    // MARK: - 5. Trending Catalog
-    private var trendingSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("DISCOVER")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(TryZonTheme.primaryGold)
-                        .tracking(2)
-                    Text("Trending Global Fashion")
-                        .font(.system(size: 20, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
-                }
-                Spacer()
-                Button("View All", action: onNavigateToCatalog)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(TryZonTheme.primaryGold)
-            }
-            .padding(.horizontal, 20)
-
-            if isLoadingProducts {
-                HStack(spacing: 12) {
-                    ForEach(0..<4, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(TryZonTheme.surfaceVariant)
-                            .frame(width: 150, height: 220)
-                            .shimmer()
-                    }
-                }
-                .padding(.horizontal, 20)
-            } else if trendingProducts.isEmpty {
-                // Fallback: show preset outfit cards
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
-                        ForEach(heroOutfits, id: \.0) { outfit in
-                            presetOutfitCard(outfit)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                }
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
-                        ForEach(trendingProducts.prefix(8)) { product in
-                            trendingProductCard(product)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                }
-            }
-        }
-    }
-
-    private func presetOutfitCard(_ outfit: (String, String, String)) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            AsyncImage(url: URL(string: outfit.2)) { img in
-                img.resizable().scaledToFill()
-            } placeholder: {
-                TryZonTheme.surfaceVariant
-            }
-            .frame(width: 150, height: 200)
-            .clipped()
-            .cornerRadius(14)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(outfit.1)
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(TryZonTheme.primaryGold)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(TryZonTheme.primaryGold.opacity(0.15))
-                    .cornerRadius(4)
-
-                Text(outfit.0)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-
-                Button(action: onNavigateToTryOn) {
-                    Text("Try On →")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(TryZonTheme.primaryGold)
-                        .cornerRadius(8)
-                }
-            }
-            .padding(.horizontal, 4)
-        }
-        .frame(width: 150)
-        .padding(.bottom, 8)
         .background(TryZonTheme.surfaceVariant)
-        .cornerRadius(18)
+        .cornerRadius(24)
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(TryZonTheme.primaryGold.opacity(0.15), lineWidth: 1))
     }
 
-    private func trendingProductCard(_ product: CatalogItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            AsyncImage(url: product.fullImageURL) { img in
-                img.resizable().scaledToFill()
-            } placeholder: {
-                TryZonTheme.surfaceVariant
-                    .overlay(ProgressView().tint(TryZonTheme.primaryGold))
-            }
-            .frame(width: 150, height: 200)
-            .clipped()
-            .cornerRadius(14)
-
-            VStack(alignment: .leading, spacing: 4) {
-                if let badge = product.badge {
-                    Text(badge)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(TryZonTheme.primaryGold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(TryZonTheme.primaryGold.opacity(0.15))
-                        .cornerRadius(4)
-                }
-
-                Text(product.name)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
-                    .lineLimit(2)
-
-                Text("₹\(product.price)")
-                    .font(.system(size: 13, weight: .black))
-                    .foregroundColor(TryZonTheme.primaryGold)
-
-                Button(action: onNavigateToTryOn) {
-                    Text("Try On →")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(TryZonTheme.primaryGold)
-                        .cornerRadius(8)
-                }
-            }
-            .padding(.horizontal, 6)
-        }
-        .frame(width: 150)
-        .padding(.bottom, 8)
-        .background(TryZonTheme.surfaceVariant)
-        .cornerRadius(18)
-    }
-
-    // MARK: - 6. How It Works
-    private var howItWorksSection: some View {
-        VStack(spacing: 20) {
+    // ─────────────────────────────────────
+    // MARK: 6. DISCOVER TRENDING
+    // ─────────────────────────────────────
+    private var discoverSection: some View {
+        VStack(spacing: 0) {
+            // Section header
             VStack(spacing: 4) {
-                Text("HOW IT WORKS")
+                Text("DISCOVER")
                     .font(.system(size: 11, weight: .black))
                     .foregroundColor(TryZonTheme.primaryGold)
                     .tracking(2)
-                Text("4 Simple Steps")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
+                Text("Trending Global Fashion")
+                    .font(.system(size: 24, weight: .black, design: .rounded))
                     .foregroundColor(.white)
             }
+            .padding(.bottom, 20)
 
-            HStack(spacing: 0) {
-                ForEach(Array(howItWorksSteps.enumerated()), id: \.offset) { idx, step in
-                    HStack(spacing: 0) {
-                        VStack(spacing: 8) {
-                            ZStack {
-                                Circle()
-                                    .fill(TryZonTheme.primaryGold.opacity(0.15))
-                                    .frame(width: 56, height: 56)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1.5)
-                                    )
-
-                                VStack(spacing: 2) {
-                                    Text(step.0)
-                                        .font(.system(size: 10, weight: .black))
-                                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.6))
-                                    Image(systemName: step.1)
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(TryZonTheme.primaryGold)
-                                }
-                            }
-
-                            Text(step.2)
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.white.opacity(0.8))
-                                .multilineTextAlignment(.center)
-                                .frame(width: 70)
+            // Horizontal scroll cards — exactly like Android's LazyRow
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    if trendingProducts.isEmpty {
+                        ForEach(Array(heroOutfits.enumerated()), id: \.offset) { _, outfit in
+                            presetProductCard(outfit)
                         }
-
-                        if idx < howItWorksSteps.count - 1 {
-                            Rectangle()
-                                .fill(TryZonTheme.primaryGold.opacity(0.3))
-                                .frame(height: 1)
-                                .frame(maxWidth: .infinity)
-                                .padding(.bottom, 36)
+                    } else {
+                        ForEach(trendingProducts.prefix(6)) { product in
+                            productCard(product)
                         }
                     }
                 }
+                .padding(.horizontal, 24)
+            }
+        }
+    }
+
+    private func productCard(_ product: CatalogItem) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Image with badge (Android ProductReplicaCard replica)
+            ZStack(alignment: .topLeading) {
+                AsyncImage(url: product.fullImageURL) { img in
+                    img.resizable().scaledToFill()
+                } placeholder: {
+                    TryZonTheme.surfaceVariant
+                        .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                }
+                .frame(width: 220, height: 220 / 0.85)
+                .clipped()
+
+                if let badge = product.badge {
+                    Text(badge)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(TryZonTheme.primaryGold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.75))
+                        .cornerRadius(100)
+                        .overlay(RoundedRectangle(cornerRadius: 100).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
+                        .padding(10)
+                }
+            }
+
+            // Info + Button (matching Android)
+            VStack(alignment: .leading, spacing: 4) {
+                if let brand = product.brand {
+                    Text(brand)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.5))
+                        .lineLimit(1)
+                }
+                Text(product.name)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                Button(action: onNavigateToTryOn) {
+                    Text("TRY ON")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(TryZonTheme.primaryGold)
+                        .cornerRadius(100)
+                }
+                .buttonStyle(BounceButtonStyle())
+            }
+            .padding(12)
+        }
+        .frame(width: 220)
+        .background(TryZonTheme.surfaceVariant)
+        .cornerRadius(20)
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.08), lineWidth: 1))
+    }
+
+    private func presetProductCard(_ outfit: (String, String, String)) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                AsyncImage(url: URL(string: outfit.2)) { img in
+                    img.resizable().scaledToFill()
+                } placeholder: {
+                    TryZonTheme.surfaceVariant
+                }
+                .frame(width: 220, height: 220 / 0.85)
+                .clipped()
+
+                Text(outfit.1)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(TryZonTheme.primaryGold)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.75))
+                    .cornerRadius(100)
+                    .overlay(RoundedRectangle(cornerRadius: 100).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
+                    .padding(10)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(outfit.0)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                Button(action: onNavigateToTryOn) {
+                    Text("TRY ON")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(TryZonTheme.primaryGold)
+                        .cornerRadius(100)
+                }
+                .buttonStyle(BounceButtonStyle())
+            }
+            .padding(12)
+        }
+        .frame(width: 220)
+        .background(TryZonTheme.surfaceVariant)
+        .cornerRadius(20)
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.08), lineWidth: 1))
+    }
+
+    // ─────────────────────────────────────
+    // MARK: 7. HOW IT WORKS
+    // ─────────────────────────────────────
+    // Exact replica of Android's StepReplicaCard
+    private var howItWorksSection: some View {
+        VStack(spacing: 4) {
+            Text("HOW IT WORKS")
+                .font(.system(size: 11, weight: .black))
+                .foregroundColor(TryZonTheme.primaryGold)
+                .tracking(2)
+                .padding(.bottom, 16)
+
+            VStack(spacing: 12) {
+                stepCard("01", "📸", "Upload Photo", "Our AI understands your body shape instantly.")
+                stepCard("02", "👗", "Pick Outfit", "TryZon Vision Engine maps any style to your body.")
+                stepCard("03", "✨", "See Result", "Get photorealistic results in seconds.")
             }
             .padding(.horizontal, 24)
         }
     }
 
-    // MARK: - 7. Final CTA Banner
-    private var finalCtaBanner: some View {
-        VStack(spacing: 16) {
-            Text("🎁 TRY YOUR FIRST LOOK FREE")
-                .font(.system(size: 16, weight: .black))
-                .foregroundColor(TryZonTheme.primaryGold)
-
-            Text("No credit card required • Instant GPU processing • HD quality result")
-                .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.7))
-                .multilineTextAlignment(.center)
-
-            Button(action: onNavigateToTryOn) {
-                HStack(spacing: 8) {
-                    Image(systemName: "camera.fill")
-                    Text("START FREE TRY-ON NOW →")
-                        .font(.system(size: 14, weight: .black))
-                }
-                .foregroundColor(.black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: [TryZonTheme.primaryGold, Color.yellow],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(16)
-                .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 12, y: 4)
+    private func stepCard(_ num: String, _ icon: String, _ title: String, _ desc: String) -> some View {
+        HStack(spacing: 16) {
+            VStack(spacing: 2) {
+                Text(num)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.4))
+                Text(icon)
+                    .font(.system(size: 28))
             }
+            .frame(width: 50)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.white)
+                Text(desc)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white.opacity(0.55))
+            }
+
+            Spacer()
         }
         .padding(24)
-        .background(
-            LinearGradient(
-                colors: [TryZonTheme.primaryGold.opacity(0.08), TryZonTheme.surfaceVariant],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .background(TryZonTheme.surfaceVariant)
         .cornerRadius(24)
-        .overlay(
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1)
-        )
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
 
-    // MARK: - Helpers
-    private func loadTrendingProducts() {
+    // ─────────────────────────────────────
+    // MARK: Helpers
+    // ─────────────────────────────────────
+    private func loadTrending() {
         isLoadingProducts = true
         Task {
-            if let items = try? await apiClient.fetchCatalog(category: nil, gender: nil, search: nil) {
+            if let items = try? await apiClient.fetchCatalog() {
                 DispatchQueue.main.async {
                     trendingProducts = items
                     isLoadingProducts = false
                 }
             } else {
-                DispatchQueue.main.async {
-                    isLoadingProducts = false
-                }
+                DispatchQueue.main.async { isLoadingProducts = false }
             }
         }
     }
 
-    private func startHeroCycling() {
+    private func startTimers() {
         Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
             withAnimation(.easeInOut(duration: 0.8)) {
                 heroIndex = (heroIndex + 1) % heroOutfits.count
             }
         }
-    }
-
-    private func startTipCycling() {
         Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { _ in
             withAnimation(.easeInOut(duration: 0.5)) {
-                fashionTipIndex = (fashionTipIndex + 1) % fashionTips.count
+                quoteIndex = (quoteIndex + 1) % fashionQuotes.count
             }
         }
     }
 }
 
-// MARK: - Shimmer Effect Modifier
-private struct ShimmerModifier: ViewModifier {
-    @State private var phase: CGFloat = 0
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.white.opacity(0),
-                        Color.white.opacity(0.12),
-                        Color.white.opacity(0),
-                    ]),
-                    startPoint: .init(x: phase, y: 0.5),
-                    endPoint: .init(x: phase + 0.5, y: 0.5)
-                )
-            )
-            .onAppear {
-                withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) {
-                    phase = 1.5
-                }
-            }
-    }
-}
-
-extension View {
-    func shimmer() -> some View {
-        modifier(ShimmerModifier())
-    }
-}

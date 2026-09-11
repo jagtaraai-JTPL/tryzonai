@@ -81,3 +81,13 @@ public struct ShimmeringGoldButton: View {
         }
     }
 }
+
+// MARK: - Shared Bounce Button Style (used across Onboarding + Home)
+public struct BounceButtonStyle: ButtonStyle {
+    public init() {}
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
