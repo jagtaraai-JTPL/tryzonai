@@ -1,17 +1,24 @@
 import SwiftUI
 
+// MARK: - CatalogView — Exact 1:1 Replica of Android CatalogScreen
 public struct CatalogView: View {
     @ObservedObject var apiClient: APIClient
     let onSelectGarmentForTryOn: (CatalogItem) -> Void
 
-    @State private var selectedCategory: String = "All"
-    @AppStorage("user_gender") private var selectedGender: String = "Women"
+    @State private var selectedCategory: String = "All AI Outfits"
+    @State private var selectedGender: String = "All"
+    @State private var selectedSort: String = "Popularity"
     @State private var searchText: String = ""
     @State private var items: [CatalogItem] = []
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
 
-    private let categories = ["All", "Tops", "Bottoms", "Dresses", "Suits", "Outerwear"]
+    private let filterCategories = [
+        "All AI Outfits", "Suits & Formal", "Dresses & Gowns", "Streetwear & Cyber", "Ethnic & Festive", "Casual & Shirts"
+    ]
+
+    private let sortOptions = ["Popularity", "Newest AI"]
+    private let genderOptions = ["All", "Men", "Women"]
 
     public init(apiClient: APIClient, onSelectGarmentForTryOn: @escaping (CatalogItem) -> Void) {
         self.apiClient = apiClient
@@ -19,131 +26,46 @@ public struct CatalogView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 12) {
-            // Search Bar & Gender Filter Pill
-            HStack(spacing: 10) {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(TryZonTheme.primaryGold)
-                    TextField("Search outfits, brands...", text: $searchText)
-                        .font(.system(size: 13))
-                        .foregroundColor(.white)
-                        .onSubmit {
-                            loadCatalogData()
-                        }
-                }
-                .padding(10)
-                .background(TryZonTheme.surfaceVariant)
-                .cornerRadius(12)
+        VStack(spacing: 0) {
+            // ── 1. SINGLE COMPACT FILTER & CATEGORY BAR ──
+            filterBar
+                .padding(.vertical, 8)
+                .background(TryZonTheme.darkBackground)
 
-                // Gender Selector Pill
-                Menu {
-                    Button("Women") { selectedGender = "Women"; loadCatalogData() }
-                    Button("Men") { selectedGender = "Men"; loadCatalogData() }
-                    Button("Unisex") { selectedGender = "Unisex"; loadCatalogData() }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "figure.dress.line.vertical.figure")
-                        Text(selectedGender)
-                    }
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.black)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(TryZonTheme.primaryGold)
-                    .cornerRadius(12)
-                }
-            }
-            .padding(.horizontal, 16)
-
-            // Category Selector Tabs
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(categories, id: \.self) { cat in
-                        Button(action: {
-                            selectedCategory = cat
-                            loadCatalogData()
-                        }) {
-                            Text(cat)
-                                .font(.system(size: 12, weight: .bold))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 7)
-                                .background(selectedCategory == cat ? TryZonTheme.primaryGold : TryZonTheme.surfaceVariant)
-                                .foregroundColor(selectedCategory == cat ? .black : .white)
-                                .cornerRadius(18)
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-
-            // Main Catalog Grid
-            if isLoading {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: TryZonTheme.primaryGold))
-                    .frame(maxHeight: .infinity)
+            // ── 2. CATALOG GRID CONTENT ──
+            if isLoading && items.isEmpty {
+                shimmerLoadingGrid
             } else {
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                        ForEach(displayedItems) { item in
-                            VStack(alignment: .leading, spacing: 6) {
-                                ZStack(alignment: .topTrailing) {
-                                    AsyncImage(url: item.fullImageURL) { img in
-                                        img.resizable().scaledToFill()
-                                    } placeholder: {
-                                        TryZonTheme.surfaceVariant
-                                    }
-                                    .frame(height: 200)
-                                    .cornerRadius(16)
-                                    .clipped()
-
-                                    if let badge = item.badge {
-                                        Text(badge)
-                                            .font(.system(size: 9, weight: .bold))
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(TryZonTheme.primaryGold)
-                                            .foregroundColor(.black)
-                                            .cornerRadius(6)
-                                            .padding(8)
-                                    }
-                                }
-
-                                Text(item.name)
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
-
-                                HStack {
-                                    Text("₹\(item.price)")
-                                        .font(.system(size: 13, weight: .black))
-                                        .foregroundColor(TryZonTheme.primaryGold)
-
-                                    Spacer()
-
-                                    // 1-Tap Try On Button
-                                    Button(action: {
-                                        onSelectGarmentForTryOn(item)
-                                    }) {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "sparkles")
-                                            Text("Try On")
-                                        }
-                                        .font(.system(size: 11, weight: .bold))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(TryZonTheme.primaryGold)
-                                        .foregroundColor(.black)
-                                        .cornerRadius(10)
-                                    }
-                                }
-                            }
-                            .padding(10)
-                            .background(TryZonTheme.darkSurface)
-                            .cornerRadius(16)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 16) {
+                        // ── FEATURED #1 VIRAL HERO BANNER (Android Replica) ──
+                        if selectedCategory == "All AI Outfits" && !displayedItems.isEmpty {
+                            featuredHeroBanner(displayedItems.first!)
                         }
+
+                        // ── 2-COLUMN PRODUCT GRID ──
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
+                            ForEach(displayedItems) { item in
+                                catalogProductCard(item)
+                            }
+                        }
+
+                        // Load More Button
+                        Button(action: loadCatalogData) {
+                            Text("LOAD MORE AI STYLES")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 10)
+                                .background(TryZonTheme.darkSurface)
+                                .cornerRadius(100)
+                                .overlay(RoundedRectangle(cornerRadius: 100).stroke(TryZonTheme.primaryGold, lineWidth: 1))
+                        }
+                        .padding(.top, 16)
+                        .padding(.bottom, 40)
                     }
                     .padding(.horizontal, 16)
+                    .padding(.top, 8)
                 }
             }
         }
@@ -153,6 +75,234 @@ public struct CatalogView: View {
         }
     }
 
+    // ─────────────────────────────────────
+    // MARK: - FILTER & CATEGORY BAR
+    // ─────────────────────────────────────
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                // Sort Dropdown Pill
+                Menu {
+                    ForEach(sortOptions, id: \.self) { opt in
+                        Button(opt) {
+                            selectedSort = opt
+                            loadCatalogData()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(selectedSort == "Popularity" ? "Sort" : selectedSort)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(selectedSort == "Popularity" ? .white.opacity(0.7) : TryZonTheme.primaryGold)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(selectedSort == "Popularity" ? .white.opacity(0.7) : TryZonTheme.primaryGold)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(selectedSort != "Popularity" ? TryZonTheme.primaryGold.opacity(0.15) : TryZonTheme.surfaceVariant.opacity(0.4))
+                    .cornerRadius(100)
+                    .overlay(RoundedRectangle(cornerRadius: 100).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                }
+
+                // Gender Dropdown Pill
+                Menu {
+                    ForEach(genderOptions, id: \.self) { opt in
+                        Button(opt) {
+                            selectedGender = opt
+                            loadCatalogData()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(selectedGender == "All" ? "Gender" : selectedGender)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(selectedGender == "All" ? .white.opacity(0.7) : TryZonTheme.primaryGold)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(selectedGender == "All" ? .white.opacity(0.7) : TryZonTheme.primaryGold)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(selectedGender != "All" ? TryZonTheme.primaryGold.opacity(0.15) : TryZonTheme.surfaceVariant.opacity(0.4))
+                    .cornerRadius(100)
+                    .overlay(RoundedRectangle(cornerRadius: 100).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                }
+
+                // Vertical Divider
+                Rectangle()
+                    .fill(Color.white.opacity(0.15))
+                    .frame(width: 1, height: 20)
+
+                // Category Chips
+                ForEach(filterCategories, id: \.self) { cat in
+                    let isSelected = selectedCategory == cat
+                    Button(action: {
+                        selectedCategory = cat
+                        loadCatalogData()
+                    }) {
+                        Text(cat)
+                            .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(isSelected ? TryZonTheme.primaryGold : TryZonTheme.surfaceVariant.opacity(0.4))
+                            .foregroundColor(isSelected ? .black : .white.opacity(0.75))
+                            .cornerRadius(100)
+                            .overlay(RoundedRectangle(cornerRadius: 100).stroke(isSelected ? TryZonTheme.primaryGold : Color.white.opacity(0.08), lineWidth: 1))
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    // ─────────────────────────────────────
+    // MARK: - FEATURED HERO BANNER (#1 VIRAL)
+    // ─────────────────────────────────────
+    private func featuredHeroBanner(_ item: CatalogItem) -> some View {
+        Button(action: { onSelectGarmentForTryOn(item) }) {
+            ZStack(alignment: .bottomLeading) {
+                AsyncImage(url: item.fullImageURL) { img in
+                    img.resizable().scaledToFill()
+                } placeholder: {
+                    TryZonTheme.surfaceVariant
+                }
+                .frame(height: 180)
+                .frame(maxWidth: .infinity)
+                .clipped()
+
+                // Gradient Overlay
+                LinearGradient(
+                    colors: [Color.clear, Color.black.opacity(0.85)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 180)
+
+                // Content
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("🔥 #1 VIRAL AI TRY-ON OUTFIT")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(TryZonTheme.primaryGold)
+                        .cornerRadius(100)
+
+                    Text(item.name)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+
+                    Text("Photorealistic AI Try-On ready in 2s")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .padding(16)
+            }
+            .frame(height: 180)
+            .cornerRadius(24)
+            .clipped()
+            .overlay(RoundedRectangle(cornerRadius: 24).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
+        }
+        .buttonStyle(BounceButtonStyle())
+    }
+
+    // ─────────────────────────────────────
+    // MARK: - PRODUCT CARD REPLICA
+    // ─────────────────────────────────────
+    private func catalogProductCard(_ product: CatalogItem) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                AsyncImage(url: product.fullImageURL) { img in
+                    img.resizable().scaledToFill()
+                } placeholder: {
+                    TryZonTheme.surfaceVariant
+                        .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                }
+                .frame(height: 210)
+                .frame(maxWidth: .infinity)
+                .clipped()
+
+                if let badge = product.badge {
+                    Text(badge)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(TryZonTheme.primaryGold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.black.opacity(0.75))
+                        .cornerRadius(100)
+                        .overlay(RoundedRectangle(cornerRadius: 100).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
+                        .padding(8)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                if let brand = product.brand {
+                    Text(brand)
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.5))
+                        .lineLimit(1)
+                }
+                Text(product.name)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                HStack(spacing: 6) {
+                    Text("₹\(product.price)")
+                        .font(.system(size: 13, weight: .black))
+                        .foregroundColor(TryZonTheme.primaryGold)
+
+                    if let orig = product.original_price, orig > product.price {
+                        Text("₹\(orig)")
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.4))
+                            .strikethrough()
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                Button(action: { onSelectGarmentForTryOn(product) }) {
+                    Text("TRY ON")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(TryZonTheme.primaryGold)
+                        .cornerRadius(100)
+                }
+                .buttonStyle(BounceButtonStyle())
+            }
+            .padding(10)
+        }
+        .background(TryZonTheme.surfaceVariant)
+        .cornerRadius(18)
+        .clipped()
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.08), lineWidth: 1))
+    }
+
+    // ─────────────────────────────────────
+    // MARK: - SHIMMER LOADING GRID
+    // ─────────────────────────────────────
+    private var shimmerLoadingGrid: some View {
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
+                ForEach(0..<6, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(TryZonTheme.surfaceVariant)
+                        .frame(height: 280)
+                        .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                }
+            }
+            .padding(16)
+        }
+    }
+
+    // ─────────────────────────────────────
+    // MARK: - HELPERS
+    // ─────────────────────────────────────
     private var displayedItems: [CatalogItem] {
         if items.isEmpty {
             return sampleCatalogItems
@@ -164,7 +314,7 @@ public struct CatalogView: View {
         isLoading = true
         Task {
             do {
-                let fetched = try await apiClient.fetchCatalog(category: selectedCategory, gender: selectedGender, search: searchText)
+                let fetched = try await apiClient.fetchCatalog(category: selectedCategory == "All AI Outfits" ? "All" : selectedCategory, gender: selectedGender, search: searchText)
                 DispatchQueue.main.async {
                     self.items = fetched
                     self.isLoading = false
@@ -179,10 +329,10 @@ public struct CatalogView: View {
 
     private var sampleCatalogItems: [CatalogItem] {
         [
-            CatalogItem(id: "1", name: "Monaco Riviera Linen Blazer", brand: "TryZon AI", price: 2999, original_price: 4999, image_url: "/inputs/sample1.jpg", category: "Suits", store: "TryZon AI", gender: "Men", badge: "👑 OLD MONEY"),
-            CatalogItem(id: "2", name: "NYC Fifth Ave Evening Gown", brand: "TryZon AI", price: 4499, original_price: 6999, image_url: "/inputs/sample2.jpg", category: "Dresses", store: "TryZon AI", gender: "Women", badge: "✨ ELEGANT"),
-            CatalogItem(id: "3", name: "Tokyo Cyberpunk Jacket", brand: "TryZon AI", price: 3499, original_price: 5499, image_url: "/inputs/sample3.jpg", category: "Tops", store: "TryZon AI", gender: "Unisex", badge: "⚡ NEON AI"),
-            CatalogItem(id: "4", name: "Seoul Black Slim Tuxedo", brand: "TryZon AI", price: 5299, original_price: 7999, image_url: "/inputs/sample4.jpg", category: "Suits", store: "TryZon AI", gender: "Men", badge: "🫰 K-STYLE")
+            CatalogItem(id: "1", name: "Monaco Riviera Yacht Linen", brand: "TryZon AI Exclusives", price: 2999, original_price: 4499, image_url: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp", category: "Suits", store: "TryZon AI", gender: "Men", badge: "👑 OLD MONEY"),
+            CatalogItem(id: "2", name: "NYC Executive Tuxedo", brand: "TryZon AI Haute Couture", price: 5499, original_price: 8999, image_url: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_formal_ceo_black_suit_1778055862174.webp", category: "Suits", store: "TryZon AI", gender: "Men", badge: "💼 EXECUTIVE"),
+            CatalogItem(id: "3", name: "Seoul K-Style Teal Dress", brand: "TryZon AI Exclusives", price: 4299, original_price: 6499, image_url: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp", category: "Dresses", store: "TryZon AI", gender: "Women", badge: "✨ ELEGANT"),
+            CatalogItem(id: "4", name: "Dubai Royal Emerald Velvet", brand: "TryZon AI Haute Couture", price: 5999, original_price: 9499, image_url: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_royal_queen_emerald_gold_1778038089053.webp", category: "Dresses", store: "TryZon AI", gender: "Women", badge: "🏆 LUXURY")
         ]
     }
 }
