@@ -583,6 +583,41 @@ struct FunnelStep4_LossAversion: View {
         let isGold = plan.0 == 1
         let isPurple = plan.0 == 2
 
+        let circleColor: Color = {
+            if !isSelected { return Color.white.opacity(0.1) }
+            if isGold { return TryZonTheme.primaryGold }
+            if isPurple { return Color.purple }
+            return Color.white
+        }()
+
+        let badgeBg: Color = {
+            if isGold { return TryZonTheme.primaryGold }
+            if isPurple { return Color.purple }
+            return Color.white.opacity(0.2)
+        }()
+
+        let priceColor: Color = {
+            if isGold { return TryZonTheme.primaryGold }
+            if isPurple { return Color.purple.opacity(0.9) }
+            return Color.white.opacity(0.7)
+        }()
+
+        let cardBg: Color = {
+            if !isSelected { return TryZonTheme.surfaceVariant }
+            if isGold { return TryZonTheme.primaryGold.opacity(0.12) }
+            if isPurple { return Color.purple.opacity(0.12) }
+            return Color.white.opacity(0.08)
+        }()
+
+        let strokeColor: Color = {
+            if !isSelected { return Color.white.opacity(0.08) }
+            if isGold { return TryZonTheme.primaryGold.opacity(0.6) }
+            if isPurple { return Color.purple.opacity(0.5) }
+            return Color.white.opacity(0.3)
+        }()
+
+        let strokeWidth: CGFloat = isSelected ? 1.5 : 1.0
+
         return Button(action: {
             withAnimation(.spring(response: 0.3)) { selectedPlanIndex = plan.0 }
         }) {
@@ -590,9 +625,7 @@ struct FunnelStep4_LossAversion: View {
                 // Selection indicator
                 ZStack {
                     Circle()
-                        .fill(isSelected ?
-                            (isGold ? TryZonTheme.primaryGold : isPurple ? Color.purple : Color.white) :
-                            Color.white.opacity(0.1))
+                        .fill(circleColor)
                         .frame(width: 24, height: 24)
                     if isSelected {
                         Image(systemName: "checkmark")
@@ -608,10 +641,7 @@ struct FunnelStep4_LossAversion: View {
                             .foregroundColor(isGold ? .black : .white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(
-                                isGold ? TryZonTheme.primaryGold :
-                                isPurple ? Color.purple : Color.white.opacity(0.2)
-                            )
+                            .background(badgeBg)
                             .cornerRadius(6)
 
                         Text(plan.2)
@@ -626,30 +656,17 @@ struct FunnelStep4_LossAversion: View {
 
                     Text(plan.4)
                         .font(.system(size: 13, weight: .black))
-                        .foregroundColor(isGold ? TryZonTheme.primaryGold : isPurple ? Color.purple.opacity(0.9) : .white.opacity(0.7))
+                        .foregroundColor(priceColor)
                 }
 
                 Spacer()
             }
             .padding(16)
-            .background(
-                isSelected ?
-                    (isGold ? TryZonTheme.primaryGold.opacity(0.12) :
-                     isPurple ? Color.purple.opacity(0.12) :
-                     Color.white.opacity(0.08)) :
-                    TryZonTheme.surfaceVariant
-            )
+            .background(cardBg)
             .cornerRadius(20)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(
-                        isSelected ?
-                            (isGold ? TryZonTheme.primaryGold.opacity(0.6) :
-                             isPurple ? Color.purple.opacity(0.5) :
-                             Color.white.opacity(0.3)) :
-                            Color.white.opacity(0.08),
-                        lineWidth: isSelected ? 1.5 : 1
-                    )
+                    .stroke(strokeColor, lineWidth: strokeWidth)
             )
             .scaleEffect(isSelected ? 1.01 : 1.0)
         }
