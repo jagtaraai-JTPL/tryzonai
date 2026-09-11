@@ -25,10 +25,10 @@ public struct TryOnUploadView: View {
     private let categories = ["Tops", "Bottoms", "Dresses", "Suits", "Outerwear"]
 
     private let sampleOutfits = [
-        SampleOutfit(name: "Monaco Yacht", badge: "👑 OLD MONEY", category: "Tops", color: Color.blue),
-        SampleOutfit(name: "NYC Suit", badge: "💼 EXECUTIVE", category: "Suits", color: Color.gray),
-        SampleOutfit(name: "Tokyo Cyber", badge: "⚡ NEON AI", category: "Tops", color: Color.purple),
-        SampleOutfit(name: "Seoul Black", badge: "🫰 K-STYLE", category: "Suits", color: Color.black)
+        SampleOutfit(name: "Riviera Linen", badge: "👑 OLD MONEY", category: "Suits", color: Color.blue, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp"),
+        SampleOutfit(name: "Executive Suit", badge: "💼 EXECUTIVE", category: "Suits", color: Color.gray, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_formal_ceo_black_suit_1778055862174.webp"),
+        SampleOutfit(name: "Teal Knit Dress", badge: "✨ ELEGANT", category: "Dresses", color: Color.teal, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp"),
+        SampleOutfit(name: "Royal Emerald", badge: "👑 LUXURY", category: "Dresses", color: Color.purple, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_royal_queen_emerald_gold_1778038089053.webp")
     ]
 
     public init(apiClient: APIClient, onNavigateToResult: @escaping (TryOnStatusResponse) -> Void) {
@@ -225,8 +225,8 @@ public struct TryOnUploadView: View {
                         HStack(spacing: 12) {
                             ForEach(sampleOutfits) { outfit in
                                 Button(action: {
-                                    viewModel.selectedGarmentImage = createSampleGarmentImage(for: outfit)
                                     viewModel.selectedCategory = outfit.category
+                                    loadSampleGarmentImage(urlStr: outfit.imageUrl)
                                 }) {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(outfit.badge)
@@ -389,24 +389,16 @@ public struct TryOnUploadView: View {
         }
     }
 
-    private func createSampleGarmentImage(for outfit: SampleOutfit) -> UIImage {
-        let size = CGSize(width: 400, height: 600)
-        UIGraphicsBeginImageContextWithOptions(size, true, 0)
-        let context = UIGraphicsGetCurrentContext()!
-
-        context.setFillColor(UIColor(outfit.color).cgColor)
-        context.fill(CGRect(origin: .zero, size: size))
-
-        let font = UIFont.systemFont(ofSize: 28, weight: .bold)
-        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: UIColor.white]
-        let string = NSString(string: outfit.name)
-        let textSize = string.size(withAttributes: attrs)
-
-        string.draw(at: CGPoint(x: (size.width - textSize.width)/2, y: (size.height - textSize.height)/2), withAttributes: attrs)
-
-        let image = UIGraphicsGetImageFromCurrentImageContext()!
-        UIGraphicsEndImageContext()
-        return image
+    private func loadSampleGarmentImage(urlStr: String) {
+        guard let url = URL(string: urlStr) else { return }
+        Task {
+            if let (data, _) = try? await URLSession.shared.data(from: url),
+               let img = UIImage(data: data) {
+                DispatchQueue.main.async {
+                    self.viewModel.selectedGarmentImage = img
+                }
+            }
+        }
     }
 }
 
@@ -416,6 +408,7 @@ struct SampleOutfit: Identifiable {
     let badge: String
     let category: String
     let color: Color
+    let imageUrl: String
 }
 
 struct ProcessingSessionItem: Identifiable {

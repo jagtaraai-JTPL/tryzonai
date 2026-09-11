@@ -6,13 +6,14 @@ public class APIClient: ObservableObject {
     public static let shared = APIClient()
 
     @Published public var currentUser: UserProfile?
-    @Published public var userCredits: Int = 1
+    @Published public var userCredits: Int = 3
     @Published public var paidCredits: Int = 0
     @Published public var isLoggedIn: Bool = false
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String?
 
-    private let baseURL = URL(string: "https://tryzonai.com/api")!
+    // CRITICAL FIX: Backend router prefix is /api/v1
+    private let baseURL = URL(string: "https://tryzonai.com/api/v1")!
     private let session: URLSession
 
     public var sessionID: String {
@@ -70,6 +71,22 @@ public class APIClient: ObservableObject {
             headers["Authorization"] = "Bearer \(token)"
         }
         return headers
+    }
+
+    // MARK: - Ensure Auth Token for Guests
+    public func ensureSessionAuthToken() async throws -> String {
+        if let token = authToken, !token.isEmpty {
+            return token
+        }
+
+        // Register anonymous session token so guest try-on succeeds seamlessly
+        let anonId = String(UUID().uuidString.prefix(8))
+        let email = "ios_guest_\(anonId)@tryzon.ai"
+        let name = "iOS Guest"
+        let pass = "GuestPass123!"
+
+        let res = try await register(name: name, email: email, password: pass)
+        return res.token
     }
 
     // MARK: - User Profile & Credits API
@@ -165,29 +182,24 @@ public class APIClient: ObservableObject {
 
     // MARK: - Multipart Image Upload for Try-On
     public func generateTryOn(personImage: UIImage, garmentImage: UIImage, category: String, productId: String? = nil) async throws -> TryOnSubmissionResponse {
+        let token = try await ensureSessionAuthToken()
+
+        var tryonURL = baseURL.appendingPathComponent("tryon")
+        if let pid = productId, !pid.isEmpty {
+            var components = URLComponents(url: tryonURL, resolvingAgainstBaseURL: false)!
+            components.queryItems = [URLQueryItem(name: "product_id", value: pid)]
+            tryonURL = components.url!
+        }
+
         let boundary = "Boundary-\(UUID().uuidString)"
-        var request = URLRequest(url: baseURL.appendingPathComponent("tryon"))
+        var request = URLRequest(url: tryonURL)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue(sessionID, forHTTPHeaderField: "X-Session-ID")
         request.setValue(deviceID, forHTTPHeaderField: "X-Device-ID")
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         var body = Data()
-
-        // Append Category
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"category\"\r\n\r\n".data(using: .utf8)!)
-        body.append("\(category)\r\n".data(using: .utf8)!)
-
-        // Append Product ID if present
-        if let pid = productId {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"product_id\"\r\n\r\n".data(using: .utf8)!)
-            body.append("\(pid)\r\n".data(using: .utf8)!)
-        }
 
         // Append Person Image
         if let personData = personImage.jpegData(compressionQuality: 0.85) {
