@@ -42,7 +42,7 @@ public struct TryOnResultView: View {
                     AsyncImage(url: URL(string: resultImageUrl)) { img in
                         img.resizable().scaledToFill()
                     } placeholder: {
-                        Color(TryZonTheme.surfaceVariant)
+                        TryZonTheme.surfaceVariant
                     }
                     .frame(width: geo.size.width, height: geo.size.height)
                     .clipped()
@@ -52,7 +52,7 @@ public struct TryOnResultView: View {
                         AsyncImage(url: URL(string: origUrl)) { img in
                             img.resizable().scaledToFill()
                         } placeholder: {
-                            Color(TryZonTheme.darkSurface)
+                            TryZonTheme.darkSurface
                         }
                         .frame(width: geo.size.width, height: geo.size.height)
                         .mask(

@@ -54,7 +54,7 @@ public struct CatalogView: View {
                                             .resizable()
                                             .scaledToFill()
                                     } placeholder: {
-                                        Color(TryZonTheme.surfaceVariant)
+                                        TryZonTheme.surfaceVariant
                                     }
                                     .frame(height: 200)
                                     .cornerRadius(16)

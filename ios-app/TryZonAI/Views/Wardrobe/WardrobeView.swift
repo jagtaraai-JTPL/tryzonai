@@ -54,7 +54,7 @@ public struct WardrobeView: View {
                                 AsyncImage(url: URL(string: item.result_image)) { img in
                                     img.resizable().scaledToFill()
                                 } placeholder: {
-                                    Color(TryZonTheme.surfaceVariant)
+                                    TryZonTheme.surfaceVariant
                                 }
                                 .frame(height: 180)
                                 .cornerRadius(14)

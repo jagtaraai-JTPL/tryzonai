@@ -141,10 +141,10 @@ public struct HomeScreen: View {
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showingUploadSheet) {
-                TryOnUploadView()
+                TryOnUploadView(apiClient: apiClient, onNavigateToResult: { _ in })
             }
             .sheet(isPresented: $showingPremiumSheet) {
-                PremiumView()
+                PremiumView(apiClient: apiClient)
             }
         }
     }
