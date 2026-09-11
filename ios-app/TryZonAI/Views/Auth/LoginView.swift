@@ -254,11 +254,9 @@ public struct LoginView: View {
         errorMessage = nil
         Task {
             do {
-                _ = try await apiClient.ensureSessionAuthToken()
+                _ = try await apiClient.loginWithGoogle()
                 DispatchQueue.main.async {
                     self.isLoading = false
-                    self.apiClient.isLoggedIn = true
-                    self.apiClient.fetchUserProfile()
                     dismiss()
                 }
             } catch {
@@ -272,13 +270,28 @@ public struct LoginView: View {
 
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
         switch result {
-        case .success:
+        case .success(let auth):
+            isLoading = true
+            var userEmail: String? = nil
+            var userName: String? = nil
+            if let appleIDCredential = auth.credential as? ASAuthorizationAppleIDCredential {
+                userEmail = appleIDCredential.email
+                if let name = appleIDCredential.fullName {
+                    userName = "\(name.givenName ?? "") \(name.familyName ?? "")".trimmingCharacters(in: .whitespaces)
+                }
+            }
             Task {
-                _ = try? await apiClient.ensureSessionAuthToken()
-                DispatchQueue.main.async {
-                    self.apiClient.isLoggedIn = true
-                    self.apiClient.fetchUserProfile()
-                    dismiss()
+                do {
+                    _ = try await apiClient.loginWithApple(email: userEmail, name: userName)
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        dismiss()
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        self.errorMessage = "Apple Sign In failed: \(error.localizedDescription)"
+                    }
                 }
             }
         case .failure(let error):

@@ -11,6 +11,8 @@ public struct SideDrawer: View {
     @State private var showLogoutConfirm = false
     @State private var showDeleteConfirm = false
     @State private var showLoginSheet = false
+    @State private var showSpinWheel = false
+    @State private var showShareAndEarn = false
 
     public init(isOpen: Binding<Bool>, apiClient: APIClient) {
         self._isOpen = isOpen
@@ -131,6 +133,50 @@ public struct SideDrawer: View {
 
                         Divider().background(TryZonTheme.cardBorder)
 
+                        // Section: Rewards & Bonus
+                        Group {
+                            Text("REWARDS & BONUS")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                                .tracking(1)
+
+                            Button(action: { showSpinWheel = true }) {
+                                HStack {
+                                    Text("🎡")
+                                    Text("Daily Spin & Win Wheel")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Text("FREE CREDITS")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.black)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(TryZonTheme.primaryGold)
+                                        .cornerRadius(4)
+                                }
+                            }
+
+                            Button(action: { showShareAndEarn = true }) {
+                                HStack {
+                                    Text("🎁")
+                                    Text("Refer & Share App")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Text("+2 CREDITS")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.black)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(TryZonTheme.primaryGold)
+                                        .cornerRadius(4)
+                                }
+                            }
+                        }
+
+                        Divider().background(TryZonTheme.cardBorder)
+
                         // Section: Account & Legal
                         Group {
                             Text("ACCOUNT & LEGAL")
@@ -208,6 +254,12 @@ public struct SideDrawer: View {
         }
         .sheet(isPresented: $showLoginSheet) {
             LoginView(apiClient: apiClient, onNavigateToRegister: {})
+        }
+        .sheet(isPresented: $showSpinWheel) {
+            SpinWheelView(apiClient: apiClient)
+        }
+        .sheet(isPresented: $showShareAndEarn) {
+            ShareAndEarnView(apiClient: apiClient)
         }
     }
 

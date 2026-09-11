@@ -168,19 +168,49 @@ public struct RegisterView: View {
 
     private func performGoogleSignUp() {
         isLoading = true
+        errorMessage = nil
         Task {
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            DispatchQueue.main.async {
-                self.isLoading = false
-                dismiss()
+            do {
+                _ = try await apiClient.loginWithGoogle()
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    dismiss()
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.errorMessage = error.localizedDescription
+                }
             }
         }
     }
 
     private func handleAppleSignUp(_ result: Result<ASAuthorization, Error>) {
         switch result {
-        case .success:
-            dismiss()
+        case .success(let auth):
+            isLoading = true
+            var userEmail: String? = nil
+            var userName: String? = nil
+            if let appleIDCredential = auth.credential as? ASAuthorizationAppleIDCredential {
+                userEmail = appleIDCredential.email
+                if let name = appleIDCredential.fullName {
+                    userName = "\(name.givenName ?? "") \(name.familyName ?? "")".trimmingCharacters(in: .whitespaces)
+                }
+            }
+            Task {
+                do {
+                    _ = try await apiClient.loginWithApple(email: userEmail, name: userName)
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        dismiss()
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        self.errorMessage = error.localizedDescription
+                    }
+                }
+            }
         case .failure(let error):
             errorMessage = error.localizedDescription
         }

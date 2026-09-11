@@ -10,6 +10,7 @@ public struct HomeScreen: View {
     @State private var heroIndex: Int = 0
     @State private var isLoadingProducts = false
     @State private var showSpinWheel = false
+    @State private var showShareAndEarn = false
 
     private let heroOutfits: [(String, String, String)] = [
         ("Monaco Riviera Linen 🇲🇨", "👑 OLD MONEY", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp"),
@@ -77,6 +78,12 @@ public struct HomeScreen: View {
         .onAppear {
             loadTrending()
             startTimers()
+        }
+        .sheet(isPresented: $showSpinWheel) {
+            SpinWheelView(apiClient: apiClient)
+        }
+        .sheet(isPresented: $showShareAndEarn) {
+            ShareAndEarnView(apiClient: apiClient)
         }
     }
 
@@ -277,7 +284,9 @@ public struct HomeScreen: View {
                 .foregroundColor(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-            Button("Share →") {}
+            Button("Share →") {
+                showShareAndEarn = true
+            }
                 .font(.system(size: 9.5, weight: .bold))
                 .foregroundColor(.black)
                 .padding(.horizontal, 8)
