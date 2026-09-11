@@ -91,11 +91,17 @@ public struct LoginView: View {
                 // ── 3. FLOATING ROUND PILL SOCIAL LOGIN BUTTONS ──
                 VStack(spacing: 12) {
                     // Google Pill Button (Gol shape height 50)
-                    Button(action: performGoogleSignIn) {
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        performGoogleSignIn()
+                    }) {
                         HStack(spacing: 10) {
                             if isLoading {
                                 ProgressView()
-                                    .tint(colorScheme == .dark ? .black : .white)
+                                    .tint(colorScheme == .dark ? .black : .primary)
+                                Text("Signing in...")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(colorScheme == .dark ? .black : .primary)
                             } else {
                                 Text("G")
                                     .font(.system(size: 20, weight: .black, design: .rounded))
@@ -109,12 +115,13 @@ public struct LoginView: View {
                         .frame(height: 50)
                         .background(colorScheme == .dark ? Color.white : Color(.systemBackground))
                         .clipShape(Capsule())
+                        .contentShape(Capsule())
                         .shadow(color: Color.black.opacity(0.12), radius: 6, y: 3)
                         .overlay(
                             Capsule().stroke(Color.primary.opacity(0.1), lineWidth: 1)
                         )
                     }
-                    .buttonStyle(BounceButtonStyle())
+                    .buttonStyle(PlainButtonStyle())
 
                     // Apple Pill Button (Gol shape height 50)
                     SignInWithAppleButton(
@@ -129,6 +136,7 @@ public struct LoginView: View {
                     .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                     .frame(height: 50)
                     .clipShape(Capsule())
+                    .contentShape(Capsule())
 
                     // Guest Login Link
                     Button(action: { dismiss() }) {
@@ -140,6 +148,7 @@ public struct LoginView: View {
                         }
                         .foregroundColor(TryZonTheme.primaryGold)
                         .padding(.vertical, 6)
+                        .contentShape(Rectangle())
                     }
                 }
                 .padding(.horizontal, 8)
@@ -257,6 +266,8 @@ public struct LoginView: View {
                 _ = try await apiClient.loginWithGoogle()
                 DispatchQueue.main.async {
                     self.isLoading = false
+                    AuthViewModel.shared.isLoggedIn = true
+                    AuthViewModel.shared.currentUser = self.apiClient.currentUser
                     dismiss()
                 }
             } catch {
