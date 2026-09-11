@@ -7,16 +7,13 @@ public struct TopBar: View {
 
     public var body: some View {
         HStack {
-            // Gold Brand Logo Badge
-            HStack(spacing: 6) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(TryZonTheme.primaryGold)
-                        .frame(width: 28, height: 28)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 14, weight: .black))
-                        .foregroundColor(.black)
-                }
+            // Gold Brand Official Logo Badge
+            HStack(spacing: 8) {
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
+                    .cornerRadius(8)
 
                 Text("TryZon AI")
                     .font(.system(size: 18, weight: .black, design: .rounded))

@@ -24,14 +24,12 @@ public struct LoginView: View {
 
                 // Header Branding
                 VStack(spacing: 8) {
-                    ZStack {
-                        Circle()
-                            .fill(TryZonTheme.primaryGold.opacity(0.15))
-                            .frame(width: 70, height: 70)
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 32))
-                            .foregroundColor(TryZonTheme.primaryGold)
-                    }
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 72, height: 72)
+                        .cornerRadius(18)
+                        .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 10)
 
                     Text("Welcome Back ⚡")
                         .font(.system(size: 22, weight: .black, design: .rounded))
