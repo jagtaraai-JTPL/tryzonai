@@ -113,7 +113,8 @@ fun TryOnUploadScreen(
         val authUser = authViewModel?.user?.value
         val isLoggedIn = authUser != null
         val userPrefs = context.getSharedPreferences("tryzon_user_prefs", Context.MODE_PRIVATE)
-        val isFirstTryOnDone = userPrefs.getBoolean("is_lifetime_first_tryon_done", false)
+        val tryOnPrefs = context.getSharedPreferences("try_on_prefs", Context.MODE_PRIVATE)
+        val isFirstTryOnDone = userPrefs.getBoolean("is_lifetime_first_tryon_done", false) || tryOnPrefs.getBoolean("is_lifetime_first_tryon_done", false)
 
         if (!isLoggedIn && isFirstTryOnDone) {
             showLoginRequiredDialog = true
@@ -514,11 +515,11 @@ fun TryOnUploadScreen(
                                         contentDescription = "Your Photo",
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .clip(CircleShape)
+                                            .clip(RoundedCornerShape(12.dp))
                                             .border(
                                                 width = if (isSelected) 2.dp else 1.dp,
                                                 color = if (isSelected) PrimaryGold else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                                shape = CircleShape
+                                                shape = RoundedCornerShape(12.dp)
                                             )
                                             .clickable { viewModel.setUserPhoto(Uri.parse(recentUserUpload)) },
                                         contentScale = ContentScale.Crop
@@ -529,9 +530,9 @@ fun TryOnUploadScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .aspectRatio(1f)
-                                        .clip(CircleShape)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .background(PrimaryGold.copy(alpha = 0.12f))
-                                        .border(1.dp, PrimaryGold.copy(alpha = 0.4f), CircleShape)
+                                        .border(1.dp, PrimaryGold.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                                         .clickable { uploadTarget = "user" },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -552,11 +553,11 @@ fun TryOnUploadScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .aspectRatio(1f)
-                                        .clip(CircleShape)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .border(
                                             width = if (isSelected) 2.dp else 1.dp,
                                             color = if (isSelected) PrimaryGold else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                            shape = CircleShape
+                                            shape = RoundedCornerShape(12.dp)
                                         )
                                         .clickable { viewModel.setUserPhoto(Uri.parse(sampleUri)) },
                                     contentScale = ContentScale.Crop
@@ -623,11 +624,11 @@ fun TryOnUploadScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .aspectRatio(1f)
-                                        .clip(CircleShape)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .border(
                                             width = if (isSelected) 2.dp else 1.dp,
                                             color = if (isSelected) PrimaryGold else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                            shape = CircleShape
+                                            shape = RoundedCornerShape(12.dp)
                                         )
                                         .clickable { viewModel.setSelectedProduct(product) },
                                     contentScale = ContentScale.Crop
@@ -641,118 +642,123 @@ fun TryOnUploadScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
             ShimmeringButton(
+                text = "",
                 onClick = {
-                    val authUser = authViewModel?.user?.value
+                    if (isDemoRunning) isDemoRunning = false
                     val isLoggedIn = authUser != null
-                    val prefs = context.getSharedPreferences("tryzon_user_prefs", Context.MODE_PRIVATE)
-                    val isFirstTryOnDone = prefs.getBoolean("is_lifetime_first_tryon_done", false)
+                    val userPrefs = context.getSharedPreferences("tryzon_user_prefs", Context.MODE_PRIVATE)
+                    val tryOnPrefs = context.getSharedPreferences("try_on_prefs", Context.MODE_PRIVATE)
+                    val isFirstTryOnDone = userPrefs.getBoolean("is_lifetime_first_tryon_done", false) || tryOnPrefs.getBoolean("is_lifetime_first_tryon_done", false)
 
                     val hasPaidCredits = (authUser?.paid_credits ?: 0) > 0
-                    val totalCredits = (authUser?.credits ?: 0)
+                    val totalCredits = (authUser?.credits ?: 0) + (authUser?.paid_credits ?: 0)
                     val dailyAdsCount = (authUser?.daily_reward_ad_count ?: 0)
                     val isProSubscriber = authUser?.is_premium == true || listOf("pro", "premium", "vip").contains(authUser?.subscription_tier?.lowercase())
                     val hasDailyFreeTriesLeft = (authUser?.try_ons_today ?: 0) < 1
 
                     if (!isLoggedIn && isFirstTryOnDone) {
                         showLoginRequiredDialog = true
+                    } else if (!isLoggedIn && !isFirstTryOnDone) {
+                        val activity = context.findActivity()
+                        viewModel.submitTryOnWithAd(activity, isPremium = true)
+                        onNavigateToProcessing()
                     } else if (isProSubscriber) {
                         val activity = context.findActivity()
                         viewModel.submitTryOnWithAd(activity, isPremium = true)
                         onNavigateToProcessing()
-                    } else if (hasPaidCredits) {
-                        // Smart Choice Popup for credit holders: Use 1 credit (0 ads) vs Watch Video Ad
+                    } else if (hasDailyFreeTriesLeft) {
+                        val activity = context.findActivity()
+                        viewModel.submitTryOnWithAd(activity, isPremium = true)
+                        onNavigateToProcessing()
+                    } else if (hasPaidCredits && (authUser?.try_ons_today ?: 0) >= 3) {
                         showCreditChoiceDialog = true
-                    } else if (!isLoggedIn && !isFirstTryOnDone) {
-                        // 1st lifetime guest trial: Prompt Choice Dialog (Watch Ad 📺 vs Go Ad-Free Pro 👑)
-                        showRewardedAdChoiceDialog = true
-                    } else if (hasDailyFreeTriesLeft || dailyAdsCount < 2) {
-                        // Choice Popup for ad-supported try-on: Watch Ad & Generate 📺 vs Go Ad-Free Pro 👑
+                    } else if (dailyAdsCount < 2) {
                         showRewardedAdChoiceDialog = true
                     } else if (totalCredits > 0) {
-                        // Ad cap reached (2/2 ads used), but user has credits! Deduct 1 credit (0 ad wait)
                         val activity = context.findActivity()
                         viewModel.submitTryOnWithAd(activity, isPremium = true)
                         onNavigateToProcessing()
                     } else {
-                        // Daily free tries + ad limit reached AND 0 credits! PROMPT POPUP DIALOG ON SCREEN!
                         showDailyLimitDialog = true
                     }
                 },
-                enabled = isReady,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .height(54.dp)
-                    .onGloballyPositioned { coords ->
-                        onTargetBoundsPositioned?.invoke(3, coords.boundsInRoot()) // Step 3: Generate Button
-                    }
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "GENERATE VIRTUAL TRY-ON",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 0.8.sp,
-                        color = Color.Black
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                if (isDemoRunning && demoStep == 2) {
-                    Box(
+                        enabled = isReady,
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.35f), shape = RoundedCornerShape(50)),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .height(54.dp)
+                            .onGloballyPositioned { coords ->
+                                onTargetBoundsPositioned?.invoke(3, coords.boundsInRoot()) // Step 3: Generate Button
+                            }
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.offset(y = handOffsetY.dp)
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = PrimaryGold,
-                                shadowElevation = 6.dp
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "GENERATE VIRTUAL TRY-ON",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 0.8.sp,
+                                color = Color.Black
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    if (isDemoRunning && demoStep == 2) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = PrimaryGold,
+                            shadowElevation = 10.dp,
+                            border = BorderStroke(1.5.dp, Color.Black),
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = (-36).dp + handOffsetY.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = "3. Tap Generate! ⚡",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color.Black,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    color = Color.Black
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "👇",
+                                    fontSize = 20.sp,
+                                    modifier = Modifier.graphicsLayer {
+                                        scaleX = 1f + (pulseAlpha * 0.15f)
+                                        scaleY = 1f + (pulseAlpha * 0.15f)
+                                    }
                                 )
                             }
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "👆",
-                                fontSize = 32.sp,
-                                modifier = Modifier.graphicsLayer {
-                                    scaleX = 1f + (pulseAlpha * 0.15f)
-                                    scaleY = 1f + (pulseAlpha * 0.15f)
-                                }
-                            )
                         }
                     }
                 }
-            }
 
 
 
@@ -854,10 +860,15 @@ fun TryOnUploadScreen(
                 val activity = context.findActivity()
                 viewModel.submitTryOnWithAd(activity, isPremium = true)
                 onNavigateToProcessing()
+            } else if (hasDailyFreeTriesLeft) {
+                // 1st Daily Free Try -> 100% Free zero-ad instant try-on
+                val activity = context.findActivity()
+                viewModel.submitTryOnWithAd(activity, isPremium = true)
+                onNavigateToProcessing()
             } else if (hasPaidCredits) {
                 // Prompt Smart Credit Choice Popup for credit holders
                 showCreditChoiceDialog = true
-            } else if (hasDailyFreeTriesLeft || dailyAdsCount < 2) {
+            } else if (dailyAdsCount < 2) {
                 // Prompt explicit user choice popup ("Watch Ad & Generate 📺" vs "Go Ad-Free Pro")
                 showRewardedAdChoiceDialog = true
             } else if (totalCredits > 0) {

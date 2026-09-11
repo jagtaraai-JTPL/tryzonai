@@ -5,16 +5,24 @@ import java.util.Locale
 object CurrencyUtils {
     fun isIndianUser(): Boolean {
         val locale = Locale.getDefault()
-        return locale.country.uppercase() == "IN" || (locale.country.isEmpty() && locale.language == "hi")
+        val tz = java.util.TimeZone.getDefault().id
+        return locale.country.uppercase() == "IN" ||
+               tz == "Asia/Kolkata" ||
+               tz == "Asia/Calcutta" ||
+               tz.contains("Calcutta") ||
+               tz.contains("Kolkata") ||
+               (locale.country.isEmpty() && locale.language == "hi")
     }
 
     fun formatPrice(amountInINR: Double): String {
         if (amountInINR <= 0) return ""
+        if (isIndianUser()) {
+            return "₹${amountInINR.toInt()}"
+        }
         val locale = Locale.getDefault()
         val country = locale.country.uppercase()
         
         return when (country) {
-            "IN" -> "₹${amountInINR.toInt()}"
             "AE" -> {
                 val aedAmount = when (amountInINR.toInt()) {
                     39 -> 3.99

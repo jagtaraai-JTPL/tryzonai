@@ -37,8 +37,12 @@ import com.jagtarapvtltd.tryzonai.ui.components.bounceClick
 fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
     onRegisterSuccess: () -> Unit,
+    onNavigateBack: () -> Unit = {},
     viewModel: AuthViewModel
 ) {
+    androidx.activity.compose.BackHandler {
+        onNavigateBack()
+    }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()

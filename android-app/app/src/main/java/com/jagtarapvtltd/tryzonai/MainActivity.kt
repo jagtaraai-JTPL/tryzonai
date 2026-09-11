@@ -454,8 +454,12 @@ fun TryZonAIApp(
         }
     }
     
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    var isDrawerOpen by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(currentDestination) {
+        isDrawerOpen = false
+    }
 
     // Logic to hide elements on specific screens
     val showBottomBar = when {
@@ -529,6 +533,10 @@ fun TryZonAIApp(
                 ctaText = "Try It Yourself 🚀"
             )
         )
+    }
+
+    androidx.activity.compose.BackHandler(enabled = isDrawerOpen) {
+        isDrawerOpen = false
     }
 
     androidx.activity.compose.BackHandler(enabled = showGuidedTour) {
@@ -791,9 +799,14 @@ fun TryZonAIApp(
                             navController.navigate(TryOnUpload) { launchSingleTop = true }
                         }
                     },
-                    onProfileClick = { authViewModel.refresh(); scope.launch { drawerState.open() } },
+                    onProfileClick = { authViewModel.refresh(); isDrawerOpen = true },
                     canNavigateBack = canNavigateBack,
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = { 
+                        val popped = navController.popBackStack()
+                        if (!popped) {
+                            navController.navigate(TryOnUpload) { launchSingleTop = true }
+                        }
+                    },
                     remainingTriesText = triesText,
                     onUpgradeClick = { navController.navigate(Premium) }
                 )
@@ -803,7 +816,13 @@ fun TryZonAIApp(
             if (showBottomBar) {
                 TryZonBottomBar(
                     navController = navController,
-                    currentDestination = currentDestination
+                    currentDestination = currentDestination,
+                    isDrawerOpen = isDrawerOpen,
+                    onCloseDrawer = { isDrawerOpen = false },
+                    onNavigate = {
+                        tryOnViewModel.clearGarmentImage()
+                        tryOnViewModel.resetProcessingState()
+                    }
                 )
             }
         }
@@ -833,9 +852,13 @@ fun TryZonAIApp(
 
             // ── Viewport Dark Scrim (Dims ONLY the content viewport area, leaving header & bottom nav undimmed!) ──
             androidx.compose.animation.AnimatedVisibility(
-                visible = drawerState.isOpen,
-                enter = androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(300)),
-                exit = androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(250))
+                visible = isDrawerOpen,
+                enter = androidx.compose.animation.fadeIn(
+                    animationSpec = androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
+                ),
+                exit = androidx.compose.animation.fadeOut(
+                    animationSpec = androidx.compose.animation.core.tween(260, easing = androidx.compose.animation.core.FastOutLinearInEasing)
+                )
             ) {
                 Box(
                     modifier = Modifier
@@ -845,23 +868,23 @@ fun TryZonAIApp(
                             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                             indication = null
                         ) {
-                            scope.launch { drawerState.close() }
+                            isDrawerOpen = false
                         }
                 )
             }
 
             // ── Sliding Viewport Drawer Sheet (Bounded strictly to content viewport between header and bottom nav!) ──
             androidx.compose.animation.AnimatedVisibility(
-                visible = drawerState.isOpen,
+                visible = isDrawerOpen,
                 modifier = Modifier.align(Alignment.CenterEnd),
                 enter = androidx.compose.animation.slideInHorizontally(
                     initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                ),
+                    animationSpec = androidx.compose.animation.core.tween(340, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                ) + androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(220)),
                 exit = androidx.compose.animation.slideOutHorizontally(
                     targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = androidx.compose.animation.core.tween(280, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                )
+                    animationSpec = androidx.compose.animation.core.tween(250, easing = androidx.compose.animation.core.FastOutLinearInEasing)
+                ) + androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(200))
             ) {
                 Surface(
                     modifier = Modifier
@@ -879,30 +902,42 @@ fun TryZonAIApp(
                         notificationsEnabled = tryOnViewModel.notificationsEnabled.value,
                         onToggleNotifications = { tryOnViewModel.notificationsEnabled.value = !tryOnViewModel.notificationsEnabled.value },
                         onLogout = {
-                            authViewModel.logout()
-                            scope.launch { drawerState.close() }
-                            navController.navigate(Login) {
-                                popUpTo(0) { inclusive = true }
+                            isDrawerOpen = false
+                            scope.launch {
+                                kotlinx.coroutines.delay(220)
+                                authViewModel.logout()
+                                navController.navigate(Login) {
+                                    popUpTo(0) { inclusive = true }
+                                }
                             }
                         },
                         onDeleteAccount = {
-                            authViewModel.deleteAccount()
-                            scope.launch { drawerState.close() }
-                            navController.navigate(Login) {
-                                popUpTo(0) { inclusive = true }
+                            isDrawerOpen = false
+                            scope.launch {
+                                kotlinx.coroutines.delay(220)
+                                authViewModel.deleteAccount()
+                                navController.navigate(Login) {
+                                    popUpTo(0) { inclusive = true }
+                                }
                             }
                         },
                         onNavigate = { route ->
-                            scope.launch { drawerState.close() }
-                            navController.navigate(route)
+                            isDrawerOpen = false
+                            scope.launch {
+                                kotlinx.coroutines.delay(220)
+                                navController.navigate(route)
+                            }
                         },
                         onStartGuidedTour = {
-                            scope.launch { drawerState.close() }
-                            prefs.edit().putBoolean("has_completed_guided_tour", false).apply()
-                            showGuidedTour = true
-                            guidedTourStep = 0
+                            isDrawerOpen = false
+                            scope.launch {
+                                kotlinx.coroutines.delay(220)
+                                prefs.edit().putBoolean("has_completed_guided_tour", false).apply()
+                                showGuidedTour = true
+                                guidedTourStep = 0
+                            }
                         },
-                        onClose = { scope.launch { drawerState.close() } }
+                        onClose = { isDrawerOpen = false }
                     )
                 }
             }
@@ -1147,6 +1182,7 @@ fun UserSidebarContent(
                 title = "Manage Subscriptions",
                 subtitle = "Manage or cancel your active subscription",
                 onClick = { 
+                    onClose()
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/account/subscriptions?package=${context.packageName}"))
                     context.startActivity(intent)
                 }
@@ -1159,6 +1195,7 @@ fun UserSidebarContent(
                 title = "Purchase History",
                 subtitle = "View past transactions & receipts",
                 onClick = { 
+                    onClose()
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/account/orderhistory"))
                     context.startActivity(intent)
                 }
@@ -1172,7 +1209,10 @@ fun UserSidebarContent(
                 title = if (isDarkTheme) "Light Theme" else "Dark Theme",
                 subtitle = "Switch visual appearance",
                 badgeText = if (isDarkTheme) "Dark 🌙" else "Light ☀️",
-                onClick = onThemeToggle
+                onClick = {
+                    onClose()
+                    onThemeToggle()
+                }
             )
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f), modifier = Modifier.padding(horizontal = 12.dp))
@@ -1182,7 +1222,10 @@ fun UserSidebarContent(
                 title = "Push Notifications",
                 subtitle = if (notificationsEnabled) "Active for Try-On alerts" else "Disabled",
                 badgeText = if (notificationsEnabled) "ON" else "OFF",
-                onClick = onToggleNotifications
+                onClick = {
+                    onClose()
+                    onToggleNotifications()
+                }
             )
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f), modifier = Modifier.padding(horizontal = 12.dp))
@@ -1193,6 +1236,7 @@ fun UserSidebarContent(
                 subtitle = if (dailyStyleEnabled) "Automated daily outfit suggestions" else "Disabled",
                 badgeText = if (dailyStyleEnabled) "ACTIVE" else "OFF",
                 onClick = {
+                    onClose()
                     val newState = !dailyStyleEnabled
                     dailyStyleEnabled = newState
                     prefs.edit().putBoolean("daily_style_enabled", newState).apply()
@@ -1212,6 +1256,7 @@ fun UserSidebarContent(
                 },
                 badgeText = userGender,
                 onClick = {
+                    onClose()
                     val nextGender = when (userGender) {
                         "Women" -> "Men"
                         "Men" -> "Unisex"
@@ -1253,6 +1298,7 @@ fun UserSidebarContent(
                 title = "Test Daily AI Style Now ⚡",
                 subtitle = "Trigger instant background style generation",
                 onClick = {
+                    onClose()
                     val testWork = androidx.work.OneTimeWorkRequestBuilder<com.jagtarapvtltd.tryzonai.workers.DailyStyleWorker>()
                         .setConstraints(
                             androidx.work.Constraints.Builder()
@@ -1289,7 +1335,10 @@ fun UserSidebarContent(
                 icon = Icons.AutoMirrored.Filled.Logout,
                 title = "Logout Account",
                 subtitle = "Sign out of current active session",
-                onClick = onLogout
+                onClick = {
+                    onClose()
+                    onLogout()
+                }
             )
 
             if (user != null) {
@@ -1308,7 +1357,10 @@ fun UserSidebarContent(
                     icon = Icons.AutoMirrored.Filled.Login,
                     title = "Login / Switch Account",
                     subtitle = "Sign in to sync your wardrobe",
-                    onClick = { onNavigate(Login) }
+                    onClick = {
+                        onClose()
+                        onNavigate(Login)
+                    }
                 )
             }
         }
@@ -1322,6 +1374,7 @@ fun UserSidebarContent(
                     TextButton(
                         onClick = { 
                             showDeleteDialog = false
+                            onClose()
                             onDeleteAccount()
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
@@ -1353,6 +1406,7 @@ fun UserSidebarContent(
             ) {
                 TextButton(
                     onClick = { 
+                        onClose()
                         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://tryzonai.com/#faq"))
                         context.startActivity(intent)
                     },
@@ -1363,6 +1417,7 @@ fun UserSidebarContent(
                 Text(" • ", color = PrimaryGold.copy(alpha = 0.6f), fontSize = 11.5.sp)
                 TextButton(
                     onClick = { 
+                        onClose()
                         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://tryzonai.com/privacy-policy"))
                         context.startActivity(intent)
                     },
@@ -1986,15 +2041,23 @@ fun NavigationHost(
         composable<TryOnResult> {
             TryOnResultScreen(
                 onNavigateBack = { 
-                    tryOnViewModel.clearGarmentImage()
-                    tryOnViewModel.resetProcessingState()
-                    val popped = navController.popBackStack(TryOnUpload, inclusive = false)
+                    val popped = navController.popBackStack()
                     if (!popped) {
                         navController.navigate(TryOnUpload) {
                             popUpTo(navController.graph.startDestinationId) { inclusive = false }
                             launchSingleTop = true
                         }
                     }
+                    tryOnViewModel.clearGarmentImage()
+                    tryOnViewModel.resetProcessingState()
+                },
+                onTryAnotherOutfit = {
+                    navController.navigate(TryOnUpload) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                    tryOnViewModel.clearGarmentImage()
+                    tryOnViewModel.resetProcessingState()
                 },
                 onSaveToWardrobe = { 
                     val result = it as com.jagtarapvtltd.tryzonai.models.TryOnResult
@@ -2027,7 +2090,8 @@ fun NavigationHost(
                 productId = detail.productId,
                 onNavigateBack = { navController.popBackStack() },
                 onTryOn = handleTryOn,
-                onBuyNow = { navController.navigate(CheckoutDestination) }
+                onBuyNow = { navController.navigate(CheckoutDestination) },
+                viewModel = catalogViewModel
             )
         }
         
@@ -2065,7 +2129,8 @@ fun NavigationHost(
                 isDarkTheme = isDarkTheme,
                 onThemeToggle = onThemeToggle,
                 onItemClick = { item ->
-                    navController.navigate(ProductDetail(item.product_id ?: ""))
+                    tryOnViewModel.openHistoryResult(item)
+                    navController.navigate(TryOnResult)
                 },
                 onTryOnAgain = { item ->
                     val user = authViewModel.user.value
@@ -2124,6 +2189,7 @@ fun NavigationHost(
                         launchSingleTop = true
                     }
                 },
+                onNavigateBack = { navController.popBackStack() },
                 viewModel = authViewModel
             )
         }
@@ -2137,6 +2203,7 @@ fun NavigationHost(
                         launchSingleTop = true
                     }
                 },
+                onNavigateBack = { navController.popBackStack() },
                 viewModel = authViewModel
             )
         }
@@ -2146,8 +2213,12 @@ fun NavigationHost(
 @Composable
 fun TryZonBottomBar(
     navController: NavHostController,
-    currentDestination: androidx.navigation.NavDestination?
+    currentDestination: androidx.navigation.NavDestination?,
+    isDrawerOpen: Boolean = false,
+    onCloseDrawer: (() -> Unit)? = null,
+    onNavigate: (() -> Unit)? = null
 ) {
+    val scope = rememberCoroutineScope()
     Surface(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
         shape = RoundedCornerShape(32.dp),
@@ -2166,26 +2237,59 @@ fun TryZonBottomBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val navigateTo = { route: Any ->
-                val currentRouteQualified = currentDestination?.route
-                val targetRouteQualified = route::class.qualifiedName
-                if (currentRouteQualified != targetRouteQualified) {
-                    val startDestinationId = navController.graph.startDestinationId
-                    if (route == TryOnUpload) {
-                        val popped = navController.popBackStack(route, inclusive = false)
-                        if (!popped) {
-                            navController.navigate(route) {
-                                popUpTo(startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                val currentRouteQualified = currentDestination?.route ?: ""
+                val targetRouteQualified = route::class.qualifiedName ?: ""
+                val isAlreadyOnTarget = currentRouteQualified == targetRouteQualified || 
+                        (targetRouteQualified.isNotEmpty() && currentRouteQualified.startsWith("$targetRouteQualified/"))
+                
+                if (isDrawerOpen) {
+                    onCloseDrawer?.invoke()
+                    if (!isAlreadyOnTarget) {
+                        scope.launch {
+                            kotlinx.coroutines.delay(220)
+                            onNavigate?.invoke()
+                            val popped = try { navController.popBackStack(route, inclusive = false) } catch (_: Exception) { false }
+                            if (!popped) {
+                                try {
+                                    val rootId = navController.graph.findStartDestination().id
+                                    navController.navigate(route) {
+                                        popUpTo(rootId) {
+                                            saveState = false
+                                        }
+                                        launchSingleTop = true
+                                    }
+                                } catch (_: Exception) {
+                                    try {
+                                        navController.navigate(route) {
+                                            launchSingleTop = true
+                                        }
+                                    } catch (_: Exception) {}
+                                }
                             }
                         }
                     } else {
-                        navController.navigate(route) {
-                            popUpTo(startDestinationId) {
-                                saveState = true
+                        onNavigate?.invoke()
+                    }
+                } else {
+                    onNavigate?.invoke()
+                    if (!isAlreadyOnTarget) {
+                        val popped = try { navController.popBackStack(route, inclusive = false) } catch (_: Exception) { false }
+                        if (!popped) {
+                            try {
+                                val rootId = navController.graph.findStartDestination().id
+                                navController.navigate(route) {
+                                    popUpTo(rootId) {
+                                        saveState = false
+                                    }
+                                    launchSingleTop = true
+                                }
+                            } catch (_: Exception) {
+                                try {
+                                    navController.navigate(route) {
+                                        launchSingleTop = true
+                                    }
+                                } catch (_: Exception) {}
                             }
-                            launchSingleTop = true
-                            restoreState = true
                         }
                     }
                 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -250,6 +251,11 @@ fun TryOnProcessingScreen(
         label = "aura_scale"
     )
 
+    androidx.activity.compose.BackHandler {
+        viewModel.resetProcessingState()
+        onNavigateBack()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -280,7 +286,41 @@ fun TryOnProcessingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
-
+            // Top Cancel & Navigation Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = {
+                        viewModel.resetProcessingState()
+                        onNavigateBack()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                Text(
+                    text = "AI Virtual Fitting",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                TextButton(
+                    onClick = {
+                        viewModel.resetProcessingState()
+                        onNavigateBack()
+                    }
+                ) {
+                    Text("Cancel", color = PrimaryGold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
 
             if (processingState == ProcessingState.ERROR) {
                 // Error State Card

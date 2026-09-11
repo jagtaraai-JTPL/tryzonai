@@ -53,6 +53,10 @@ fun PremiumScreen(
     val uiState by viewModel.uiState.collectAsState()
     val activity = context.findActivity()
 
+    androidx.activity.compose.BackHandler {
+        onNavigateBack()
+    }
+
     LaunchedEffect(Unit) {
         viewModel.fetchProductDetails()
         com.jagtarapvtltd.tryzonai.utils.AnalyticsHelper.logEvent("premium_screen_viewed")

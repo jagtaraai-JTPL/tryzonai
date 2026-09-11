@@ -315,7 +315,7 @@ async def get_catalog(
                 "price": int(p.current_price or 0),
                 "originalPrice": int((p.current_price / (1 - (p.discount_percent or 0) / 100)) if p.current_price and (p.discount_percent or 0) < 100 else (p.current_price or 0)),
                 "image": p.image_url,
-                "url": generate_affiliate_url(p.affiliate_url or p.original_url, p.store, country),
+                "url": generate_affiliate_url(p.affiliate_url or p.original_url, p.store, active_region),
                 "is_featured": p.is_featured,
                 "badge": "NEW" if (p.is_featured) else None
             }

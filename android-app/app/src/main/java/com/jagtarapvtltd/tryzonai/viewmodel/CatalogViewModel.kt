@@ -151,10 +151,11 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
             "Popularity" -> filtered.sortedByDescending { if (it.is_featured) 1 else 0 }
             else -> {
                 // Smart Personalized Ranking using Onboarding User Preferences
+                val prefs = getApplication<Application>().getSharedPreferences("tryzon_user_prefs", Context.MODE_PRIVATE)
                 val tryOnPrefs = getApplication<Application>().getSharedPreferences("try_on_prefs", Context.MODE_PRIVATE)
-                val userGender = (tryOnPrefs.getString("user_gender", "Women") ?: "Women").lowercase()
-                val userGoalIndex = tryOnPrefs.getInt("user_fashion_goal", 0)
-                val userVibeIndex = tryOnPrefs.getInt("user_style_vibe", 0)
+                val userGender = (prefs.getString("user_gender", null) ?: tryOnPrefs.getString("user_gender", "Women") ?: "Women").lowercase()
+                val userGoalIndex = if (prefs.contains("user_fashion_goal")) prefs.getInt("user_fashion_goal", 0) else tryOnPrefs.getInt("user_fashion_goal", 0)
+                val userVibeIndex = if (prefs.contains("user_style_vibe")) prefs.getInt("user_style_vibe", 0) else tryOnPrefs.getInt("user_style_vibe", 0)
 
                 filtered.sortedByDescending { item ->
                     var score = 0

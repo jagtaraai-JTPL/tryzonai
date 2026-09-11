@@ -60,6 +60,11 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
             val current = _savedTryOns.value.toMutableList()
             current.removeAll { it.id == sessionId }
             _savedTryOns.value = current
+            try {
+                RetrofitClient.apiService.deleteTryOnHistoryItem(sessionId)
+            } catch (e: Exception) {
+                android.util.Log.e("WardrobeViewModel", "Remote delete failed: ${e.message}")
+            }
         }
     }
 }

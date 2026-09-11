@@ -360,7 +360,7 @@ fun ShimmeringButton(
     ) {
         if (content != null) {
             Column(
-                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
+                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 content = content
             )
@@ -371,7 +371,8 @@ fun ShimmeringButton(
                 fontSize = fontSize,
                 color = textColor,
                 letterSpacing = 0.5.sp,
-                modifier = Modifier.padding(vertical = 14.dp, horizontal = 12.dp)
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             )
         }
     }

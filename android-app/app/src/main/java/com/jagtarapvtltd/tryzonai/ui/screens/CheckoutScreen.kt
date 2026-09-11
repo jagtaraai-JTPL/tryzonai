@@ -21,6 +21,9 @@ fun CheckoutScreen(
     onNavigateBack: () -> Unit,
     onPaymentSuccess: () -> Unit
 ) {
+    androidx.activity.compose.BackHandler {
+        onNavigateBack()
+    }
     var selectedPaymentMethod by remember { mutableStateOf("google_pay") }
 
     Column(

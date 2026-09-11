@@ -74,9 +74,11 @@ fun HomeScreen(
     
     val currentContext = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) {
-        val prefs = currentContext.getSharedPreferences("try_on_prefs", Context.MODE_PRIVATE)
-        if (!prefs.contains("user_gender")) {
+        val prefs = currentContext.getSharedPreferences("tryzon_user_prefs", Context.MODE_PRIVATE)
+        val tryOnPrefs = currentContext.getSharedPreferences("try_on_prefs", Context.MODE_PRIVATE)
+        if (!prefs.contains("user_gender") && !tryOnPrefs.contains("user_gender")) {
             prefs.edit().putString("user_gender", "Women").apply()
+            tryOnPrefs.edit().putString("user_gender", "Women").apply()
         }
     }
     val tourBounds = remember { mutableStateMapOf<Int, androidx.compose.ui.geometry.Rect>() }

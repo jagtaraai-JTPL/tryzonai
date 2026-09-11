@@ -163,11 +163,12 @@ data class TryOnStatusResponse(
 )
 
 data class TryOnHistoryItem(
-    @com.google.gson.annotations.SerializedName("session_id")
-    val id: String,
+    @com.google.gson.annotations.SerializedName(value = "session_id", alternate = ["id"])
+    val id: String = "",
     val product_id: String? = null,
-    val result_url: String,
-    val timestamp: String,
+    val result_url: String = "",
+    @com.google.gson.annotations.SerializedName(value = "timestamp", alternate = ["created_at"])
+    val timestamp: String = "",
     val garment_name: String? = null
 )
 

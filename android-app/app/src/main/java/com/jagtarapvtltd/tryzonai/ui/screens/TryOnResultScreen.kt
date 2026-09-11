@@ -119,9 +119,39 @@ fun launchGoogleInAppReview(context: android.content.Context, fallbackToStore: B
     }
 }
 
-fun getStoreUrlForProduct(product: com.jagtarapvtltd.tryzonai.models.Product?, targetStore: String): String {
-    val productName = product?.name.takeIf { !it.isNullOrEmpty() } ?: "Outfit"
-    val encodedName = try { java.net.URLEncoder.encode(productName, "UTF-8") } catch (_: Exception) { "Outfit" }
+fun downloadWithAdCheck(context: android.content.Context, currentUser: com.jagtarapvtltd.tryzonai.network.UserResponse?, imageUrl: String) {
+    if (imageUrl.isEmpty()) return
+    val isAdFree = (currentUser?.is_premium == true) || ((currentUser?.paid_credits ?: 0) > 0)
+    if (isAdFree) {
+        com.jagtarapvtltd.tryzonai.utils.AnalyticsHelper.logEvent("image_saved_adfree")
+        com.jagtarapvtltd.tryzonai.utils.ImageExportHelper.downloadImageToGallery(context, imageUrl)
+    } else {
+        com.jagtarapvtltd.tryzonai.utils.AnalyticsHelper.logEvent("image_saved_ad_triggered")
+        val activity = context.findActivity()
+        if (activity != null) {
+            com.jagtarapvtltd.tryzonai.utils.AdManager.getInstance(context).showRewardedAd(
+                activity = activity,
+                onAdDismissed = {
+                    com.jagtarapvtltd.tryzonai.utils.ImageExportHelper.downloadImageToGallery(context, imageUrl)
+                },
+                onRewardEarned = {
+                    // Reward earned for watching ad
+                },
+                onAdFailedToLoad = {
+                    com.jagtarapvtltd.tryzonai.utils.ImageExportHelper.downloadImageToGallery(context, imageUrl)
+                }
+            )
+        } else {
+            com.jagtarapvtltd.tryzonai.utils.ImageExportHelper.downloadImageToGallery(context, imageUrl)
+        }
+    }
+}
+
+fun getStoreUrlForProduct(product: com.jagtarapvtltd.tryzonai.models.Product?, fallbackName: String? = null, targetStore: String): String {
+    val productName = product?.name.takeIf { !it.isNullOrEmpty() } 
+        ?: fallbackName.takeIf { !it.isNullOrEmpty() } 
+        ?: "Fashion Outfit"
+    val encodedName = try { java.net.URLEncoder.encode(productName, "UTF-8") } catch (_: Exception) { "Fashion" }
     val rawUrl = product?.url ?: ""
     val lowerUrl = rawUrl.lowercase()
     
@@ -185,11 +215,37 @@ fun ResultImageSection(
     cardHeight: Dp? = 255.dp,
     alignment: Alignment = Alignment.TopCenter,
     contentScale: ContentScale = ContentScale.Crop,
+    demoTriggerCount: Int = 0,
     onOpenFullscreen: (() -> Unit)? = null
 ) {
-    var offsetX by remember { mutableStateOf(0.5f) }
+    var userOffsetX by remember { mutableStateOf(0.5f) }
     var showHeart by remember { mutableStateOf(false) }
-    
+    val animatableOffsetX = remember { Animatable(0.5f) }
+    var isHandShowing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(demoTriggerCount) {
+        if (demoTriggerCount > 0) {
+            isHandShowing = true
+            animatableOffsetX.snapTo(userOffsetX)
+            animatableOffsetX.animateTo(
+                targetValue = 0.15f,
+                animationSpec = tween(650, easing = LinearOutSlowInEasing)
+            )
+            animatableOffsetX.animateTo(
+                targetValue = 0.85f,
+                animationSpec = tween(900, easing = FastOutSlowInEasing)
+            )
+            animatableOffsetX.animateTo(
+                targetValue = 0.5f,
+                animationSpec = tween(650, easing = FastOutSlowInEasing)
+            )
+            userOffsetX = 0.5f
+            isHandShowing = false
+        }
+    }
+
+    val activeOffsetX = if (animatableOffsetX.isRunning) animatableOffsetX.value else userOffsetX
+
     if (showHeart) {
         LaunchedEffect(Unit) {
             kotlinx.coroutines.delay(800)
@@ -210,8 +266,7 @@ fun ResultImageSection(
                 .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
                 .pointerInput(resultImage) {
                     detectTapGestures(
-                        onDoubleTap = { showHeart = true },
-                        onTap = { onOpenFullscreen?.invoke() }
+                        onDoubleTap = { showHeart = true }
                     )
                 }
                 .pointerInput(originalPhoto, resultImage) {
@@ -221,8 +276,8 @@ fun ResultImageSection(
                             if (size.width > 0) {
                                 val delta = dragAmount.x / size.width
                                 if (!delta.isNaN() && !delta.isInfinite()) {
-                                    val current = if (offsetX.isNaN()) 0.5f else offsetX
-                                    offsetX = (current + delta).coerceIn(0f, 1f)
+                                    val current = if (userOffsetX.isNaN()) 0.5f else userOffsetX
+                                    userOffsetX = (current + delta).coerceIn(0f, 1f)
                                 }
                             }
                         }
@@ -250,7 +305,7 @@ fun ResultImageSection(
                     modifier = Modifier
                         .fillMaxSize()
                         .drawWithContent {
-                            clipRect(right = size.width * offsetX) {
+                            clipRect(right = size.width * activeOffsetX) {
                                 this@drawWithContent.drawContent()
                             }
                         }
@@ -266,7 +321,7 @@ fun ResultImageSection(
                 
                 // Slider Handle
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    val handlePosDp = maxWidth * offsetX
+                    val handlePosDp = maxWidth * activeOffsetX
                     
                     // Comparison Divider Line
                     Box(
@@ -295,6 +350,28 @@ fun ResultImageSection(
                                 tint = Color.Black,
                                 modifier = Modifier.size(20.dp)
                             )
+                        }
+                    }
+
+                    // Animated Hand Gesture Demo Badge Overlay
+                    if (isHandShowing || animatableOffsetX.isRunning) {
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = Color.Black.copy(alpha = 0.85f),
+                            border = BorderStroke(1.dp, PrimaryGold),
+                            shadowElevation = 8.dp,
+                            modifier = Modifier
+                                .offset(x = (handlePosDp - 50.dp).coerceAtLeast(10.dp), y = 60.dp)
+                                .align(Alignment.TopStart)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("👆", fontSize = 16.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Swipe to Compare", color = PrimaryGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -529,6 +606,7 @@ fun CelebrationConfettiEffect(
 @Composable
 fun TryOnResultScreen(
     onNavigateBack: () -> Unit,
+    onTryAnotherOutfit: () -> Unit = onNavigateBack,
     onSaveToWardrobe: (Any) -> Unit,
     onBuyNow: (String) -> Unit,
     onNavigateToPremium: () -> Unit = {},
@@ -558,11 +636,131 @@ fun TryOnResultScreen(
     var showFeedbackDialog by remember { mutableStateOf(false) }
     var selectedStars by remember { mutableStateOf(5) }
 
+    androidx.activity.compose.BackHandler {
+        if (showFullscreenViewer) {
+            showFullscreenViewer = false
+        } else {
+            onNavigateBack()
+        }
+    }
+
     LaunchedEffect(result) {
         if (result != null && lastPromptDate != todayDate) {
             kotlinx.coroutines.delay(2000)
             prefs.edit().putString("last_rating_prompt_date", todayDate).apply()
             showFeedbackDialog = true
+        }
+    }
+
+    if (showFullscreenViewer && result != null) {
+        val fullRes = result!!
+        val coroutineScope = rememberCoroutineScope()
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showFullscreenViewer = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { showFullscreenViewer = false },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color.White
+                            )
+                        }
+
+                        Text(
+                            "HD VIRTUAL FITTING ROOM ✨",
+                            color = PrimaryGold,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(
+                                onClick = {
+                                    downloadWithAdCheck(context, currentUser, fullRes.resultImage)
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Download, contentDescription = "Save", tint = Color.White, modifier = Modifier.size(18.dp))
+                            }
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        com.jagtarapvtltd.tryzonai.utils.ImageExportHelper.shareImage(context, fullRes.resultImage)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        ResultImageSection(
+                            originalPhoto = fullRes.originalPhoto,
+                            resultImage = fullRes.resultImage,
+                            modifier = Modifier.fillMaxSize(),
+                            cardHeight = null,
+                            demoTriggerCount = 0,
+                            onOpenFullscreen = null
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(bottom = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            color = Color.White.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(100.dp)
+                        ) {
+                            Text(
+                                "👈 Swipe handle to compare • Double tap to ❤️",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -683,6 +881,16 @@ fun TryOnResultScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         if (res == null) {
+            LaunchedEffect(res, state) {
+                if (state != com.jagtarapvtltd.tryzonai.viewmodel.ProcessingState.ANALYZING &&
+                    state != com.jagtarapvtltd.tryzonai.viewmodel.ProcessingState.EXTRACTING &&
+                    state != com.jagtarapvtltd.tryzonai.viewmodel.ProcessingState.FITTING &&
+                    state != com.jagtarapvtltd.tryzonai.viewmodel.ProcessingState.ENHANCING &&
+                    state != com.jagtarapvtltd.tryzonai.viewmodel.ProcessingState.FINALIZING &&
+                    state != com.jagtarapvtltd.tryzonai.viewmodel.ProcessingState.ERROR) {
+                    onNavigateBack()
+                }
+            }
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (state == com.jagtarapvtltd.tryzonai.viewmodel.ProcessingState.ERROR) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
@@ -700,6 +908,7 @@ fun TryOnResultScreen(
                 }
             }
         } else {
+            CelebrationConfettiEffect(triggerKey = res.resultImage)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -776,6 +985,7 @@ fun TryOnResultScreen(
                 ResultImageSection(
                     originalPhoto = res.originalPhoto,
                     resultImage = res.resultImage,
+                    demoTriggerCount = demoTriggerCount,
                     onOpenFullscreen = { showFullscreenViewer = true }
                 )
 
@@ -815,7 +1025,7 @@ fun TryOnResultScreen(
                     Card(
                         onClick = { 
                             com.jagtarapvtltd.tryzonai.utils.AnalyticsHelper.logEvent("image_saved")
-                            com.jagtarapvtltd.tryzonai.utils.ImageExportHelper.downloadImageToGallery(context, res.resultImage)
+                            downloadWithAdCheck(context, currentUser, res.resultImage)
                         },
                         modifier = Modifier.weight(1f).height(38.dp),
                         shape = RoundedCornerShape(10.dp),
@@ -836,9 +1046,13 @@ fun TryOnResultScreen(
                     Card(
                         onClick = { 
                             val imgUrl = UrlUtils.getFullUrl(res.resultImage)
-                            val encodedUrl = java.net.URLEncoder.encode(imgUrl, "UTF-8")
-                            val lensUrl = "https://lens.google.com/uploadbyurl?url=$encodedUrl"
-                            uriHandler.openUri(lensUrl)
+                            if (imgUrl.startsWith("http")) {
+                                val encodedUrl = try { java.net.URLEncoder.encode(imgUrl, "UTF-8") } catch (_: Exception) { imgUrl }
+                                val lensUrl = "https://lens.google.com/uploadbyurl?url=$encodedUrl"
+                                safeOpenUrl(context, lensUrl)
+                            } else {
+                                android.widget.Toast.makeText(context, "Search unavailable for local image", android.widget.Toast.LENGTH_SHORT).show()
+                            }
                         },
                         modifier = Modifier.weight(1f).height(38.dp),
                         shape = RoundedCornerShape(10.dp),
@@ -951,7 +1165,7 @@ fun TryOnResultScreen(
                             // Myntra Button
                             Button(
                                 onClick = {
-                                    val targetUrl = getStoreUrlForProduct(product, "myntra")
+                                    val targetUrl = getStoreUrlForProduct(product, product?.name, "myntra")
                                     safeOpenUrl(context, targetUrl)
                                 },
                                 shape = RoundedCornerShape(10.dp),
@@ -973,7 +1187,7 @@ fun TryOnResultScreen(
                             // Ajio Button
                             Button(
                                 onClick = {
-                                    val targetUrl = getStoreUrlForProduct(product, "ajio")
+                                    val targetUrl = getStoreUrlForProduct(product, product?.name, "ajio")
                                     safeOpenUrl(context, targetUrl)
                                 },
                                 shape = RoundedCornerShape(10.dp),
@@ -995,7 +1209,7 @@ fun TryOnResultScreen(
                             // Flipkart Button
                             Button(
                                 onClick = {
-                                    val targetUrl = getStoreUrlForProduct(product, "flipkart")
+                                    val targetUrl = getStoreUrlForProduct(product, product?.name, "flipkart")
                                     safeOpenUrl(context, targetUrl)
                                 },
                                 shape = RoundedCornerShape(10.dp),
@@ -1017,7 +1231,7 @@ fun TryOnResultScreen(
                             // Amazon Button (tag=tryzonai-21)
                             Button(
                                 onClick = {
-                                    val targetUrl = getStoreUrlForProduct(product, "amazon")
+                                    val targetUrl = getStoreUrlForProduct(product, product?.name, "amazon")
                                     safeOpenUrl(context, targetUrl)
                                 },
                                 shape = RoundedCornerShape(10.dp),
@@ -1050,7 +1264,7 @@ fun TryOnResultScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
-                        onClick = { onNavigateBack() },
+                        onClick = { onTryAnotherOutfit() },
                         modifier = Modifier
                             .bounceClick(scaleDown = 0.95f)
                             .weight(2.3f)
@@ -1209,7 +1423,7 @@ fun TryOnResultScreen(
                 
                 Spacer(modifier = Modifier.height(12.dp))
                 
-                val sampleComplements = if (res?.complements?.isNotEmpty() == true) res.complements else listOf(
+                val sampleComplements = if (res.complements.isNotEmpty()) res.complements else listOf(
                     ComplementProduct("1", "Sunglasses", "Accessories", 0, "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=300", "https://myntr.it/sQ4bpfb", 95),
                     ComplementProduct("2", "Watch", "Accessories", 0, "https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=300", "https://myntr.it/sQ4bpfb", 96),
                     ComplementProduct("3", "Shoes", "Footwear", 0, "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=300", "https://myntr.it/sQ4bpfb", 94),
@@ -1228,7 +1442,7 @@ fun TryOnResultScreen(
                             url = comp.url
                         ))
                         android.widget.Toast.makeText(context, "Selected ${comp.name} for AI Try-On ✨", android.widget.Toast.LENGTH_SHORT).show()
-                        onNavigateBack()
+                        onTryAnotherOutfit()
                     }
                 )
                 

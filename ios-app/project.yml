@@ -14,6 +14,7 @@ targets:
       - path: TryZonAI/Models
       - path: TryZonAI/Resources
       - path: TryZonAI/Services
+      - path: TryZonAI/Theme
       - path: TryZonAI/Views
     settings:
       PRODUCT_NAME: TryZonAI

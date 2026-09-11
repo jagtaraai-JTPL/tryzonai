@@ -6,6 +6,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -93,8 +95,8 @@ fun GuidedTourOverlay(
             // Main Modal Card
             Card(
                 modifier = Modifier
-                    .fillMaxWidth(0.90f)
-                    .padding(16.dp)
+                    .fillMaxWidth(0.92f)
+                    .padding(vertical = 12.dp, horizontal = 14.dp)
                     .clickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null,
@@ -112,7 +114,8 @@ fun GuidedTourOverlay(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Top Progress Bars (Story Style)
@@ -198,13 +201,13 @@ fun GuidedTourOverlay(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Animated Visual Demo Canvas (Live Interactive Showcase Window)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(160.dp)
+                            .height(120.dp)
                             .clip(RoundedCornerShape(20.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                             .border(1.dp, PrimaryGold.copy(alpha = 0.25f), RoundedCornerShape(20.dp)),
@@ -226,7 +229,7 @@ fun GuidedTourOverlay(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Animated Step Text Content
                     AnimatedContent(
@@ -241,24 +244,24 @@ fun GuidedTourOverlay(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = s.title,
-                                fontSize = 19.sp,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center
                             )
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
                                 text = s.description,
-                                fontSize = 13.sp,
-                                lineHeight = 18.sp,
+                                fontSize = 12.5.sp,
+                                lineHeight = 17.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
                             )
 
                             if (!s.explanation.isNullOrEmpty()) {
-                                Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
                                     color = PrimaryGold.copy(alpha = 0.08f),
@@ -267,11 +270,11 @@ fun GuidedTourOverlay(
                                 ) {
                                     Text(
                                         text = s.explanation,
-                                        fontSize = 11.5.sp,
-                                        lineHeight = 16.sp,
+                                        fontSize = 11.sp,
+                                        lineHeight = 15.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.90f),
-                                        modifier = Modifier.padding(10.dp),
+                                        modifier = Modifier.padding(8.dp),
                                         textAlign = TextAlign.Center
                                     )
                                 }
@@ -279,7 +282,7 @@ fun GuidedTourOverlay(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Action Buttons Row
                     Row(
@@ -293,7 +296,7 @@ fun GuidedTourOverlay(
                                     isAutoPlaying = false
                                     onBack()
                                 },
-                                modifier = Modifier.height(42.dp)
+                                modifier = Modifier.height(44.dp)
                             ) {
                                 Text(
                                     "← Back",
@@ -305,7 +308,7 @@ fun GuidedTourOverlay(
                         } else {
                             TextButton(
                                 onClick = onSkip,
-                                modifier = Modifier.height(42.dp)
+                                modifier = Modifier.height(44.dp)
                             ) {
                                 Text(
                                     "Skip Guide",
@@ -322,7 +325,7 @@ fun GuidedTourOverlay(
                                 isAutoPlaying = false
                                 if (currentStep < steps.size - 1) onNext() else onSkip()
                             },
-                            modifier = Modifier.height(42.dp)
+                            modifier = Modifier.height(44.dp)
                         )
                     }
                 }
@@ -364,12 +367,19 @@ private fun Step0VisualDemo() {
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        Surface(
+            shape = RoundedCornerShape(100.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, PrimaryGold.copy(alpha = 0.5f))
         ) {
-            Text("👆", fontSize = 18.sp, modifier = Modifier.offset(y = handOffsetY.dp))
-            Text("1. Upload Selfie / Full Body Photo", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text("👆", fontSize = 16.sp, modifier = Modifier.offset(y = handOffsetY.dp))
+                Text("1. Upload Selfie / Full Body Photo", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+            }
         }
     }
 }
@@ -416,7 +426,13 @@ private fun Step1VisualDemo() {
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        Text("2. Pick Outfit or Paste Store Link", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = PrimaryGold)
+        Surface(
+            shape = RoundedCornerShape(100.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, PrimaryGold.copy(alpha = 0.5f))
+        ) {
+            Text("2. Pick Outfit or Paste Store Link", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = PrimaryGold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+        }
     }
 }
 
@@ -458,7 +474,8 @@ private fun Step2VisualDemo() {
         Spacer(modifier = Modifier.height(10.dp))
         Surface(
             shape = RoundedCornerShape(100.dp),
-            color = PrimaryGold.copy(alpha = 0.15f)
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, PrimaryGold.copy(alpha = 0.5f))
         ) {
             Text("3. AI Realistic fitting transformation (98% Match)", fontSize = 11.sp, fontWeight = FontWeight.Black, color = PrimaryGold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
         }

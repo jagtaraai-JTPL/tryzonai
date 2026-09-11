@@ -561,6 +561,8 @@ class TryOnViewModel(application: Application) : AndroidViewModel(application) {
             if (!isFirstTryOnDone || isPremium) {
                 if (!isFirstTryOnDone) {
                     prefs.edit().putBoolean("is_lifetime_first_tryon_done", true).apply()
+                    val tryOnPrefs = context.getSharedPreferences("try_on_prefs", android.content.Context.MODE_PRIVATE)
+                    tryOnPrefs.edit().putBoolean("is_lifetime_first_tryon_done", true).apply()
                 }
                 submitTryOn()
                 return@launch
@@ -1046,6 +1048,21 @@ class TryOnViewModel(application: Application) : AndroidViewModel(application) {
         _processingState.value = ProcessingState.COMPLETED
     }
     
+    fun openHistoryResult(item: TryOnHistoryItem) {
+        _processingState.value = ProcessingState.COMPLETED
+        _errorMessage.value = null
+        _tryOnResult.value = TryOnResult(
+            originalPhoto = _userPhoto.value?.toString() ?: "res:${com.jagtarapvtltd.tryzonai.R.drawable.sample_model_female}",
+            resultImage = item.result_url,
+            complements = listOf(
+                ComplementProduct("1", "Sunglasses", "Accessories", 0, "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=500", "https://myntr.it/sQ4bpfb", 95),
+                ComplementProduct("2", "Watch", "Accessories", 0, "https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=500", "https://myntr.it/sQ4bpfb", 96),
+                ComplementProduct("3", "Shoes", "Footwear", 0, "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=500", "https://myntr.it/sQ4bpfb", 94)
+            ),
+            priceOptions = emptyList()
+        )
+    }
+
     fun retryTryOn(item: TryOnHistoryItem, activity: android.app.Activity?, isPremium: Boolean) {
         _processingState.value = ProcessingState.ANALYZING
         submitTryOnWithAd(activity, isPremium)

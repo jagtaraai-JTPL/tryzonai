@@ -32,41 +32,45 @@ fun ProductDetailScreen(
     productId: String,
     onNavigateBack: () -> Unit,
     onTryOn: (Product) -> Unit,
-    onBuyNow: () -> Unit
+    onBuyNow: () -> Unit,
+    viewModel: com.jagtarapvtltd.tryzonai.viewmodel.CatalogViewModel? = null
 ) {
-    // In a real app, you would fetch product details using the productId
-    // For now, we'll use mock data
-    val product = remember {
-        Product(
-            id = productId,
-            name = "Premium Cotton Denim Jacket",
-            brand = "Levi's",
-            price = 2499,
-            originalPrice = 4999,
-            image = "https://www.tryzonai.com/products/denim-1.jpg",
-            category = "Jackets",
-            discount = 50,
-            rating = 4.5f,
-            colors = listOf("#0000FF", "#000000", "#FFFFFF"),
-            sizes = listOf("S", "M", "L", "XL")
-        )
+    val productsList by viewModel?.products?.collectAsState() ?: remember { mutableStateOf(emptyList()) }
+    val product = remember(productId, productsList) {
+        productsList.find { it.id == productId }
+            ?: Product(
+                id = productId,
+                name = "Premium Cotton Denim Jacket",
+                brand = "Levi's",
+                price = 2499,
+                originalPrice = 4999,
+                image = "res:${com.jagtarapvtltd.tryzonai.R.drawable.swiss_var}",
+                category = "Jackets",
+                discount = 50,
+                rating = 4.5f,
+                colors = listOf("#0000FF", "#000000", "#FFFFFF"),
+                sizes = listOf("S", "M", "L", "XL")
+            )
     }
 
-    var selectedColor by remember { mutableStateOf(product.colors.first()) }
-    var selectedSize by remember { mutableStateOf(product.sizes[1]) }
+    val colors = (product.colors ?: emptyList()).ifEmpty { listOf("#0000FF", "#000000", "#FFFFFF") }
+    val sizes = (product.sizes ?: emptyList()).ifEmpty { listOf("S", "M", "L", "XL") }
 
-    Scaffold(
-        bottomBar = {
-            BottomActionBar(
-                onTryOn = { onTryOn(product) },
-                onBuyNow = onBuyNow
-            )
-        }
-    ) { paddingValues ->
+    var selectedColor by remember(product) { mutableStateOf(colors.first()) }
+    var selectedSize by remember(product) { mutableStateOf(sizes.getOrNull(1) ?: sizes.first()) }
+
+    androidx.activity.compose.BackHandler {
+        onNavigateBack()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
             // Product Image Gallery
@@ -75,13 +79,13 @@ fun ProductDetailScreen(
             Column(modifier = Modifier.padding(16.dp)) {
                 // Brand & Name
                 Text(
-                    product.brand,
+                    product.brand.ifEmpty { "TryZon AI" },
                     fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    product.name,
+                    product.name.ifEmpty { "AI Outfit Transformation" },
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -90,7 +94,7 @@ fun ProductDetailScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 
                 Text(
-                    "Brand: ${product.brand}",
+                    "Brand: ${product.brand.ifEmpty { "TryZon AI" }}",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -100,14 +104,14 @@ fun ProductDetailScreen(
                 // Price
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        CurrencyUtils.formatPrice(product.price),
+                        CurrencyUtils.formatPrice(if (product.price > 0) product.price else 2499),
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF10B981)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        CurrencyUtils.formatPrice(product.originalPrice),
+                        CurrencyUtils.formatPrice(if (product.originalPrice > 0) product.originalPrice else 4999),
                         fontSize = 18.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         style = androidx.compose.ui.text.TextStyle(
@@ -120,7 +124,7 @@ fun ProductDetailScreen(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            "${product.discount}% OFF",
+                            "${if (product.discount > 0) product.discount else 50}% OFF",
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 12.sp,
@@ -135,9 +139,9 @@ fun ProductDetailScreen(
                 Text("Select Color", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    product.colors.forEach { colorHex ->
+                    colors.forEach { colorHex ->
                         ColorOption(
-                            color = Color(colorHex.toColorInt()),
+                            color = try { Color(colorHex.toColorInt()) } catch (_: Exception) { Color.Black },
                             isSelected = selectedColor == colorHex,
                             onClick = { selectedColor = colorHex }
                         )
@@ -159,7 +163,7 @@ fun ProductDetailScreen(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    product.sizes.forEach { size ->
+                    sizes.forEach { size ->
                         SizeOption(
                             size = size,
                             isSelected = selectedSize == size,
@@ -174,7 +178,7 @@ fun ProductDetailScreen(
                 Text("Description", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "This premium cotton denim jacket features a classic design with a modern fit. Made from high-quality sustainable cotton, it's perfect for layering and built to last.",
+                    "This premium fashion piece features a classic design with a modern fit. Try it on with TryZon AI Virtual Fitting Room and buy directly from the official store.",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     lineHeight = 22.sp
@@ -182,10 +186,13 @@ fun ProductDetailScreen(
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                // Delivery Info
-                DeliveryInfoCard()
-                
-                Spacer(modifier = Modifier.height(32.dp))
+                // Partner Referral Info Card
+                Spacer(modifier = Modifier.height(16.dp))
+                BottomActionBar(
+                    product = product,
+                    onTryOn = { onTryOn(product) }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -199,9 +206,10 @@ fun ProductImageGallery(image: String, onBack: () -> Unit) {
             .height(400.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
+        val model = remember(image) { UrlUtils.getCoilModel(image) }
         // Main Image
         AsyncImage(
-            model = UrlUtils.getFullUrl(image),
+            model = model,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
@@ -268,7 +276,7 @@ fun SizeOption(size: String, isSelected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun DeliveryInfoCard() {
+fun ReferralInfoCard(storeName: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -276,26 +284,29 @@ fun DeliveryInfoCard() {
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            DeliveryInfoRow(Icons.Default.LocalShipping, "Free delivery on orders above ₹999")
+            ReferralInfoRow(Icons.Default.ShoppingBag, "Official Partner Link: Buy directly on $storeName")
             Spacer(modifier = Modifier.height(12.dp))
-            DeliveryInfoRow(Icons.AutoMirrored.Filled.AssignmentReturn, "15 days easy return policy")
+            ReferralInfoRow(Icons.Default.AutoAwesome, "AI Virtual Fitting Room: Visualize fit before ordering")
             Spacer(modifier = Modifier.height(12.dp))
-            DeliveryInfoRow(Icons.Default.Verified, "100% Authentic products guaranteed")
+            ReferralInfoRow(Icons.Default.Verified, "100% Verified Merchant Product")
         }
     }
 }
 
 @Composable
-fun DeliveryInfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+fun ReferralInfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.width(12.dp))
-        Text(text, fontSize = 12.sp)
+        Text(text, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
-fun BottomActionBar(onTryOn: () -> Unit, onBuyNow: () -> Unit) {
+fun BottomActionBar(product: Product, onTryOn: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val storeName = (product.store ?: product.brand).uppercase().ifEmpty { "STORE" }
+    
     Surface(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
         modifier = Modifier
@@ -325,15 +336,19 @@ fun BottomActionBar(onTryOn: () -> Unit, onBuyNow: () -> Unit) {
             }
             
             Button(
-                onClick = onBuyNow,
+                onClick = {
+                    val targetUrl = product.url?.takeIf { it.isNotBlank() }
+                        ?: "https://www.google.com/search?q=" + android.net.Uri.encode("${product.brand} ${product.name} buy online")
+                    safeOpenUrl(context, targetUrl)
+                },
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(1.1f)
                     .height(52.dp)
                     .bounceClick(0.96f),
                 shape = RoundedCornerShape(100.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
-                Text("BUY NOW", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text("SHOP ON $storeName ↗", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 1)
             }
         }
     }

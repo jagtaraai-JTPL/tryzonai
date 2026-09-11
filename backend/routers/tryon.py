@@ -564,28 +564,39 @@ async def get_tryon_result(
 async def tryon_history(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    limit: int = 20,
+    limit: int = 50,
 ):
     """Return recent try-on sessions for the current user."""
     from sqlalchemy import desc
 
     result = await db.execute(
         select(TryOnSession)
-        .where(TryOnSession.user_id == current_user.id)
+        .where(
+            TryOnSession.user_id == current_user.id,
+            TryOnSession.status == "done",
+            TryOnSession.result_image_path.isnot(None)
+        )
         .order_by(desc(TryOnSession.created_at))
         .limit(limit)
     )
     sessions = result.scalars().all()
-    return [
-        {
-            "session_id": s.id,
+    out = []
+    for s in sessions:
+        if not s.result_image_path:
+            continue
+        rel = f"/outputs/{os.path.basename(s.result_image_path)}" if not s.result_image_path.startswith("http") else s.result_image_path
+        created_iso = s.created_at.isoformat() if s.created_at else ""
+        out.append({
+            "session_id": str(s.session_id if s.session_id else s.id),
+            "id": str(s.session_id if s.session_id else s.id),
             "status": s.status,
-            "result_url": f"/outputs/{os.path.basename(s.result_image_path)}" if s.status == "done" else None,
-            "processing_time_ms": s.processing_time_ms,
-            "created_at": s.created_at.isoformat(),
-        }
-        for s in sessions
-    ]
+            "result_url": rel,
+            "timestamp": created_iso,
+            "created_at": created_iso,
+            "product_id": str(s.product_id) if s.product_id else None,
+            "garment_name": None
+        })
+    return out
 
 
 @router.get("/tryon/download/{filename}")
@@ -618,20 +629,24 @@ async def download_result(filename: str):
 
 @router.delete("/tryon/history/{session_id}")
 async def delete_tryon_session(
-    session_id: int,
+    session_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a specific try-on session from history."""
-    from sqlalchemy import delete
+    from sqlalchemy import delete, or_
+    cond = (TryOnSession.session_id == session_id)
+    try:
+        int_id = int(session_id)
+        cond = or_(TryOnSession.id == int_id, TryOnSession.session_id == session_id)
+    except ValueError:
+        pass
+
     stmt = delete(TryOnSession).where(
-        TryOnSession.id == session_id,
+        cond,
         TryOnSession.user_id == current_user.id
     )
     res = await db.execute(stmt)
-    if res.rowcount == 0:
-        raise HTTPException(404, "Session not found or access denied")
-    
     await db.commit()
     return {"status": "success", "message": "Session deleted"}
 

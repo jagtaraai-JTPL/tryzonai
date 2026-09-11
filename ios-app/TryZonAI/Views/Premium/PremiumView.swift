@@ -1,187 +1,224 @@
 import SwiftUI
 import StoreKit
-import UIKit
 
 public struct PremiumView: View {
-    @Environment(\.presentationMode) var presentationMode
-    @StateObject private var storeKit = StoreKitManager.shared
-    @State private var selectedTab = 0
+    @ObservedObject var apiClient: APIClient
+    @State private var selectedTab: Int = 1 // 0: Subscriptions, 1: Credit Packs (Pocket Pack ₹39 at top)
 
-    private let creditPacks = [
-        PricingPlan(name: "Pocket Try", productId: "credits_pocket", subtitle: "15 Credits", price: "₹29.00 ($0.49)", tag: "IMPULSE TRY", features: ["15 AI Try-On Credits", "One-Time Purchase", "No Expiration"], isHighlight: true),
-        PricingPlan(name: "Starter Pack", productId: "credits_starter", subtitle: "60 Credits", price: "₹99.00 ($1.29)", tag: "POPULAR", features: ["60 AI Try-On Credits", "One-Time Purchase", "No Expiration"]),
-        PricingPlan(name: "Value Pack", productId: "credits_value", subtitle: "500 Credits", price: "₹299.00 ($3.99)", tag: "BEST VALUE", features: ["500 AI Try-On Credits", "One-Time Purchase", "Priority Processing"]),
-        PricingPlan(name: "Business Pack", productId: "credits_business", subtitle: "2000 Credits", price: "₹799.00 ($9.99)", tag: "CREATORS", features: ["2000 AI Try-On Credits", "One-Time Purchase", "Turbo GPU Speed"]),
-        PricingPlan(name: "Enterprise Pack", productId: "credits_enterprise", subtitle: "7000 Credits", price: "₹2,499.00 ($29.99)", tag: "BULK VOLUME", features: ["7000 AI Try-On Credits", "One-Time Purchase", "Commercial License"])
-    ]
-
-    private let subscriptions = [
-        PricingPlan(name: "Weekly Pro", productId: "sub_weekly_pro", subtitle: "150 Credits/wk", price: "₹99.00 ($1.29)", tag: "MOST POPULAR", features: ["150 AI Try-On Credits / week", "Ad-Free Experience", "Turbo GPU Processing", "Resets Weekly"], isHighlight: true, isSubscription: true, billingPeriod: " / week"),
-        PricingPlan(name: "Monthly Pro", productId: "sub_monthly_pro", subtitle: "600 Credits/mo", price: "₹299.00 ($3.99)", tag: "BEST VALUE", features: ["600 AI Try-On Credits / month", "Advanced Style Insights", "Priority Customer Support", "Resets Monthly"], isSubscription: true, billingPeriod: " / month"),
-        PricingPlan(name: "Yearly Legend", productId: "sub_yearly_legend", subtitle: "3,600 Credits/yr", price: "₹1,499.00 ($18.99)", tag: "SAVE BIG", features: ["3,600 AI Try-On Credits / year", "Exclusive Early Access", "Personal Stylist Support", "Resets Yearly"], isSubscription: true, billingPeriod: " / year")
-    ]
-
-    public init() {}
+    public init(apiClient: APIClient) {
+        self.apiClient = apiClient
+    }
 
     public var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 16) {
-                    // MARK: - Top Global Apple Policy Compliance Banner
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.yellow)
-                            Text("Subscription is OPTIONAL")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(.yellow)
-                        }
-                        Text("You can continue using TryZon AI for FREE with 3 daily try-ons.")
-                            .font(.caption.bold())
-                            .foregroundColor(.primary)
-                        Text("A paid subscription is NOT required to use this app. Pay-As-You-Go credit packs are also available.")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.yellow, lineWidth: 1.5)
-                    )
-                    .padding(.horizontal)
+        ScrollView {
+            VStack(spacing: 20) {
+                // Header Title
+                VStack(spacing: 4) {
+                    Text("TRYZON AI PRO 👑")
+                        .font(.system(size: 24, weight: .black, design: .rounded))
+                        .foregroundColor(TryZonTheme.primaryGold)
 
-                    // MARK: - Segmented Switcher
-                    Picker("Plan Type", selection: $selectedTab) {
-                        Text("Pay-As-You-Go").tag(0)
-                        Text("Unlimited Subscriptions").tag(1)
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .padding(.horizontal)
-
-                    // MARK: - Plan Cards List
-                    if selectedTab == 0 {
-                        VStack(spacing: 12) {
-                            ForEach(creditPacks) { plan in
-                                PlanCard(plan: plan)
-                            }
-                        }
-                        .padding(.horizontal)
-                    } else {
-                        VStack(spacing: 12) {
-                            ForEach(subscriptions) { plan in
-                                PlanCard(plan: plan)
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-
-                    // MARK: - Apple Review Guidelines 3.1.1 Mandatory Legal Footer & Restore Purchases
-                    VStack(spacing: 10) {
-                        Button(action: {
-                            Task {
-                                await storeKit.restorePurchases()
-                            }
-                        }) {
-                            Text("Restore Purchases")
-                                .font(.subheadline.bold())
-                                .foregroundColor(.purple)
-                        }
-                        .padding(.top, 8)
-
-                        HStack(spacing: 16) {
-                            Link("Privacy Policy", destination: URL(string: "https://tryzonai.com/privacy-policy")!)
-                            Text("•").foregroundColor(.secondary)
-                            Link("Terms of Use (EULA)", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
-                        }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                        Text("Payment charged to Apple ID account at purchase confirmation. Subscriptions auto-renew unless canceled at least 24h prior to period end via Settings > Apple ID > Subscriptions.")
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
-                    .padding(.bottom, 24)
+                    Text("Virtual Outfit Fitting Room Subscriptions & Credit Refills")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
                 }
-                .padding(.top, 10)
-            }
-            .navigationTitle("TryZon Pro & Credits")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        presentationMode.wrappedValue.dismiss()
+                .padding(.top, 12)
+
+                // Segmented Control (Subscriptions vs Credit Packs)
+                HStack(spacing: 0) {
+                    Button(action: { withAnimation { selectedTab = 0 } }) {
+                        Text("Subscriptions")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(selectedTab == 0 ? .black : .white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(selectedTab == 0 ? TryZonTheme.primaryGold : Color.clear)
+                            .cornerRadius(20)
+                    }
+
+                    Button(action: { withAnimation { selectedTab = 1 } }) {
+                        Text("Credit Packs")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(selectedTab == 1 ? .black : .white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(selectedTab == 1 ? TryZonTheme.primaryGold : Color.clear)
+                            .cornerRadius(20)
                     }
                 }
+                .padding(4)
+                .background(TryZonTheme.surfaceVariant)
+                .cornerRadius(24)
+                .padding(.horizontal, 24)
+
+                // Content View
+                if selectedTab == 1 {
+                    // Credit Packs List
+                    VStack(spacing: 12) {
+                        // Pocket Pack (First-Time Buyer Special)
+                        CreditPackCard(
+                            name: "🎁 First Buyer Special (25 Fits)",
+                            price: "₹39.00 ($0.99)",
+                            subtitle: "15 + 10 BONUS Credits • 100% Zero Ads",
+                            tag: "BEST OFFER ⭐",
+                            isHighlight: true
+                        )
+
+                        CreditPackCard(
+                            name: "Starter Pack (60 Credits)",
+                            price: "₹99.00 ($1.99)",
+                            subtitle: "60 AI Try-Ons • Standard Priority",
+                            tag: "",
+                            isHighlight: false
+                        )
+
+                        CreditPackCard(
+                            name: "Popular Pack (500 Credits)",
+                            price: "₹349.00 ($9.99)",
+                            subtitle: "500 AI Try-Ons • Priority Processing",
+                            tag: "POPULAR 🔥",
+                            isHighlight: false
+                        )
+
+                        CreditPackCard(
+                            name: "Ultimate Pack (7,000 Credits)",
+                            price: "₹2,699.00 ($79.99)",
+                            subtitle: "7,000 AI Try-Ons • Bulk Volume",
+                            tag: "MAX VALUE 👑",
+                            isHighlight: false
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                } else {
+                    // Subscriptions List
+                    VStack(spacing: 12) {
+                        SubscriptionCard(
+                            name: "Monthly Pro",
+                            price: "₹379.00 / month ($14.99)",
+                            subtitle: "Unlimited AI Try-Ons • 100% Zero Ads • VIP Turbo Speed",
+                            tag: "RECOMMENDED ⭐",
+                            isHighlight: true
+                        )
+
+                        SubscriptionCard(
+                            name: "Weekly Pro",
+                            price: "₹119.00 / week ($4.99)",
+                            subtitle: "150 AI Try-On Credits / week • Fast Speed",
+                            tag: "",
+                            isHighlight: false
+                        )
+
+                        SubscriptionCard(
+                            name: "Yearly Legend",
+                            price: "₹1,799.00 / year ($59.99)",
+                            subtitle: "Unlimited AI Try-Ons • Save 60%",
+                            tag: "SAVE 60% 👑",
+                            isHighlight: false
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                }
+
+                Text("One-time purchases do not expire. Subscriptions auto-renew until cancelled in App Store settings.")
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.4))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
             }
+            .padding(.bottom, 30)
         }
+        .background(TryZonTheme.darkBackground)
     }
 }
 
-struct PlanCard: View {
-    let plan: PricingPlan
-    @StateObject private var storeKit = StoreKitManager.shared
+struct CreditPackCard: View {
+    let name: String
+    let price: String
+    let subtitle: String
+    let tag: String
+    let isHighlight: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(plan.name)
-                    .font(.headline.bold())
-                Spacer()
-                Text(plan.tag)
-                    .font(.system(size: 10, weight: .bold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.yellow.opacity(0.2))
-                    .foregroundColor(.orange)
-                    .cornerRadius(8)
-            }
-
-            Text(plan.price)
-                .font(.title2.bold())
-                .foregroundColor(.primary)
-
+        HStack {
             VStack(alignment: .leading, spacing: 4) {
-                ForEach(plan.features, id: \.self) { feat in
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.yellow)
-                            .font(.caption)
-                        Text(feat)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                if !tag.isEmpty {
+                    Text(tag)
+                        .font(.system(size: 9, weight: .black))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(TryZonTheme.primaryGold)
+                        .foregroundColor(.black)
+                        .cornerRadius(6)
                 }
+
+                Text(name)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.6))
             }
 
-            Button(action: {
-                if let skProduct = storeKit.products.first(where: { $0.id == plan.productId }) {
-                    Task {
-                        _ = try? await storeKit.purchase(skProduct)
-                    }
-                } else {
-                    print("Initiating purchase for \(plan.productId)")
-                }
-            }) {
-                Text(plan.isSubscription ? "Subscribe – \(plan.price)" : "Buy Pack – \(plan.price)")
-                    .font(.subheadline.bold())
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(plan.isHighlight ? Color.yellow : Color.purple.opacity(0.15))
-                    .foregroundColor(plan.isHighlight ? .black : .purple)
-                    .cornerRadius(10)
-            }
+            Spacer()
+
+            Text(price)
+                .font(.system(size: 14, weight: .black))
+                .foregroundColor(TryZonTheme.primaryGold)
         }
-        .padding(14)
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(16)
+        .padding(16)
+        .background(isHighlight ? TryZonTheme.surfaceVariant : TryZonTheme.darkSurface)
+        .cornerRadius(18)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(plan.isHighlight ? Color.yellow : Color.clear, lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(isHighlight ? TryZonTheme.primaryGold : TryZonTheme.cardBorder, lineWidth: isHighlight ? 1.5 : 1)
+        )
+    }
+}
+
+struct SubscriptionCard: View {
+    let name: String
+    let price: String
+    let subtitle: String
+    let tag: String
+    let isHighlight: Bool
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                if !tag.isEmpty {
+                    Text(tag)
+                        .font(.system(size: 9, weight: .black))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(TryZonTheme.primaryGold)
+                        .foregroundColor(.black)
+                        .cornerRadius(6)
+                }
+
+                Text(name)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+
+            Spacer()
+
+            Text(price)
+                .font(.system(size: 13, weight: .black))
+                .foregroundColor(TryZonTheme.primaryGold)
+        }
+        .padding(16)
+        .background(isHighlight ? TryZonTheme.surfaceVariant : TryZonTheme.darkSurface)
+        .cornerRadius(18)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(isHighlight ? TryZonTheme.primaryGold : TryZonTheme.cardBorder, lineWidth: isHighlight ? 1.5 : 1)
         )
     }
 }

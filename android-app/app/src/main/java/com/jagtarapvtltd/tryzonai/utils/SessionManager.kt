@@ -107,6 +107,9 @@ class SessionManager(val context: Context) {
                     val currentList = gson.fromJson<List<TryOnHistoryItem>>(currentJson, type).toMutableList()
                     currentList.removeAll { it.id == id }
                     preferences[LOCAL_HISTORY] = gson.toJson(currentList)
+                    try {
+                        com.jagtarapvtltd.tryzonai.utils.GoogleDriveSyncManager.backupHistoryToUserCloud(context, currentList)
+                    } catch (_: Exception) {}
                 } catch (e: Exception) {
                     // Ignore parsing error
                 }

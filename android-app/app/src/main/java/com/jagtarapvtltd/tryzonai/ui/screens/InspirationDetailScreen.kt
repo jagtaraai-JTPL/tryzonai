@@ -25,6 +25,9 @@ fun InspirationDetailScreen(
     onNavigateBack: () -> Unit,
     onProductClick: (String) -> Unit
 ) {
+    androidx.activity.compose.BackHandler {
+        onNavigateBack()
+    }
     val scrollState = rememberScrollState()
 
     Column(

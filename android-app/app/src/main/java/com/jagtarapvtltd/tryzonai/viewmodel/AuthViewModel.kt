@@ -68,6 +68,18 @@ class AuthViewModel(private val sessionManager: com.jagtarapvtltd.tryzonai.utils
                 if (userResponse.has_given_5_star) {
                     tryOnPrefs.edit().putBoolean("has_given_5_star", true).apply()
                 }
+                userResponse.pref_gender?.let {
+                    prefs.edit().putString("user_gender", it).apply()
+                    tryOnPrefs.edit().putString("user_gender", it).apply()
+                }
+                userResponse.pref_fashion_goal?.let {
+                    prefs.edit().putString("user_fashion_goal", it).apply()
+                    tryOnPrefs.edit().putString("user_fashion_goal", it).apply()
+                }
+                userResponse.pref_style_vibe?.let {
+                    prefs.edit().putString("user_style_vibe", it).apply()
+                    tryOnPrefs.edit().putString("user_style_vibe", it).apply()
+                }
             } catch (e: Exception) {
                 // If it's a 401, we should logout
                 if (e is HttpException && e.code() == 401) {
@@ -96,9 +108,22 @@ class AuthViewModel(private val sessionManager: com.jagtarapvtltd.tryzonai.utils
                     )
                 )
                 _user.value = updatedUser
+                val tryOnPrefs = sessionManager.context.getSharedPreferences("try_on_prefs", Context.MODE_PRIVATE)
+                val userPrefs = sessionManager.context.getSharedPreferences("tryzon_user_prefs", Context.MODE_PRIVATE)
                 if (hasGiven5Star == true) {
-                    val tryOnPrefs = sessionManager.context.getSharedPreferences("try_on_prefs", Context.MODE_PRIVATE)
                     tryOnPrefs.edit().putBoolean("has_given_5_star", true).apply()
+                }
+                prefGender?.let {
+                    tryOnPrefs.edit().putString("user_gender", it).apply()
+                    userPrefs.edit().putString("user_gender", it).apply()
+                }
+                prefFashionGoal?.let {
+                    tryOnPrefs.edit().putString("user_fashion_goal", it).apply()
+                    userPrefs.edit().putString("user_fashion_goal", it).apply()
+                }
+                prefStyleVibe?.let {
+                    tryOnPrefs.edit().putString("user_style_vibe", it).apply()
+                    userPrefs.edit().putString("user_style_vibe", it).apply()
                 }
             } catch (e: Exception) {
                 android.util.Log.e("AuthViewModel", "Failed to update profile", e)
@@ -141,6 +166,7 @@ class AuthViewModel(private val sessionManager: com.jagtarapvtltd.tryzonai.utils
                 _user.value = response.user
                 viewModelScope.launch(Dispatchers.IO) {
                     try { registerDeviceToken() } catch (_: Exception) {}
+                    try { com.jagtarapvtltd.tryzonai.utils.GoogleDriveSyncManager.autoSyncSessionManager(sessionManager.context, sessionManager) } catch (_: Exception) {}
                 }
             } catch (e: retrofit2.HttpException) {
                 val errorBody = e.response()?.errorBody()?.string()
@@ -171,6 +197,7 @@ class AuthViewModel(private val sessionManager: com.jagtarapvtltd.tryzonai.utils
                 _user.value = response.user
                 viewModelScope.launch(Dispatchers.IO) {
                     try { registerDeviceToken() } catch (_: Exception) {}
+                    try { com.jagtarapvtltd.tryzonai.utils.GoogleDriveSyncManager.autoSyncSessionManager(sessionManager.context, sessionManager) } catch (_: Exception) {}
                 }
             } catch (e: retrofit2.HttpException) {
                 val errorBody = e.response()?.errorBody()?.string()

@@ -1,286 +1,191 @@
 import SwiftUI
-import UIKit
 
 public struct TryOnResultView: View {
-    @Environment(\.presentationMode) var presentationMode
-    public let resultImageUrl: String
-    public var productName: String = "Outfit"
-    
-    @State private var loadedImage: UIImage? = nil
-    @State private var isLoading = true
-    @State private var saveStatusMessage: String? = nil
-    @State private var showingShareSheet = false
+    let resultImageUrl: String
+    let originalPhotoUrl: String?
+    let onTryAnother: () -> Void
 
-    @State private var showingReportAlert = false
-    @State private var reportSuccessMessage: String? = nil
+    @State private var sliderOffset: CGFloat = 0.5
+    @State private var showHeart: Bool = false
+    @State private var isFullscreen: Bool = false
 
-    public init(resultImageUrl: String, productName: String = "Outfit") {
+    public init(resultImageUrl: String, originalPhotoUrl: String? = nil, onTryAnother: @escaping () -> Void = {}) {
         self.resultImageUrl = resultImageUrl
-        self.productName = productName
+        self.originalPhotoUrl = originalPhotoUrl
+        self.onTryAnother = onTryAnother
     }
 
     public var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 16) {
-                    ZStack {
-                        if let image = loadedImage {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFit()
-                                .cornerRadius(20)
-                                .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
-                                .padding(.horizontal)
-                        } else if isLoading {
-                            VStack(spacing: 12) {
-                                ProgressView()
-                                    .scaleEffect(1.5)
-                                Text("Loading HD Try-On Result...")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(height: 320)
-                        } else {
-                            VStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.orange)
-                                Text("Failed to load result image")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(height: 320)
-                        }
-                    }
-
-                    if let message = saveStatusMessage ?? reportSuccessMessage {
-                        Text(message)
-                            .font(.caption.bold())
-                            .foregroundColor(.yellow)
-                            .transition(.opacity)
-                    }
-
-                    // 🛍️ STORE CHOICE CHIPS WITH OFFICIAL AFFILIATE TAGS
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Get This Look Real-Life Ready 🛍️")
-                            .font(.system(size: 14, weight: .bold))
-                        Text("AI Stylist: Select a store to check live stock & delivery")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-
-                        HStack(spacing: 8) {
-                            // Myntra
-                            Link(destination: getStoreUrl(targetStore: "myntra")) {
-                                Text("Myntra")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 36)
-                                    .background(Color(red: 1.0, green: 0.24, blue: 0.42))
-                                    .cornerRadius(10)
-                            }
-
-                            // Ajio
-                            Link(destination: getStoreUrl(targetStore: "ajio")) {
-                                Text("AJIO")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 36)
-                                    .background(Color(red: 0.17, green: 0.25, blue: 0.32))
-                                    .cornerRadius(10)
-                            }
-
-                            // Flipkart
-                            Link(destination: getStoreUrl(targetStore: "flipkart")) {
-                                Text("Flipkart")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 36)
-                                    .background(Color(red: 0.16, green: 0.45, blue: 0.94))
-                                    .cornerRadius(10)
-                            }
-
-                            // Amazon
-                            Link(destination: getStoreUrl(targetStore: "amazon")) {
-                                Text("Amazon")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 36)
-                                    .background(Color(red: 1.0, green: 0.60, blue: 0.0))
-                                    .cornerRadius(10)
-                            }
-                        }
-                    }
-                    .padding()
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(16)
-                    .padding(.horizontal)
-
-                    // Action Buttons Row (Save & Share)
-                    HStack(spacing: 16) {
-                        // Download to Photos
-                        Button(action: saveImageToPhotos) {
-                            HStack {
-                                Image(systemName: "square.and.arrow.down.fill")
-                                Text("Save HD")
-                                    .fontWeight(.bold)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color.yellow)
-                            .foregroundColor(.black)
-                            .cornerRadius(12)
-                        }
-                        .disabled(loadedImage == nil)
-
-                        // Share Button
-                        Button(action: { showingShareSheet = true }) {
-                            HStack {
-                                Image(systemName: "square.and.arrow.up")
-                                Text("Share")
-                                    .fontWeight(.bold)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color(UIColor.systemGray5))
-                            .foregroundColor(.primary)
-                            .cornerRadius(12)
-                        }
-                        .disabled(loadedImage == nil)
-                    }
-                    .padding(.horizontal)
-
-                    // Report AI Content Button (Mandatory Safety Policy)
-                    Button(action: { showingReportAlert = true }) {
-                        HStack {
-                            Image(systemName: "flag.fill")
-                                .foregroundColor(.red)
-                            Text("Report Inappropriate Content 🚩")
-                                .font(.caption.bold())
-                                .foregroundColor(.red)
-                        }
-                        .padding(.vertical, 8)
-                    }
-                    .padding(.bottom, 20)
+        VStack(spacing: 16) {
+            // Header
+            HStack {
+                Text("HD AI Fitting Result ✨")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundColor(TryZonTheme.primaryGold)
+                Spacer()
+                Button(action: onTryAnother) {
+                    Text("Try Another Outfit 🔄")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(TryZonTheme.primaryGold)
+                        .cornerRadius(14)
                 }
             }
-            .navigationTitle("Your AI Fitting Result ✨")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        presentationMode.wrappedValue.dismiss()
+            .padding(.horizontal, 16)
+
+            // Interactive Split-Screen Comparison Slider
+            GeometryReader { geo in
+                ZStack {
+                    // Result AI Outfit Image (Background layer)
+                    AsyncImage(url: URL(string: resultImageUrl)) { img in
+                        img.resizable().scaledToFill()
+                    } placeholder: {
+                        Color(TryZonTheme.surfaceVariant)
+                    }
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+
+                    // Original User Photo (Foreground clipped layer)
+                    if let origUrl = originalPhotoUrl, !origUrl.isEmpty {
+                        AsyncImage(url: URL(string: origUrl)) { img in
+                            img.resizable().scaledToFill()
+                        } placeholder: {
+                            Color(TryZonTheme.darkSurface)
+                        }
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .mask(
+                            HStack(spacing: 0) {
+                                Rectangle()
+                                    .frame(width: geo.size.width * sliderOffset)
+                                Spacer(minLength: 0)
+                            }
+                        )
+                        .clipped()
+                    }
+
+                    // Floating Slider Handle
+                    Rectangle()
+                        .fill(TryZonTheme.primaryGold)
+                        .frame(width: 3, height: geo.size.height)
+                        .offset(x: (sliderOffset - 0.5) * geo.size.width)
+                        .overlay(
+                            Circle()
+                                .fill(TryZonTheme.primaryGold)
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Image(systemName: "chevron.left.chevron.right")
+                                        .font(.system(size: 12, weight: .black))
+                                        .foregroundColor(.black)
+                                )
+                                .offset(x: (sliderOffset - 0.5) * geo.size.width)
+                        )
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    let newOffset = value.location.x / geo.size.width
+                                    sliderOffset = min(max(newOffset, 0.05), 0.95)
+                                }
+                        )
+
+                    // Double Tap Heart Overlay
+                    if showHeart {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 80))
+                            .foregroundColor(.red)
+                            .shadow(radius: 10)
+                            .transition(.scale.combined(with: .opacity))
                     }
                 }
-            }
-            .alert(isPresented: $showingReportAlert) {
-                Alert(
-                    title: Text("Report Content 🚩"),
-                    message: Text("Help keep TryZon AI safe. Report this AI generated image if it contains inappropriate or unsafe content."),
-                    primaryButton: .destructive(Text("Submit Report")) {
-                        submitReport()
-                    },
-                    secondaryButton: .cancel()
+                .cornerRadius(24)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1.5)
                 )
-            }
-            .onAppear {
-                loadImageData()
-            }
-            .sheet(isPresented: $showingShareSheet) {
-                if let image = loadedImage {
-                    ActivityView(activityItems: [image, "Check out my new virtual try-on outfit created with TryZon AI! 👗✨"])
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring()) {
+                        showHeart = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        withAnimation { showHeart = false }
+                    }
                 }
             }
-        }
-    }
+            .frame(height: 380)
+            .padding(.horizontal, 16)
 
-    private func getStoreUrl(targetStore: String) -> URL {
-        let encodedName = productName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Outfit"
-        let urlString: String
-        switch targetStore.lowercased() {
-        case "myntra":
-            urlString = "https://www.myntra.com/search?rawQuery=\(encodedName)&subid=tryzonai"
-        case "ajio":
-            urlString = "https://www.ajio.com/search/?text=\(encodedName)&subid=tryzonai"
-        case "flipkart":
-            urlString = "https://www.flipkart.com/search?q=\(encodedName)&affid=tryzonai"
-        case "amazon":
-            urlString = "https://www.amazon.in/s?k=\(encodedName)&tag=tryzonai-21"
-        default:
-            urlString = "https://www.google.com/search?q=\(encodedName)"
-        }
-        return URL(string: urlString) ?? URL(string: "https://www.myntra.com")!
-    }
+            // Instruction Pill
+            Text("👈 Drag handle to compare • Double tap to ❤️")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.white.opacity(0.6))
 
-    private func loadImageData() {
-        guard let url = URL(string: resultImageUrl) else {
-            isLoading = false
-            return
-        }
+            // Action Buttons (Save HD, Share, Store Links)
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    Button(action: {
+                        // Share Image
+                    }) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("Share Look")
+                        }
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(TryZonTheme.surfaceVariant)
+                        .cornerRadius(14)
+                    }
 
-        URLSession.shared.dataTask(with: url) { data, response, error in
-            DispatchQueue.main.async {
-                self.isLoading = false
-                if let data = data, let image = UIImage(data: data) {
-                    self.loadedImage = image
+                    Button(action: {
+                        // Download Image
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.down.to.line")
+                            Text("Save HD")
+                        }
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(TryZonTheme.primaryGold)
+                        .cornerRadius(14)
+                    }
+                }
+
+                // Affiliate Store Links
+                HStack(spacing: 8) {
+                    StoreButton(name: "Myntra", color: .pink)
+                    StoreButton(name: "Ajio", color: .black)
+                    StoreButton(name: "Flipkart", color: .blue)
+                    StoreButton(name: "Amazon", color: .orange)
                 }
             }
-        }.resume()
-    }
-
-    private func saveImageToPhotos() {
-        guard let image = loadedImage else { return }
-        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-        
-        withAnimation {
-            saveStatusMessage = "Saved to Photos Gallery! 📸"
+            .padding(.horizontal, 16)
         }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            saveStatusMessage = nil
-        }
-    }
-
-    private func submitReport() {
-        guard let url = URL(string: "https://tryzonai.com/api/v1/report") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let payload: [String: String] = [
-            "content_type": "tryon_result",
-            "image_url": resultImageUrl,
-            "reason": "inappropriate_ai",
-            "details": "User reported AI output via iOS App"
-        ]
-
-        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
-
-        URLSession.shared.dataTask(with: request) { _, _, _ in
-            DispatchQueue.main.async {
-                withAnimation {
-                    reportSuccessMessage = "Report Submitted. Thank you for keeping TryZon AI safe! 🚩"
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                    reportSuccessMessage = nil
-                }
-            }
-        }.resume()
+        .padding(.vertical, 12)
+        .background(TryZonTheme.darkBackground)
     }
 }
 
-// UIActivityViewController wrapper for native iOS Share Sheet
-struct ActivityView: UIViewControllerRepresentable {
-    var activityItems: [Any]
-    var applicationActivities: [UIActivity]? = nil
+struct StoreButton: View {
+    let name: String
+    let color: Color
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
-        return controller
+    var body: some View {
+        Button(action: {
+            if let url = URL(string: "https://\(name.lowercased()).com") {
+                UIApplication.shared.open(url)
+            }
+        }) {
+            Text(name)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(color.opacity(0.8))
+                .cornerRadius(10)
+        }
     }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
