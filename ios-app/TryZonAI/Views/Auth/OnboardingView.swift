@@ -141,8 +141,13 @@ public struct OnboardingView: View {
 
     // MARK: - Top Bar
     private var topBar: some View {
-        HStack {
-            Text("◈ TRYZON AI")
+        HStack(spacing: 8) {
+            Image("AppLogoTransparent")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 28, height: 28)
+
+            Text("TRYZON AI")
                 .font(.system(size: 16, weight: .black))
                 .foregroundColor(TryZonTheme.primaryGold)
                 .tracking(2.5)

@@ -11,7 +11,7 @@ public struct CatalogView: View {
     @State private var searchText: String = ""
     @State private var items: [CatalogItem] = []
     @State private var isLoading: Bool = false
-    @State private var errorMessage: String? = nil
+    @State private var selectedProductDetail: CatalogItem? = nil
 
     private let filterCategories = [
         "All AI Outfits", "Suits & Formal", "Dresses & Gowns", "Streetwear & Cyber", "Ethnic & Festive", "Casual & Shirts"
@@ -72,6 +72,11 @@ public struct CatalogView: View {
         .background(TryZonTheme.darkBackground)
         .onAppear {
             loadCatalogData()
+        }
+        .sheet(item: $selectedProductDetail) { product in
+            ProductDetailView(item: product, onTryOn: { item in
+                onSelectGarmentForTryOn(item)
+            })
         }
     }
 
@@ -160,12 +165,14 @@ public struct CatalogView: View {
     // MARK: - FEATURED HERO BANNER (#1 VIRAL)
     // ─────────────────────────────────────
     private func featuredHeroBanner(_ item: CatalogItem) -> some View {
-        Button(action: { onSelectGarmentForTryOn(item) }) {
+        Button(action: { selectedProductDetail = item }) {
             ZStack(alignment: .bottomLeading) {
-                AsyncImage(url: item.fullImageURL) { img in
-                    img.resizable().scaledToFill()
-                } placeholder: {
-                    TryZonTheme.surfaceVariant
+                AsyncImage(url: item.fullImageURL) { phase in
+                    if let img = phase.image {
+                        img.resizable().aspectRatio(contentMode: .fill)
+                    } else {
+                        TryZonTheme.surfaceVariant
+                    }
                 }
                 .frame(height: 180)
                 .frame(maxWidth: .infinity)
@@ -212,75 +219,80 @@ public struct CatalogView: View {
     // MARK: - PRODUCT CARD REPLICA
     // ─────────────────────────────────────
     private func catalogProductCard(_ product: CatalogItem) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topLeading) {
-                AsyncImage(url: product.fullImageURL) { img in
-                    img.resizable().scaledToFill()
-                } placeholder: {
-                    TryZonTheme.surfaceVariant
-                        .overlay(ProgressView().tint(TryZonTheme.primaryGold))
-                }
-                .frame(height: 210)
-                .frame(maxWidth: .infinity)
-                .clipped()
+        Button(action: { selectedProductDetail = product }) {
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .topLeading) {
+                    AsyncImage(url: product.fullImageURL) { phase in
+                        if let image = phase.image {
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } else {
+                            TryZonTheme.surfaceVariant
+                                .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                        }
+                    }
+                    .frame(height: 210)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
 
-                if let badge = product.badge {
-                    Text(badge)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(TryZonTheme.primaryGold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.black.opacity(0.75))
-                        .cornerRadius(100)
-                        .overlay(RoundedRectangle(cornerRadius: 100).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
-                        .padding(8)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                if let brand = product.brand {
-                    Text(brand)
-                        .font(.system(size: 9.5, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.5))
-                        .lineLimit(1)
-                }
-                Text(product.name)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-
-                HStack(spacing: 6) {
-                    Text("₹\(product.price)")
-                        .font(.system(size: 13, weight: .black))
-                        .foregroundColor(TryZonTheme.primaryGold)
-
-                    if let orig = product.original_price, orig > product.price {
-                        Text("₹\(orig)")
-                            .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.4))
-                            .strikethrough()
+                    if let badge = product.badge {
+                        Text(badge)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(TryZonTheme.primaryGold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.black.opacity(0.75))
+                            .cornerRadius(100)
+                            .overlay(RoundedRectangle(cornerRadius: 100).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
+                            .padding(8)
                     }
                 }
 
-                Spacer(minLength: 8)
+                VStack(alignment: .leading, spacing: 4) {
+                    if let brand = product.brand {
+                        Text(brand)
+                            .font(.system(size: 9.5, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.5))
+                            .lineLimit(1)
+                    }
+                    Text(product.name)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
 
-                Button(action: { onSelectGarmentForTryOn(product) }) {
-                    Text("TRY ON")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(TryZonTheme.primaryGold)
-                        .cornerRadius(100)
+                    HStack(spacing: 6) {
+                        Text("₹\(product.price)")
+                            .font(.system(size: 13, weight: .black))
+                            .foregroundColor(TryZonTheme.primaryGold)
+
+                        if let orig = product.original_price, orig > product.price {
+                            Text("₹\(orig)")
+                                .font(.system(size: 10))
+                                .foregroundColor(.white.opacity(0.4))
+                                .strikethrough()
+                        }
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Button(action: { onSelectGarmentForTryOn(product) }) {
+                        Text("TRY ON")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(TryZonTheme.primaryGold)
+                            .cornerRadius(100)
+                    }
+                    .buttonStyle(BounceButtonStyle())
                 }
-                .buttonStyle(BounceButtonStyle())
+                .padding(10)
             }
-            .padding(10)
+            .background(TryZonTheme.surfaceVariant)
+            .cornerRadius(18)
+            .clipped()
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.08), lineWidth: 1))
         }
-        .background(TryZonTheme.surfaceVariant)
-        .cornerRadius(18)
-        .clipped()
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .buttonStyle(BounceButtonStyle())
     }
 
     // ─────────────────────────────────────

@@ -44,6 +44,7 @@ public struct TryOnUploadView: View {
     @State private var showLoginRequiredModal = false
     @State private var showChoicePopupModal = false
     @State private var showPremiumModal = false
+    @State private var showLoginSheet = false
 
     private let categories = ["Tops", "Bottoms", "Dresses", "Suits", "Outerwear"]
 
@@ -113,6 +114,7 @@ public struct TryOnUploadView: View {
                 if showLoginRequiredModal {
                     LoginRequiredDialog(isPresented: $showLoginRequiredModal, onNavigateToLogin: {
                         showLoginRequiredModal = false
+                        showLoginSheet = true
                     })
                 }
             }
@@ -140,6 +142,9 @@ public struct TryOnUploadView: View {
         .sheet(isPresented: $showPremiumModal) {
             PremiumView(apiClient: apiClient)
         }
+        .sheet(isPresented: $showLoginSheet) {
+            LoginView(apiClient: apiClient, onNavigateToRegister: {})
+        }
     }
 
     // MARK: - Upload Screen Content
@@ -149,8 +154,10 @@ public struct TryOnUploadView: View {
                 // Header Banner
                 VStack(spacing: 6) {
                     HStack(spacing: 6) {
-                        Image(systemName: "sparkles")
-                            .foregroundColor(TryZonTheme.primaryGold)
+                        Image("AppLogoTransparent")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 28, height: 28)
                         Text("TRY-ON FITTING ROOM")
                             .font(.system(size: 18, weight: .black, design: .rounded))
                             .foregroundColor(TryZonTheme.primaryGold)

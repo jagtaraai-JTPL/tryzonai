@@ -24,11 +24,10 @@ public struct LoginView: View {
 
                 // Header Branding
                 VStack(spacing: 8) {
-                    Image("AppLogo")
+                    Image("AppLogoTransparent")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 72, height: 72)
-                        .cornerRadius(18)
+                        .frame(width: 76, height: 76)
                         .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 10)
 
                     Text("Welcome Back ⚡")

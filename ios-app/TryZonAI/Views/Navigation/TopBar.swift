@@ -7,13 +7,12 @@ public struct TopBar: View {
 
     public var body: some View {
         HStack {
-            // Gold Brand Official Logo Badge
+            // White Transparent Brand Official Logo Badge
             HStack(spacing: 8) {
-                Image("AppLogo")
+                Image("AppLogoTransparent")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 30, height: 30)
-                    .cornerRadius(8)
+                    .frame(width: 32, height: 32)
 
                 Text("TryZon AI")
                     .font(.system(size: 18, weight: .black, design: .rounded))

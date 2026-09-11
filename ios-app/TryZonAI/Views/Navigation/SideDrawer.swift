@@ -10,6 +10,7 @@ public struct SideDrawer: View {
 
     @State private var showLogoutConfirm = false
     @State private var showDeleteConfirm = false
+    @State private var showLoginSheet = false
 
     public init(isOpen: Binding<Bool>, apiClient: APIClient) {
         self._isOpen = isOpen
@@ -27,16 +28,12 @@ public struct SideDrawer: View {
 
             // Sliding Side Drawer Panel
             VStack(alignment: .leading, spacing: 0) {
-                // Header with Close Button
+                // Header with White Logo & Close Button
                 HStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(TryZonTheme.primaryGold.opacity(0.2))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(TryZonTheme.primaryGold)
-                    }
+                    Image("AppLogoTransparent")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 36, height: 36)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(apiClient.currentUser?.name ?? (apiClient.currentUser != nil ? "TryZon Member" : "Guest Stylist"))
@@ -60,6 +57,21 @@ public struct SideDrawer: View {
                 }
                 .padding(16)
                 .background(TryZonTheme.surfaceVariant)
+
+                if apiClient.currentUser == nil {
+                    Button(action: { showLoginSheet = true }) {
+                        HStack {
+                            Image(systemName: "person.crop.circle.badge.plus")
+                                .font(.system(size: 14))
+                            Text("SIGN IN / REGISTER 🚀")
+                                .font(.system(size: 12, weight: .black))
+                        }
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(TryZonTheme.primaryGold)
+                    }
+                }
 
                 Divider().background(TryZonTheme.cardBorder)
 
@@ -196,6 +208,9 @@ public struct SideDrawer: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Are you sure you want to log out of TryZon AI?")
+        }
+        .sheet(isPresented: $showLoginSheet) {
+            LoginView(apiClient: apiClient, onNavigateToRegister: {})
         }
     }
 
