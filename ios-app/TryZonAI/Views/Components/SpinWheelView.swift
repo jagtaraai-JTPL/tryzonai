@@ -185,7 +185,7 @@ public struct SpinWheelView: View {
                     .padding(.bottom, 16)
                 }
                 .frame(maxWidth: 300)
-                .background(TryZonTheme.cardBackground)
+                .background(TryZonTheme.surfaceColor(for: colorScheme))
                 .cornerRadius(24)
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(TryZonTheme.primaryGold, lineWidth: 2))
                 .shadow(color: TryZonTheme.primaryGold.opacity(0.5), radius: 20)

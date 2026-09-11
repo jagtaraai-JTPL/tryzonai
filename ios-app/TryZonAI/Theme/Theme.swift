@@ -5,6 +5,7 @@ public struct TryZonTheme {
     public static let goldLight = Color(red: 235/255, green: 205/255, blue: 120/255)
     public static let darkBackground = Color(red: 18/255, green: 18/255, blue: 20/255) // #121214
     public static let darkSurface = Color(red: 26/255, green: 26/255, blue: 30/255) // #1A1A1E
+    public static let cardBackground = Color(red: 26/255, green: 26/255, blue: 30/255) // #1A1A1E
     public static let surfaceVariant = Color(red: 36/255, green: 36/255, blue: 42/255) // #24242A
     public static let cardBorder = Color.white.opacity(0.12)
 
