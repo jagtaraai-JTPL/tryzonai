@@ -112,6 +112,11 @@ public class APIClient: ObservableObject {
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
+        let (data, _) = try await session.data(for: request)
+        let decoder = JSONDecoder()
+        return try decoder.decode(TryOnTaskResponse.self, from: data)
+    }
+
     // MARK: - Auth & Account Management
     public func logout() {
         UserDefaults.standard.removeObject(forKey: "tryzon_session_id")
@@ -124,4 +129,5 @@ public class APIClient: ObservableObject {
         logout()
     }
 }
+
 
