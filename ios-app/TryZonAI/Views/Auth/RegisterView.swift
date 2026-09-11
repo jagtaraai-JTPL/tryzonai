@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 public struct RegisterView: View {
     @ObservedObject var apiClient: APIClient
@@ -12,80 +13,131 @@ public struct RegisterView: View {
 
     let onNavigateToLogin: () -> Void
 
+    public init(apiClient: APIClient, onNavigateToLogin: @escaping () -> Void) {
+        self.apiClient = apiClient
+        self.onNavigateToLogin = onNavigateToLogin
+    }
+
     public var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 20) {
+                Spacer(minLength: 20)
 
-            VStack(spacing: 8) {
-                Text("Create Account ✨")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
-                    .foregroundColor(TryZonTheme.primaryGold)
-
-                Text("Get 2 FREE Welcome Bonus Credits & Unlimited Closet")
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.7))
-            }
-
-            VStack(spacing: 14) {
-                HStack {
-                    Image(systemName: "person.fill")
+                VStack(spacing: 8) {
+                    Text("Create Account ✨")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
                         .foregroundColor(TryZonTheme.primaryGold)
-                    TextField("Full Name", text: $name)
-                        .font(.system(size: 13))
-                        .foregroundColor(.white)
-                }
-                .padding(14)
-                .background(TryZonTheme.surfaceVariant)
-                .cornerRadius(12)
 
+                    Text("Get 2 FREE Welcome Bonus Credits & Unlimited Closet")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                }
+
+                // ── 1. SOCIAL QUICK SIGN UP (Google & Apple) ──
+                VStack(spacing: 12) {
+                    Button(action: performGoogleSignUp) {
+                        HStack(spacing: 12) {
+                            Text("G")
+                                .font(.system(size: 18, weight: .black, design: .rounded))
+                                .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
+                            Text("Sign up with Google")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.black)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background(Color.white)
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(0.2), radius: 4, y: 2)
+                    }
+                    .buttonStyle(BounceButtonStyle())
+
+                    SignInWithAppleButton(
+                        .signUp,
+                        onRequest: { request in
+                            request.requestedScopes = [.fullName, .email]
+                        },
+                        onCompletion: { result in
+                            handleAppleSignUp(result)
+                        }
+                    )
+                    .signInWithAppleButtonStyle(.white)
+                    .frame(height: 48)
+                    .cornerRadius(16)
+                }
+
+                // Divider Line
                 HStack {
-                    Image(systemName: "envelope.fill")
-                        .foregroundColor(TryZonTheme.primaryGold)
-                    TextField("Email Address", text: $email)
-                        .font(.system(size: 13))
-                        .foregroundColor(.white)
-                        .autocapitalization(.none)
+                    Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1)
+                    Text("OR EMAIL REGISTER")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(.white.opacity(0.4))
+                    Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1)
                 }
-                .padding(14)
-                .background(TryZonTheme.surfaceVariant)
-                .cornerRadius(12)
 
-                HStack {
-                    Image(systemName: "lock.fill")
-                        .foregroundColor(TryZonTheme.primaryGold)
-                    SecureField("Password (min 6 chars)", text: $password)
-                        .font(.system(size: 13))
-                        .foregroundColor(.white)
+                // ── 2. FORM INPUTS ──
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "person.fill")
+                            .foregroundColor(TryZonTheme.primaryGold)
+                        TextField("Full Name", text: $name)
+                            .font(.system(size: 13))
+                            .foregroundColor(.white)
+                    }
+                    .padding(14)
+                    .background(TryZonTheme.surfaceVariant)
+                    .cornerRadius(14)
+
+                    HStack {
+                        Image(systemName: "envelope.fill")
+                            .foregroundColor(TryZonTheme.primaryGold)
+                        TextField("Email Address", text: $email)
+                            .font(.system(size: 13))
+                            .foregroundColor(.white)
+                            .autocapitalization(.none)
+                    }
+                    .padding(14)
+                    .background(TryZonTheme.surfaceVariant)
+                    .cornerRadius(14)
+
+                    HStack {
+                        Image(systemName: "lock.fill")
+                            .foregroundColor(TryZonTheme.primaryGold)
+                        SecureField("Password (min 6 chars)", text: $password)
+                            .font(.system(size: 13))
+                            .foregroundColor(.white)
+                    }
+                    .padding(14)
+                    .background(TryZonTheme.surfaceVariant)
+                    .cornerRadius(14)
                 }
-                .padding(14)
-                .background(TryZonTheme.surfaceVariant)
-                .cornerRadius(12)
-            }
 
-            if let err = errorMessage {
-                Text(err)
-                    .font(.caption.bold())
-                    .foregroundColor(.red)
-            }
-
-            ShimmeringGoldButton(title: isLoading ? "CREATING ACCOUNT..." : "REGISTER FOR FREE 🚀", subtitle: "Claim 2 Welcome Bonus Credits") {
-                performRegister()
-            }
-
-            Button(action: onNavigateToLogin) {
-                HStack {
-                    Text("Already have an account?")
-                        .foregroundColor(.white.opacity(0.6))
-                    Text("Sign In")
-                        .foregroundColor(TryZonTheme.primaryGold)
-                        .fontWeight(.bold)
+                if let err = errorMessage {
+                    Text(err)
+                        .font(.caption.bold())
+                        .foregroundColor(.red)
                 }
-                .font(.system(size: 13))
-            }
 
-            Spacer()
+                ShimmeringGoldButton(title: isLoading ? "CREATING ACCOUNT..." : "REGISTER FOR FREE 🚀", subtitle: "Claim 2 Welcome Bonus Credits") {
+                    performRegister()
+                }
+
+                Button(action: onNavigateToLogin) {
+                    HStack {
+                        Text("Already have an account?")
+                            .foregroundColor(.white.opacity(0.6))
+                        Text("Sign In")
+                            .foregroundColor(TryZonTheme.primaryGold)
+                            .fontWeight(.bold)
+                    }
+                    .font(.system(size: 13))
+                }
+
+                Spacer(minLength: 20)
+            }
+            .padding(24)
         }
-        .padding(24)
         .background(TryZonTheme.darkBackground.ignoresSafeArea())
     }
 
@@ -111,6 +163,26 @@ public struct RegisterView: View {
                     self.errorMessage = error.localizedDescription
                 }
             }
+        }
+    }
+
+    private func performGoogleSignUp() {
+        isLoading = true
+        Task {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            DispatchQueue.main.async {
+                self.isLoading = false
+                dismiss()
+            }
+        }
+    }
+
+    private func handleAppleSignUp(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success:
+            dismiss()
+        case .failure(let error):
+            errorMessage = error.localizedDescription
         }
     }
 }

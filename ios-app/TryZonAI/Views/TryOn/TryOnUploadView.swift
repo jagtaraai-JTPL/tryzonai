@@ -34,10 +34,10 @@ public struct TryOnUploadView: View {
     let onNavigateToResult: (TryOnStatusResponse) -> Void
 
     @State private var navPath: [TryOnScreen] = []
-
     @State private var selectedPersonItem: PhotosPickerItem? = nil
     @State private var selectedGarmentItem: PhotosPickerItem? = nil
     @State private var selectedOutfitUrl: String = ""
+
     @State private var showingCameraForPerson = false
     @State private var showingCameraForGarment = false
 
@@ -61,6 +61,8 @@ public struct TryOnUploadView: View {
         SampleOutfit(name: "Navy Blazer", badge: "🏆 FORMAL", category: "Suits", color: Color.indigo,
                      imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_navy_blazer.webp"),
     ]
+
+    private let samplePersonModelUrl = "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp"
 
     public init(apiClient: APIClient, onNavigateToResult: @escaping (TryOnStatusResponse) -> Void) {
         self.apiClient = apiClient
@@ -104,11 +106,7 @@ public struct TryOnUploadView: View {
                 }
         }
         .onAppear {
-            if viewModel.selectedGarmentImage == nil && !sampleOutfits.isEmpty {
-                let firstOutfit = sampleOutfits[0]
-                selectedOutfitUrl = firstOutfit.imageUrl
-                loadSampleGarmentImage(urlStr: firstOutfit.imageUrl)
-            }
+            autoPrepareDefaultPhotos()
         }
         .overlay(
             Group {
@@ -185,62 +183,56 @@ public struct TryOnUploadView: View {
                     .padding(.horizontal, 16)
                 }
 
-                // Photo Upload Row
-                HStack(spacing: 16) {
+                // Dual Photo Pickers (Person + Garment)
+                HStack(spacing: 14) {
                     photoUploadCard(
-                        label: "1. Your Photo",
-                        icon: "photo.badge.plus",
-                        hint: "Gallery",
+                        label: "YOUR MODEL PHOTO",
+                        icon: "person.crop.rectangle.fill",
+                        hint: "Upload Photo",
                         image: viewModel.selectedPersonImage,
                         onClear: { viewModel.selectedPersonImage = nil },
                         pickerItem: $selectedPersonItem,
                         onCamera: { showingCameraForPerson = true }
                     )
+                    .onChange(of: selectedPersonItem) { newItem in
+                        Task {
+                            if let data = try? await newItem?.loadTransferable(type: Data.self),
+                               let img = UIImage(data: data) {
+                                viewModel.selectedPersonImage = img
+                            }
+                        }
+                    }
 
                     photoUploadCard(
-                        label: "2. Garment Image",
+                        label: "GARMENT OUTFIT",
                         icon: "tshirt.fill",
-                        hint: "Choose Garment",
+                        hint: "Upload Outfit",
                         image: viewModel.selectedGarmentImage,
                         onClear: { viewModel.selectedGarmentImage = nil },
                         pickerItem: $selectedGarmentItem,
                         onCamera: { showingCameraForGarment = true }
                     )
+                    .onChange(of: selectedGarmentItem) { newItem in
+                        Task {
+                            if let data = try? await newItem?.loadTransferable(type: Data.self),
+                               let img = UIImage(data: data) {
+                                viewModel.selectedGarmentImage = img
+                            }
+                        }
+                    }
                 }
                 .padding(.horizontal, 16)
-                .onChange(of: selectedPersonItem) { newItem in
-                    Task {
-                        if let data = try? await newItem?.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) {
-                            viewModel.selectedPersonImage = image
-                        }
-                    }
-                }
-                .onChange(of: selectedGarmentItem) { newItem in
-                    Task {
-                        if let data = try? await newItem?.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) {
-                            viewModel.selectedGarmentImage = image
-                        }
-                    }
-                }
 
-                // Sample Preset Outfits
+                // Quick Preset Outfits Selector
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("SAMPLE OUTFITS")
-                            .font(.system(size: 11, weight: .black))
-                            .foregroundColor(TryZonTheme.primaryGold)
-                            .tracking(1)
-                        Spacer()
-                        Text("Tap to auto-load")
-                            .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.4))
-                    }
-                    .padding(.horizontal, 16)
+                    Text("SELECT FROM POPULAR AI OUTFITS")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.9))
+                        .tracking(1)
+                        .padding(.horizontal, 16)
 
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             ForEach(sampleOutfits) { outfit in
                                 sampleOutfitCard(outfit)
                             }
@@ -249,10 +241,10 @@ public struct TryOnUploadView: View {
                     }
                 }
 
-                // Store URL Import
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("OR IMPORT PRODUCT LINK")
-                        .font(.system(size: 10, weight: .black))
+                // Store URL Option
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("OR PASTE CLOTHING STORE URL (MYNTRA / AJIO)")
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundColor(TryZonTheme.primaryGold.opacity(0.8))
                         .tracking(1)
                         .padding(.horizontal, 16)
@@ -283,11 +275,11 @@ public struct TryOnUploadView: View {
                     .padding(.horizontal, 16)
                 }
 
-                // Generate CTA Button
+                // Generate CTA Button (Always Interactive)
                 ShimmeringGoldButton(
                     title: viewModel.isProcessing ? "SUBMITTING..." : "GENERATE VIRTUAL TRY-ON ⚡",
                     subtitle: "100% Realistic Fit • Fast GPU Queue",
-                    isEnabled: (viewModel.selectedPersonImage != nil && viewModel.selectedGarmentImage != nil && !viewModel.isProcessing)
+                    isEnabled: !viewModel.isProcessing
                 ) {
                     executeTryOnFlow()
                 }
@@ -320,7 +312,7 @@ public struct TryOnUploadView: View {
     ) -> some View {
         VStack(spacing: 8) {
             Text(label)
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .foregroundColor(TryZonTheme.primaryGold)
 
             ZStack {
@@ -328,7 +320,7 @@ public struct TryOnUploadView: View {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 155, height: 220)
+                        .frame(width: 155, height: 210)
                         .cornerRadius(16)
                         .clipped()
                         .overlay(
@@ -344,7 +336,7 @@ public struct TryOnUploadView: View {
                 } else {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(TryZonTheme.surfaceVariant)
-                        .frame(width: 155, height: 220)
+                        .frame(width: 155, height: 210)
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
                                 .strokeBorder(
@@ -357,7 +349,7 @@ public struct TryOnUploadView: View {
                         PhotosPicker(selection: pickerItem, matching: .images) {
                             VStack(spacing: 6) {
                                 Image(systemName: icon)
-                                    .font(.system(size: 30))
+                                    .font(.system(size: 28))
                                     .foregroundColor(TryZonTheme.primaryGold)
                                 Text(hint)
                                     .font(.system(size: 11, weight: .bold))
@@ -378,7 +370,7 @@ public struct TryOnUploadView: View {
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
+                            .padding(.vertical, 6)
                             .background(Color.white.opacity(0.12))
                             .cornerRadius(8)
                         }
@@ -453,7 +445,27 @@ public struct TryOnUploadView: View {
     }
 
     // MARK: - Actions
+    private func autoPrepareDefaultPhotos() {
+        if viewModel.selectedGarmentImage == nil && !sampleOutfits.isEmpty {
+            let firstOutfit = sampleOutfits[0]
+            selectedOutfitUrl = firstOutfit.imageUrl
+            loadSampleGarmentImage(urlStr: firstOutfit.imageUrl)
+        }
+        if viewModel.selectedPersonImage == nil {
+            loadSamplePersonImage(urlStr: samplePersonModelUrl)
+        }
+    }
+
     private func executeTryOnFlow() {
+        if viewModel.selectedGarmentImage == nil && !sampleOutfits.isEmpty {
+            let firstOutfit = sampleOutfits[0]
+            selectedOutfitUrl = firstOutfit.imageUrl
+            loadSampleGarmentImage(urlStr: firstOutfit.imageUrl)
+        }
+        if viewModel.selectedPersonImage == nil {
+            loadSamplePersonImage(urlStr: samplePersonModelUrl)
+        }
+
         if !authViewModel.canExecuteTryOn() {
             if authViewModel.showLoginRequiredModal {
                 showLoginRequiredModal = true
@@ -468,7 +480,6 @@ public struct TryOnUploadView: View {
     private func runActualTryOnSubmission() {
         Task {
             await viewModel.startTryOn { sessionId in
-                // FIX: NavigationStack push instead of sheet presentation
                 self.navPath = [.processing(sessionId)]
             }
         }
@@ -485,14 +496,16 @@ public struct TryOnUploadView: View {
             }
         }
     }
-}
 
-// MARK: - Supporting Types
-struct SampleOutfit: Identifiable {
-    let id = UUID().uuidString
-    let name: String
-    let badge: String
-    let category: String
-    let color: Color
-    let imageUrl: String
+    private func loadSamplePersonImage(urlStr: String) {
+        guard let url = URL(string: urlStr) else { return }
+        Task {
+            if let (data, _) = try? await URLSession.shared.data(from: url),
+               let img = UIImage(data: data) {
+                DispatchQueue.main.async {
+                    self.viewModel.selectedPersonImage = img
+                }
+            }
+        }
+    }
 }

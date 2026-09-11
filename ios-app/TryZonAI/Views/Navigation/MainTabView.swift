@@ -32,8 +32,6 @@ public struct MainTabView: View {
     @StateObject private var apiClient = APIClient.shared
     @State private var selectedTab: TabItem = .home
     @State private var isDrawerOpen: Bool = false
-    @State private var showingAuthSheet: Bool = false
-    @State private var tabBarScale: CGFloat = 1.0
 
     public init() {}
 
@@ -56,9 +54,7 @@ public struct MainTabView: View {
                         HomeScreen(
                             apiClient: apiClient,
                             onNavigateToTryOn: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    selectedTab = .tryon
-                                }
+                                withAnimation(.spring(response: 0.3)) { selectedTab = .tryon }
                             },
                             onNavigateToCatalog: {
                                 withAnimation { selectedTab = .catalog }
@@ -66,12 +62,18 @@ public struct MainTabView: View {
                         )
 
                     case .tryon:
-                        TryOnUploadView(apiClient: apiClient, onNavigateToResult: { _ in })
+                        TryOnUploadView(
+                            apiClient: apiClient,
+                            onNavigateToResult: { _ in }
+                        )
 
                     case .catalog:
-                        CatalogView(apiClient: apiClient, onSelectGarmentForTryOn: { _ in
-                            withAnimation { selectedTab = .tryon }
-                        })
+                        CatalogView(
+                            apiClient: apiClient,
+                            onSelectGarmentForTryOn: { _ in
+                                withAnimation(.spring(response: 0.3)) { selectedTab = .tryon }
+                            }
+                        )
 
                     case .wardrobe:
                         WardrobeView(apiClient: apiClient)
@@ -86,13 +88,16 @@ public struct MainTabView: View {
                 customTabBar
             }
 
-            // Side Drawer Overlay
-            SideDrawer(isOpen: $isDrawerOpen, apiClient: apiClient)
+            // Side Drawer Overlay (Only mounted when isDrawerOpen == true to prevent blocking bottom tabs)
+            if isDrawerOpen {
+                SideDrawer(isOpen: $isDrawerOpen, apiClient: apiClient)
+                    .zIndex(100)
+            }
         }
         .preferredColorScheme(.dark)
     }
 
-    // MARK: - Premium Custom Tab Bar
+    // MARK: - Premium Custom Tab Bar (100% Touch Responsive)
     private var customTabBar: some View {
         HStack(spacing: 0) {
             ForEach(TabItem.allCases, id: \.self) { tab in
@@ -101,13 +106,12 @@ public struct MainTabView: View {
                         selectedTab = tab
                     }
                 }) {
-                    VStack(spacing: 5) {
+                    VStack(spacing: 4) {
                         ZStack {
                             if selectedTab == tab {
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(TryZonTheme.primaryGold.opacity(0.15))
-                                    .frame(width: 42, height: 30)
-                                    .transition(.scale)
+                                    .fill(TryZonTheme.primaryGold.opacity(0.18))
+                                    .frame(width: 44, height: 30)
                             }
 
                             Image(systemName: tab.iconName)
@@ -120,11 +124,11 @@ public struct MainTabView: View {
                                 )
                                 .scaleEffect(selectedTab == tab ? 1.1 : 1.0)
                         }
-                        .frame(height: 32)
+                        .frame(height: 30)
 
                         Text(tab.title)
                             .font(.system(
-                                size: 9,
+                                size: 9.5,
                                 weight: selectedTab == tab ? .black : .regular
                             ))
                             .foregroundColor(
@@ -138,30 +142,30 @@ public struct MainTabView: View {
                             .opacity(selectedTab == tab ? 1 : 0)
                     }
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(PlainButtonStyle())
             }
         }
-        .padding(.top, 8)
         .padding(.bottom, max(8, safeAreaBottomInset))
         .background(
-            ZStack {
+            ZStack(alignment: .top) {
                 TryZonTheme.darkSurface
-                    .opacity(0.97)
+                    .opacity(0.98)
+                    .ignoresSafeArea(edges: .bottom)
 
                 // Shimmer top border line
-                VStack {
-                    LinearGradient(
-                        colors: [
-                            TryZonTheme.primaryGold.opacity(0.6),
-                            TryZonTheme.primaryGold.opacity(0.2),
-                            Color.clear
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .frame(height: 1)
-                    Spacer()
-                }
+                LinearGradient(
+                    colors: [
+                        TryZonTheme.primaryGold.opacity(0.6),
+                        TryZonTheme.primaryGold.opacity(0.2),
+                        Color.clear
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(height: 1)
             }
         )
     }
