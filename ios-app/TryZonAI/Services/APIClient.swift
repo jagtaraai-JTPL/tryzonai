@@ -168,7 +168,7 @@ public class APIClient: ObservableObject {
     }
 
     // MARK: - Auth API
-    public func loginWithGoogle(idToken: String = "google_demo_token_2026") async throws -> AuthResponse {
+    public func loginWithGoogle(idToken: String) async throws -> AuthResponse {
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/google"))
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
@@ -186,12 +186,17 @@ public class APIClient: ObservableObject {
         }
 
         let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
+        let isGuest = authRes.user.email.lowercased().contains("ios_guest_") || authRes.user.email.lowercased().contains("guest_")
+        let realLoggedIn = !isGuest
+
         DispatchQueue.main.async {
             self.authToken = authRes.token
             self.currentUser = authRes.user
             self.userCredits = authRes.user.credits
             self.paidCredits = authRes.user.paidCredits
-            self.isLoggedIn = true
+            self.isLoggedIn = realLoggedIn
+            AuthViewModel.shared.isLoggedIn = realLoggedIn
+            AuthViewModel.shared.currentUser = authRes.user
         }
         return authRes
     }
@@ -234,12 +239,17 @@ public class APIClient: ObservableObject {
         }
 
         let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
+        let isGuest = authRes.user.email.lowercased().contains("ios_guest_") || authRes.user.email.lowercased().contains("guest_")
+        let realLoggedIn = !isGuest
+
         DispatchQueue.main.async {
             self.authToken = authRes.token
             self.currentUser = authRes.user
             self.userCredits = authRes.user.credits
             self.paidCredits = authRes.user.paidCredits
-            self.isLoggedIn = true
+            self.isLoggedIn = realLoggedIn
+            AuthViewModel.shared.isLoggedIn = realLoggedIn
+            AuthViewModel.shared.currentUser = authRes.user
         }
         return authRes
     }
@@ -263,12 +273,17 @@ public class APIClient: ObservableObject {
         }
 
         let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
+        let isGuest = authRes.user.email.lowercased().contains("ios_guest_") || authRes.user.email.lowercased().contains("guest_")
+        let realLoggedIn = !isGuest
+
         DispatchQueue.main.async {
             self.authToken = authRes.token
             self.currentUser = authRes.user
             self.userCredits = authRes.user.credits
             self.paidCredits = authRes.user.paidCredits
-            self.isLoggedIn = true
+            self.isLoggedIn = realLoggedIn
+            AuthViewModel.shared.isLoggedIn = realLoggedIn
+            AuthViewModel.shared.currentUser = authRes.user
         }
         return authRes
     }
@@ -395,6 +410,8 @@ public class APIClient: ObservableObject {
         isLoggedIn = false
         userCredits = 1
         paidCredits = 0
+        AuthViewModel.shared.isLoggedIn = false
+        AuthViewModel.shared.currentUser = nil
     }
 
     public func deleteAccount() {

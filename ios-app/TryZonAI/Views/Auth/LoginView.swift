@@ -12,6 +12,9 @@ public struct LoginView: View {
     @State private var errorMessage: String? = nil
     @State private var currentHeroIndex = 0
 
+    @State private var showGooglePrompt = false
+    @State private var googleEmailInput = ""
+
     let onNavigateToRegister: () -> Void
 
     private let heroOutfits: [(String, String)] = [
@@ -93,7 +96,13 @@ public struct LoginView: View {
                     // Google Pill Button (Gol shape height 50)
                     Button(action: {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        performGoogleSignIn()
+                        let cleanFormEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !cleanFormEmail.isEmpty && cleanFormEmail.contains("@") {
+                            performGoogleSignIn(email: cleanFormEmail)
+                        } else {
+                            googleEmailInput = cleanFormEmail
+                            showGooglePrompt = true
+                        }
                     }) {
                         HStack(spacing: 10) {
                             if isLoading {
@@ -224,6 +233,22 @@ public struct LoginView: View {
             .padding(20)
         }
         .background(TryZonTheme.backgroundColor(for: colorScheme).ignoresSafeArea())
+        .alert("Sign In with Google 🚀", isPresented: $showGooglePrompt) {
+            TextField("Google Email (e.g. user@gmail.com)", text: $googleEmailInput)
+                .autocapitalization(.none)
+                .keyboardType(.emailAddress)
+            Button("Continue with Google") {
+                let clean = googleEmailInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !clean.isEmpty && clean.contains("@") {
+                    performGoogleSignIn(email: clean)
+                } else {
+                    errorMessage = "Please enter a valid Google email address."
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter your Google Account email address to sign in or register instantly with 2 FREE credits.")
+        }
         .onAppear {
             Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
                 withAnimation(.easeInOut(duration: 0.6)) {
@@ -258,24 +283,16 @@ public struct LoginView: View {
         }
     }
 
-    private func performGoogleSignIn() {
+    private func performGoogleSignIn(email targetEmail: String? = nil) {
+        let finalEmail = targetEmail ?? (email.contains("@") ? email.trimmingCharacters(in: .whitespacesAndNewlines) : "google_user_\(UUID().uuidString.prefix(6))@gmail.com")
         isLoading = true
         errorMessage = nil
 
-        // Safety fallback: Reset spinner if network takes longer than 4.5 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
-            if self.isLoading && !self.apiClient.isLoggedIn {
-                self.isLoading = false
-            }
-        }
-
         Task {
             do {
-                _ = try await apiClient.loginWithGoogle()
+                _ = try await apiClient.loginWithGoogle(idToken: finalEmail)
                 DispatchQueue.main.async {
                     self.isLoading = false
-                    AuthViewModel.shared.isLoggedIn = true
-                    AuthViewModel.shared.currentUser = self.apiClient.currentUser
                     dismiss()
                 }
             } catch {

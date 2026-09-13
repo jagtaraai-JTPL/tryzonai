@@ -10,6 +10,8 @@ public struct RegisterView: View {
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorMessage: String? = nil
+    @State private var showGooglePrompt = false
+    @State private var googleEmailInput = ""
 
     let onNavigateToLogin: () -> Void
 
@@ -36,7 +38,16 @@ public struct RegisterView: View {
 
                 // ── 1. SOCIAL QUICK SIGN UP (Google & Apple) ──
                 VStack(spacing: 12) {
-                    Button(action: performGoogleSignUp) {
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        let cleanFormEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !cleanFormEmail.isEmpty && cleanFormEmail.contains("@") {
+                            performGoogleSignUp(email: cleanFormEmail)
+                        } else {
+                            googleEmailInput = cleanFormEmail
+                            showGooglePrompt = true
+                        }
+                    }) {
                         HStack(spacing: 12) {
                             Text("G")
                                 .font(.system(size: 18, weight: .black, design: .rounded))
@@ -139,6 +150,22 @@ public struct RegisterView: View {
             .padding(24)
         }
         .background(TryZonTheme.darkBackground.ignoresSafeArea())
+        .alert("Sign Up with Google 🚀", isPresented: $showGooglePrompt) {
+            TextField("Google Email (e.g. user@gmail.com)", text: $googleEmailInput)
+                .autocapitalization(.none)
+                .keyboardType(.emailAddress)
+            Button("Continue with Google") {
+                let clean = googleEmailInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !clean.isEmpty && clean.contains("@") {
+                    performGoogleSignUp(email: clean)
+                } else {
+                    errorMessage = "Please enter a valid Google email address."
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter your Google Account email address to register instantly with 2 FREE welcome credits.")
+        }
     }
 
     private func performRegister() {
@@ -166,12 +193,13 @@ public struct RegisterView: View {
         }
     }
 
-    private func performGoogleSignUp() {
+    private func performGoogleSignUp(email targetEmail: String? = nil) {
+        let finalEmail = targetEmail ?? (email.contains("@") ? email.trimmingCharacters(in: .whitespacesAndNewlines) : "google_user_\(UUID().uuidString.prefix(6))@gmail.com")
         isLoading = true
         errorMessage = nil
         Task {
             do {
-                _ = try await apiClient.loginWithGoogle()
+                _ = try await apiClient.loginWithGoogle(idToken: finalEmail)
                 DispatchQueue.main.async {
                     self.isLoading = false
                     dismiss()
