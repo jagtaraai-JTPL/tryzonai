@@ -42,4 +42,10 @@ targets:
       PROVISIONING_PROFILE_SPECIFIER: "TryZon AI App Store Profile"
       "PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]": "TryZon AI App Store Profile"
       CODE_SIGN_ENTITLEMENTS: TryZonAI/TryZonAI.entitlements
+    entitlements:
+      path: TryZonAI/TryZonAI.entitlements
+      properties:
+        aps-environment: production
+        com.apple.developer.applesignin:
+          - Default
 

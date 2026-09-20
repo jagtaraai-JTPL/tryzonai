@@ -214,8 +214,14 @@ public class APIClient: ObservableObject {
     }
 
     public func loginWithApple(email: String? = nil, name: String? = nil, identityToken: String? = nil) async throws -> AuthResponse {
-        let cleanEmail = (email != nil && !email!.isEmpty) ? email! : ""
+        var cleanEmail = (email != nil && !email!.isEmpty) ? email! : ""
         let cleanName = (name != nil && !name!.isEmpty) ? name! : "Apple User"
+
+        if !cleanEmail.isEmpty {
+            UserDefaults.standard.set(cleanEmail, forKey: "saved_apple_email")
+        } else if let savedEmail = UserDefaults.standard.string(forKey: "saved_apple_email"), !savedEmail.isEmpty {
+            cleanEmail = savedEmail
+        }
 
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/apple"))
         request.httpMethod = "POST"
@@ -237,31 +243,41 @@ public class APIClient: ObservableObject {
 
         do {
             let (data, response) = try await session.data(for: request)
-            if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
-                let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self.authToken = authRes.token
-                    self.currentUser = authRes.user
-                    self.userCredits = authRes.user.credits
-                    self.paidCredits = authRes.user.paidCredits
-                    self.isLoggedIn = true
-                    AuthViewModel.shared.isLoggedIn = true
-                    AuthViewModel.shared.currentUser = authRes.user
+            if let httpRes = response as? HTTPURLResponse {
+                if (200...299).contains(httpRes.statusCode) {
+                    let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
+                    DispatchQueue.main.async {
+                        self.authToken = authRes.token
+                        self.currentUser = authRes.user
+                        self.userCredits = authRes.user.credits
+                        self.paidCredits = authRes.user.paidCredits
+                        self.isLoggedIn = true
+                        AuthViewModel.shared.isLoggedIn = true
+                        AuthViewModel.shared.currentUser = authRes.user
+                    }
+                    if !authRes.user.email.isEmpty {
+                        UserDefaults.standard.set(authRes.user.email, forKey: "saved_apple_email")
+                    }
+                    return authRes
+                } else {
+                    let errStr = String(data: data, encoding: .utf8) ?? "Unknown server error"
+                    print("Apple auth endpoint HTTP \(httpRes.statusCode): \(errStr)")
                 }
-                return authRes
             }
         } catch {
-            print("Apple auth endpoint error: \(error)")
+            print("Apple auth endpoint network error: \(error)")
         }
 
-        let fallbackEmail = !cleanEmail.isEmpty ? cleanEmail : "apple_user_\(UUID().uuidString.prefix(6))@tryzonai.com"
-
-        // Fail-safe fallback login/register
-        do {
-            return try await login(email: fallbackEmail, password: "AppleAuthPassword123!")
-        } catch {
-            return try await register(name: cleanName, email: fallbackEmail, password: "AppleAuthPassword123!")
+        // If a real email was obtained from Apple or saved state, attempt fallback login/register
+        if !cleanEmail.isEmpty {
+            do {
+                return try await login(email: cleanEmail, password: "AppleAuthPassword123!")
+            } catch {
+                return try await register(name: cleanName, email: cleanEmail, password: "AppleAuthPassword123!")
+            }
         }
+
+        throw APIError.custom("Apple Sign In authentication failed. Please try Email or Google Sign In.")
     }
 
     public func login(email: String, password: String) async throws -> AuthResponse {

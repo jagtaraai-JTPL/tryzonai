@@ -322,26 +322,11 @@ public struct LoginView: View {
             }
         case .failure(let error):
             let nsErr = error as NSError
+            isLoading = false
             if nsErr.code == 1001 || nsErr.localizedDescription.lowercased().contains("cancel") {
-                isLoading = false
                 errorMessage = nil
             } else {
-                isLoading = true
-                errorMessage = nil
-                Task {
-                    do {
-                        _ = try await apiClient.loginWithApple(email: nil, name: "Apple User", identityToken: nil)
-                        DispatchQueue.main.async {
-                            self.isLoading = false
-                            dismiss()
-                        }
-                    } catch {
-                        DispatchQueue.main.async {
-                            self.isLoading = false
-                            self.errorMessage = "Apple Sign In failed. Please try Email or Google."
-                        }
-                    }
-                }
+                errorMessage = "Apple Sign In failed: \(error.localizedDescription)"
             }
         }
     }

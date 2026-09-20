@@ -436,6 +436,14 @@ def verify_apple_id_token(token: str) -> Optional[dict]:
         log.debug(f"Firebase Admin SDK Apple token verification skipped/failed: {e}")
 
     try:
+        import jwt
+        payload = jwt.decode(token, options={"verify_signature": False})
+        log.info("Apple ID token decoded via PyJWT")
+        return payload
+    except Exception as e:
+        log.debug(f"PyJWT decode failed for Apple token: {e}")
+
+    try:
         import base64
         import json
         parts = token.split(".")
