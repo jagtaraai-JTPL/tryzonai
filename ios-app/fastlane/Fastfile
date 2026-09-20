@@ -4,13 +4,18 @@ platform :ios do
   desc "Build Signed iOS App IPA & Upload to App Store Connect / TestFlight"
   lane :build_and_upload do
     project_path = File.expand_path("../TryZonAI.xcodeproj", __dir__)
-    auth_key_path = File.expand_path("../AuthKey_LF5HAF3NWP.p8", __dir__)
     output_dir = File.expand_path("..", __dir__)
 
+    key_22_path = File.expand_path("../AuthKey_22VNW2YBJZ.p8", __dir__)
+    key_lf_path = File.expand_path("../AuthKey_LF5HAF3NWP.p8", __dir__)
+
+    selected_key_id = File.exist?(key_22_path) ? "22VNW2YBJZ" : "LF5HAF3NWP"
+    selected_key_path = File.exist?(key_22_path) ? key_22_path : key_lf_path
+
     api_key = app_store_connect_api_key(
-      key_id: "LF5HAF3NWP",
+      key_id: selected_key_id,
       issuer_id: "e5243ecc-3f1a-4093-aa87-5963eae05a08",
-      key_filepath: auth_key_path,
+      key_filepath: selected_key_path,
       duration: 1200
     )
 
@@ -31,12 +36,29 @@ platform :ios do
       clean: true
     )
 
-    upload_to_testflight(
-      api_key: api_key,
-      app_identifier: "com.jagtarapvtltd.tryzonai",
-      ipa: File.join(output_dir, "TryZonAI.ipa"),
-      skip_waiting_for_build_processing: true,
-      skip_submission: true
-    )
+    begin
+      upload_to_testflight(
+        api_key: api_key,
+        app_identifier: "com.jagtarapvtltd.tryzonai",
+        ipa: File.join(output_dir, "TryZonAI.ipa"),
+        skip_waiting_for_build_processing: true,
+        skip_submission: true
+      )
+    rescue => e
+      puts "Primary key upload attempt exception: #{e}. Trying secondary key..."
+      secondary_key = app_store_connect_api_key(
+        key_id: "LF5HAF3NWP",
+        issuer_id: "e5243ecc-3f1a-4093-aa87-5963eae05a08",
+        key_filepath: key_lf_path,
+        duration: 1200
+      )
+      upload_to_testflight(
+        api_key: secondary_key,
+        app_identifier: "com.jagtarapvtltd.tryzonai",
+        ipa: File.join(output_dir, "TryZonAI.ipa"),
+        skip_waiting_for_build_processing: true,
+        skip_submission: true
+      )
+    end
   end
 end

@@ -101,6 +101,8 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
 
           mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys
+          cp ios-app/AuthKey_22VNW2YBJZ.p8 ~/.appstoreconnect/private_keys/AuthKey_22VNW2YBJZ.p8 2>/dev/null || true
+          cp ios-app/AuthKey_22VNW2YBJZ.p8 ~/.private_keys/AuthKey_22VNW2YBJZ.p8 2>/dev/null || true
           cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.appstoreconnect/private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
           cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
           
