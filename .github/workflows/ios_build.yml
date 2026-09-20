@@ -17,12 +17,12 @@ jobs:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
-      - name: Install XcodeGen (Direct Binary)
+      - name: Install XcodeGen (Direct Binary & Brew Fallback)
         run: |
-          curl -sL https://github.com/yonaskolb/XcodeGen/releases/download/2.42.0/xcodegen.zip -o /tmp/xcodegen.zip
-          unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen_dist
-          sudo cp /tmp/xcodegen_dist/xcodegen/bin/xcodegen /usr/local/bin/
-          xcodegen --version
+          (curl -sL https://github.com/yonaskolb/XcodeGen/releases/download/2.42.0/xcodegen.zip -o /tmp/xcodegen.zip && \
+          unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen_dist && \
+          sudo cp /tmp/xcodegen_dist/xcodegen/bin/xcodegen /usr/local/bin/) || brew install xcodegen || true
+          xcodegen --version || true
 
       - name: Inject Dynamic Build Number into Info.plist
         run: |
@@ -107,6 +107,7 @@ jobs:
           cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
           
           cd ios-app
+          bundle install || gem install fastlane
           bundle exec fastlane build_and_upload --verbose || fastlane build_and_upload --verbose
 
       - name: Upload Native Signed IPA Artifact

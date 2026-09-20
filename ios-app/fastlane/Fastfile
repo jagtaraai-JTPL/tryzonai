@@ -26,6 +26,7 @@ platform :ios do
         method: "app-store",
         teamID: "4WRPJFD6RA",
         signingStyle: "manual",
+        signingCertificate: "Apple Distribution",
         provisioningProfiles: {
           "com.jagtarapvtltd.tryzonai" => "TryZon AI App Store Profile"
         }
