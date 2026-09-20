@@ -102,7 +102,9 @@ public struct RegisterView: View {
                         TextField("Email Address", text: $email)
                             .font(.system(size: 13))
                             .foregroundColor(.white)
+                            .keyboardType(.emailAddress)
                             .autocapitalization(.none)
+                            .autocorrectionDisabled(true)
                     }
                     .padding(14)
                     .background(TryZonTheme.surfaceVariant)

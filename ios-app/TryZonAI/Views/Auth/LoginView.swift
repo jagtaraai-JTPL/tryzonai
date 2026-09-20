@@ -175,7 +175,9 @@ public struct LoginView: View {
                         TextField("Email Address", text: $email)
                             .font(.system(size: 13))
                             .foregroundColor(TryZonTheme.textColor(for: colorScheme))
+                            .keyboardType(.emailAddress)
                             .autocapitalization(.none)
+                            .autocorrectionDisabled(true)
                     }
                     .padding(14)
                     .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
