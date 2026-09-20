@@ -127,10 +127,10 @@ public struct TryOnUploadView: View {
                         apiClient: apiClient,
                         onUseCredit: {
                             authViewModel.deductTryOnCredit()
-                            runActualTryOnSubmission()
+                            startSubmissionTask()
                         },
                         onWatchAd: {
-                            runActualTryOnSubmission()
+                            startSubmissionTask()
                         },
                         onNavigateToPremium: {
                             showPremiumModal = true
@@ -470,6 +470,11 @@ public struct TryOnUploadView: View {
             return
         }
 
+        self.authViewModel.deductTryOnCredit()
+        startSubmissionTask()
+    }
+
+    private func startSubmissionTask() {
         Task {
             let (person, garment) = await ensureImagesPrepared()
             guard person != nil, garment != nil else {
@@ -479,7 +484,6 @@ public struct TryOnUploadView: View {
                 return
             }
 
-            self.authViewModel.deductTryOnCredit()
             await self.viewModel.startTryOn { sessionId in
                 self.navPath = [.processing(sessionId)]
             }
