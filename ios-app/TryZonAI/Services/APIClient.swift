@@ -132,20 +132,18 @@ public class APIClient: ObservableObject {
     }
 
     public func fetchUserCredits() {
-        var request = URLRequest(url: baseURL.appendingPathComponent("user/credits"))
+        guard authToken != nil else { return }
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/me"))
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
         session.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 if let data = data,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let credits = json["credits"] as? Int {
-                        self?.userCredits = credits
-                    }
-                    if let paid = json["paid_credits"] as? Int {
-                        self?.paidCredits = paid
-                    }
+                   let user = try? JSONDecoder().decode(UserProfile.self, from: data) {
+                    self?.userCredits = user.credits
+                    self?.paidCredits = user.paidCredits
+                    self?.bonusCredits = user.bonusCredits
                 }
             }
         }.resume()
@@ -299,12 +297,6 @@ public class APIClient: ObservableObject {
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 401
-            if statusCode == 401 || statusCode == 404 {
-                let defaultName = cleanEmail.components(separatedBy: "@").first?.capitalized ?? "User"
-                if let regRes = try? await register(name: defaultName, email: cleanEmail, password: password) {
-                    return regRes
-                }
-            }
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let detail = json["detail"] as? String {
                 throw NSError(domain: "APIClient", code: statusCode, userInfo: [NSLocalizedDescriptionKey: detail])

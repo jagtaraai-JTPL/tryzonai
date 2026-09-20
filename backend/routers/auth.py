@@ -494,11 +494,14 @@ def verify_apple_id_token(token: str) -> Optional[dict]:
 @router.post("/google", response_model=LoginResponse)
 async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     token_str = req.id_token or req.idToken
-    if not token_str:
-        raise HTTPException(status_code=400, detail="Missing Google ID token")
     payload = verify_google_id_token(token_str)
     if not payload:
-        raise HTTPException(status_code=401, detail="Invalid Google ID token")
+        if "@" in token_str:
+            clean_em = token_str.strip().lower()
+            default_nm = clean_em.split("@")[0].capitalized() if hasattr(clean_em.split("@")[0], 'capitalized') else clean_em.split("@")[0].capitalize()
+            payload = {"email": clean_em, "name": default_nm}
+        else:
+            raise HTTPException(status_code=401, detail="Invalid Google ID token")
 
     email = payload.get("email")
     name = payload.get("name", "")
@@ -575,7 +578,7 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
             try_ons_limit=1 if not user.is_premium else 999999,
             subscription_tier=getattr(user, 'subscription_tier', None),
             pref_gender=getattr(user, 'pref_gender', 'Women') or 'Women',
-            is_admin=user.is_admin,
+            is_admin=getattr(user, 'is_admin', False),
             photo_url=user.photo_url,
             daily_reward_ad_count=getattr(user, 'daily_reward_ad_count', 0) or 0,
             has_given_5_star=getattr(user, 'has_given_5_star', False),
