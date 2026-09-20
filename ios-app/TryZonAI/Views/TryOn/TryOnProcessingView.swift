@@ -8,6 +8,7 @@ public struct TryOnProcessingView: View {
 
     @State private var progress: Double = 0.15
     @State private var currentStepIndex: Int = 0
+    @State private var currentTipIndex: Int = 0
     @State private var errorMessage: String? = nil
     @State private var isPolling = true
     @State private var pulseScale: CGFloat = 1.0
@@ -22,10 +23,10 @@ public struct TryOnProcessingView: View {
     private let tips = [
         "💡 Tip: High resolution, well-lit photos give the most realistic outfit fit!",
         "✨ Pro Feature: Upgrade to Pro for 100% Zero-Ad VIP Turbo GPU Processing!",
-        "👗 Inspiration: You can try on any outfit directly from Myntra, Ajio, or Amazon links!"
+        "👗 Inspiration: You can try on any outfit directly from Myntra, Ajio, or Amazon links!",
+        "⚡ Speed: ComfyUI GPU cluster processes fits in under 5 seconds!",
+        "🔒 Privacy: Your photo & body pose data is processed privately and securely."
     ]
-
-    @State private var currentTipIndex = 0
 
     public init(sessionId: Int, apiClient: APIClient, onCompleted: @escaping (TryOnStatusResponse) -> Void, onCancel: @escaping () -> Void) {
         self.sessionId = sessionId
@@ -38,74 +39,99 @@ public struct TryOnProcessingView: View {
         ZStack {
             TryZonTheme.darkBackground.ignoresSafeArea()
 
-            VStack(spacing: 28) {
-                Spacer()
+            VStack(spacing: 24) {
+                Spacer(minLength: 20)
 
-                // Animated Pulse Logo Ring
+                // Header Title
+                VStack(spacing: 4) {
+                    Text("TRYZON AI NEURAL FITTING")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundColor(TryZonTheme.primaryGold)
+                        .tracking(2.5)
+
+                    Text("Creating Your Virtual Fit ✨")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundColor(.white)
+                }
+
+                Spacer(minLength: 10)
+
+                // Animated Dual-Ring Pulse Gauge
                 ZStack {
+                    // Outer static ring
                     Circle()
-                        .stroke(TryZonTheme.primaryGold.opacity(0.2), lineWidth: 12)
-                        .frame(width: 140, height: 140)
+                        .stroke(TryZonTheme.surfaceVariant, lineWidth: 14)
+                        .frame(width: 160, height: 160)
 
+                    // Inner animated progress arc
                     Circle()
                         .trim(from: 0, to: CGFloat(progress))
                         .stroke(
                             AngularGradient(gradient: Gradient(colors: [TryZonTheme.primaryGold, Color.yellow, TryZonTheme.primaryGold]), center: .center),
-                            style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                            style: StrokeStyle(lineWidth: 12, lineCap: .round)
                         )
-                        .frame(width: 140, height: 140)
+                        .frame(width: 160, height: 160)
                         .rotationEffect(.degrees(-90))
                         .animation(.easeInOut(duration: 0.8), value: progress)
 
-                    VStack(spacing: 4) {
+                    VStack(spacing: 6) {
                         Image(systemName: "sparkles")
-                            .font(.system(size: 36))
+                            .font(.system(size: 38))
                             .foregroundColor(TryZonTheme.primaryGold)
                             .scaleEffect(pulseScale)
 
                         Text("\(Int(progress * 100))%")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 20, weight: .black, design: .rounded))
                             .foregroundColor(.white)
                     }
                 }
                 .onAppear {
                     withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                        pulseScale = 1.2
+                        pulseScale = 1.18
                     }
                 }
 
-                // Status Message Step Indicator
+                // Status Step Message Indicator
                 VStack(spacing: 8) {
-                    Text("TRYZON AI NEURAL FITTING")
-                        .font(.system(size: 12, weight: .black))
-                        .foregroundColor(TryZonTheme.primaryGold)
-                        .tracking(2)
-
                     Text(steps[currentStepIndex])
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 15, weight: .bold))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
                         .id(currentStepIndex)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        .animation(.easeInOut(duration: 0.5), value: currentStepIndex)
+
+                    Text("Powered by ComfyUI High-Speed GPU Cluster")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.5))
                 }
 
-                // Styling Tip Card
+                Spacer(minLength: 10)
+
+                // Rotating Styling Tip Card
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("DID YOU KNOW?")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.8))
+                    HStack {
+                        Text("DID YOU KNOW?")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundColor(TryZonTheme.primaryGold)
+                            .tracking(1)
+                        Spacer()
+                    }
 
                     Text(tips[currentTipIndex])
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundColor(.white.opacity(0.85))
                         .lineSpacing(3)
+                        .id(currentTipIndex)
+                        .transition(.opacity)
+                        .animation(.easeInOut(duration: 0.6), value: currentTipIndex)
                 }
                 .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(TryZonTheme.surfaceVariant)
-                .cornerRadius(14)
-                .padding(.horizontal, 24)
+                .cornerRadius(18)
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(TryZonTheme.primaryGold.opacity(0.2), lineWidth: 1))
+                .padding(.horizontal, 20)
 
                 // Error Message if failed
                 if let err = errorMessage {
@@ -124,7 +150,7 @@ public struct TryOnProcessingView: View {
                     .padding(.horizontal, 24)
                 }
 
-                Spacer()
+                Spacer(minLength: 20)
 
                 // Cancel Button
                 Button(action: {
@@ -132,15 +158,16 @@ public struct TryOnProcessingView: View {
                     onCancel()
                 }) {
                     Text("Cancel Fitting")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.white.opacity(0.5))
                         .padding(.vertical, 12)
                 }
             }
-            .padding(24)
+            .padding(20)
         }
         .task {
             startPollingLoop()
+            startTipTimer()
         }
     }
 
@@ -149,7 +176,7 @@ public struct TryOnProcessingView: View {
             var stepCounter = 0
             while isPolling {
                 do {
-                    try await Task.sleep(nanoseconds: 1_500_000_000)
+                    try await Task.sleep(nanoseconds: 1_400_000_000)
                     stepCounter += 1
 
                     let status = try await apiClient.pollTaskStatus(sessionId: sessionId)
@@ -157,13 +184,13 @@ public struct TryOnProcessingView: View {
                     DispatchQueue.main.async {
                         if stepCounter < 4 {
                             self.currentStepIndex = stepCounter % steps.count
-                            self.progress = min(0.85, 0.2 + Double(stepCounter) * 0.2)
+                            self.progress = min(0.88, 0.2 + Double(stepCounter) * 0.2)
                         }
 
                         if status.isCompleted {
                             self.progress = 1.0
                             self.isPolling = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                                 onCompleted(status)
                             }
                         } else if status.isFailed {
@@ -172,7 +199,6 @@ public struct TryOnProcessingView: View {
                         }
                     }
                 } catch {
-                    // Continue polling unless explicit error
                     if stepCounter > 40 {
                         DispatchQueue.main.async {
                             self.isPolling = false
@@ -180,6 +206,14 @@ public struct TryOnProcessingView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private func startTipTimer() {
+        Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
+            withAnimation(.easeInOut(duration: 0.6)) {
+                currentTipIndex = (currentTipIndex + 1) % tips.count
             }
         }
     }
