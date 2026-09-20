@@ -31,12 +31,17 @@ platform :ios do
       clean: true
     )
 
-    upload_to_testflight(
-      api_key: api_key,
-      app_identifier: "com.jagtarapvtltd.tryzonai",
-      ipa: File.join(output_dir, "TryZonAI.ipa"),
-      skip_waiting_for_build_processing: true,
-      skip_submission: true
-    )
+    begin
+      upload_to_testflight(
+        api_key: api_key,
+        app_identifier: "com.jagtarapvtltd.tryzonai",
+        ipa: File.join(output_dir, "TryZonAI.ipa"),
+        skip_waiting_for_build_processing: true,
+        skip_submission: true
+      )
+    rescue => e
+      puts "Fastlane upload_to_testflight error: #{e}. Falling back to native xcrun altool..."
+      sh("xcrun altool --upload-app -f '#{File.join(output_dir, "TryZonAI.ipa")}' -t ios --apiKey LF5HAF3NWP --apiIssuer e5243ecc-3f1a-4093-aa87-5963eae05a08")
+    end
   end
 end
