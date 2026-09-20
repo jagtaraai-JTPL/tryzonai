@@ -3,6 +3,7 @@ import SwiftUI
 public enum SideDrawerSheet: String, Identifiable {
     case userProfile
     case login
+    case register
     case adminDashboard
     case dailyReward
     case spinWheel
@@ -21,6 +22,7 @@ public enum SideDrawerSheet: String, Identifiable {
 
 public struct SideDrawer: View {
     @Binding var isOpen: Bool
+    @Binding var activeSheet: SideDrawerSheet?
     @ObservedObject var apiClient: APIClient
     @ObservedObject private var authViewModel = AuthViewModel.shared
 
@@ -29,13 +31,13 @@ public struct SideDrawer: View {
     @AppStorage("daily_style_enabled") private var dailyStyleEnabled: Bool = true
     @AppStorage("is_dark_theme") private var isDarkTheme: Bool = true
 
-    @State private var activeSheet: SideDrawerSheet? = nil
     @State private var showLogoutConfirm = false
     @State private var showDeleteConfirm = false
     @State private var toastMessage: String? = nil
 
-    public init(isOpen: Binding<Bool>, apiClient: APIClient) {
+    public init(isOpen: Binding<Bool>, activeSheet: Binding<SideDrawerSheet?>, apiClient: APIClient) {
         self._isOpen = isOpen
+        self._activeSheet = activeSheet
         self.apiClient = apiClient
     }
 
@@ -47,6 +49,13 @@ public struct SideDrawer: View {
         guard let u = currentUser else { return false }
         let email = u.email.lowercased()
         return email == "tryzonai@gmail.com" || u.isAdmin == true
+    }
+
+    private func selectSheet(_ sheet: SideDrawerSheet) {
+        closeDrawer()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            activeSheet = sheet
+        }
     }
 
     public var body: some View {
@@ -93,11 +102,10 @@ public struct SideDrawer: View {
 
                         // ── 2. PROFILE CARD (ACCOUNT ACCESS) ──
                         Button(action: {
-                            closeDrawer()
                             if apiClient.isLoggedIn {
-                                activeSheet = .userProfile
+                                selectSheet(.userProfile)
                             } else {
-                                activeSheet = .login
+                                selectSheet(.login)
                             }
                         }) {
                             HStack(spacing: 12) {
@@ -144,8 +152,7 @@ public struct SideDrawer: View {
                         // ── FOUNDER & ADMIN PORTAL CARD (IF FOUNDER tryzonai@gmail.com) ──
                         if isFounderUser {
                             Button(action: {
-                                closeDrawer()
-                                activeSheet = .adminDashboard
+                                selectSheet(.adminDashboard)
                             }) {
                                 HStack(spacing: 10) {
                                     Text("👑")
@@ -173,67 +180,56 @@ public struct SideDrawer: View {
                         // ── SECTION 0: REWARDS & FREE CREDITS 🎁 ──
                         sidebarSection(title: "REWARDS & FREE CREDITS 🎁") {
                             sidebarItem(icon: "gift.fill", title: "Daily Ad Rewards 🎁", subtitle: "Watch 8 Ads • Earn +4.0⚡ Tries FREE", badge: "+0.5⚡/ad") {
-                                closeDrawer()
-                                activeSheet = .dailyReward
+                                selectSheet(.dailyReward)
                             }
 
                             sidebarItem(icon: "sparkles", title: "Daily Spin & Win Wheel 🎡", subtitle: "Earn Free Try-On Credits", badge: "FREE CREDITS") {
-                                closeDrawer()
-                                activeSheet = .spinWheel
+                                selectSheet(.spinWheel)
                             }
 
                             sidebarItem(icon: "square.and.arrow.up.fill", title: "Refer & Share App 🎁", subtitle: "Invite Friends & Earn Credits", badge: "+2 CREDITS") {
-                                closeDrawer()
-                                activeSheet = .share
+                                selectSheet(.share)
                             }
                         }
 
                         // ── SECTION 1: ACCOUNT & BILLING ──
                         sidebarSection(title: "ACCOUNT & BILLING") {
                             sidebarItem(icon: "crown.fill", title: "Pricing Plans & Credits", subtitle: "Upgrade to Pro or buy credit packs", badge: currentUser?.isPremium == true ? nil : "PRO 👑") {
-                                closeDrawer()
-                                activeSheet = .premium
+                                selectSheet(.premium)
                             }
 
                             sidebarItem(icon: "creditcard.fill", title: "Manage Subscriptions", subtitle: "Manage or cancel active subscription") {
-                                closeDrawer()
-                                activeSheet = .subscriptionManagement
+                                selectSheet(.subscriptionManagement)
                             }
 
                             sidebarItem(icon: "clock.arrow.circlepath", title: "Purchase History", subtitle: "View past transactions & receipts") {
-                                closeDrawer()
-                                activeSheet = .purchaseHistory
+                                selectSheet(.purchaseHistory)
                             }
                         }
 
                         // ── SECTION 2: AI CONTROL & PREFERENCES ──
                         sidebarSection(title: "AI CONTROL & PREFERENCES") {
                             sidebarItem(icon: isDarkTheme ? "sun.max.fill" : "moon.fill", title: isDarkTheme ? "Light Theme" : "Dark Theme", subtitle: "Switch visual appearance", badge: isDarkTheme ? "Dark 🌙" : "Light ☀️") {
-                                closeDrawer()
-                                activeSheet = .themeSettings
+                                selectSheet(.themeSettings)
                             }
 
                             sidebarItem(icon: pushEnabled ? "bell.fill" : "bell.slash.fill", title: "Push Notifications", subtitle: pushEnabled ? "Active for Try-On alerts" : "Disabled", badge: pushEnabled ? "ON" : "OFF") {
-                                closeDrawer()
-                                activeSheet = .notificationSettings
+                                selectSheet(.notificationSettings)
                             }
 
                             sidebarItem(icon: "tshirt.fill", title: "Daily AI Style Engine", subtitle: dailyStyleEnabled ? "Automated daily outfit suggestions" : "Disabled", badge: dailyStyleEnabled ? "ACTIVE" : "OFF") {
-                                closeDrawer()
-                                activeSheet = .dailyStyleSettings
+                                selectSheet(.dailyStyleSettings)
                             }
 
                             sidebarItem(icon: "person.2.fill", title: "Fashion Preference", subtitle: genderSubtitle(userGender), badge: userGender) {
-                                closeDrawer()
-                                activeSheet = .fashionPreferences
+                                selectSheet(.fashionPreferences)
                             }
                         }
 
                         // ── SECTION 3: EXPLORE & FEATURES ──
                         sidebarSection(title: "EXPLORE & FEATURES") {
                             sidebarItem(icon: "academiccap.fill", title: "Guided App Tour 🎓", subtitle: "Interactive step-by-step feature walk") {
-                                closeDrawer()
-                                activeSheet = .guidedTour
+                                selectSheet(.guidedTour)
                             }
 
                             sidebarItem(icon: "bolt.fill", title: "Test Daily AI Style Now ⚡", subtitle: "Trigger instant background style generation") {
@@ -263,8 +259,7 @@ public struct SideDrawer: View {
                                 }
                             } else {
                                 sidebarItem(icon: "person.crop.circle.badge.plus", title: "Login / Switch Account", subtitle: "Sign in to sync your wardrobe", badge: "LOGIN 🚀") {
-                                    closeDrawer()
-                                    activeSheet = .login
+                                    selectSheet(.login)
                                 }
                             }
                         }
@@ -272,7 +267,7 @@ public struct SideDrawer: View {
                         // ── FOOTER ──
                         VStack(spacing: 6) {
                             Text("TryZon AI v1.0.0 (Build 137)")
-                                .font(.system(size: 10, weight: .medium))
+                               .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(.white.opacity(0.4))
 
                             Button(action: {
@@ -313,38 +308,6 @@ public struct SideDrawer: View {
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .zIndex(200)
-            }
-        }
-        .sheet(item: $activeSheet) { item in
-            switch item {
-            case .userProfile:
-                UserProfileView(apiClient: apiClient)
-            case .login:
-                LoginView(apiClient: apiClient, onNavigateToRegister: {})
-            case .adminDashboard:
-                AdminDashboardView(apiClient: apiClient)
-            case .dailyReward:
-                DailyRewardView(apiClient: apiClient)
-            case .spinWheel:
-                SpinWheelView(apiClient: apiClient)
-            case .share:
-                ActivityViewController(activityItems: ["Try out TryZon AI Virtual Outfit Fitting! 🤩 Download now: https://tryzonai.com"])
-            case .premium:
-                PremiumView(apiClient: apiClient)
-            case .subscriptionManagement:
-                SubscriptionManagementView(apiClient: apiClient)
-            case .purchaseHistory:
-                PurchaseHistoryView(apiClient: apiClient)
-            case .themeSettings:
-                ThemeSettingsView()
-            case .notificationSettings:
-                NotificationSettingsView()
-            case .dailyStyleSettings:
-                DailyStyleSettingsView(apiClient: apiClient)
-            case .fashionPreferences:
-                FashionPreferencesView()
-            case .guidedTour:
-                GuidedTourView()
             }
         }
         .confirmationDialog("Logout Session", isPresented: $showLogoutConfirm, titleVisibility: .visible) {

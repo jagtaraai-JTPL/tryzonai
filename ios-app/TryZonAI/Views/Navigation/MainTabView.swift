@@ -32,6 +32,7 @@ public struct MainTabView: View {
     @StateObject private var apiClient = APIClient.shared
     @State private var selectedTab: TabItem = .home
     @State private var isDrawerOpen: Bool = false
+    @State private var activeSheet: SideDrawerSheet? = nil
 
     public init() {
         let appearance = UITabBarAppearance()
@@ -114,8 +115,42 @@ public struct MainTabView: View {
 
             // Side Drawer Overlay (Only mounted when isDrawerOpen == true)
             if isDrawerOpen {
-                SideDrawer(isOpen: $isDrawerOpen, apiClient: apiClient)
+                SideDrawer(isOpen: $isDrawerOpen, activeSheet: $activeSheet, apiClient: apiClient)
                     .zIndex(100)
+            }
+        }
+        .sheet(item: $activeSheet) { item in
+            switch item {
+            case .userProfile:
+                UserProfileView(apiClient: apiClient)
+            case .login:
+                LoginView(apiClient: apiClient, onNavigateToRegister: { activeSheet = .register })
+            case .register:
+                RegisterView(apiClient: apiClient, onNavigateToLogin: { activeSheet = .login })
+            case .adminDashboard:
+                AdminDashboardView(apiClient: apiClient)
+            case .dailyReward:
+                DailyRewardView(apiClient: apiClient)
+            case .spinWheel:
+                SpinWheelView(apiClient: apiClient)
+            case .share:
+                ActivityViewController(activityItems: ["Try out TryZon AI Virtual Outfit Fitting! 🤩 Download now: https://tryzonai.com"])
+            case .premium:
+                PremiumView(apiClient: apiClient)
+            case .subscriptionManagement:
+                SubscriptionManagementView(apiClient: apiClient)
+            case .purchaseHistory:
+                PurchaseHistoryView(apiClient: apiClient)
+            case .themeSettings:
+                ThemeSettingsView()
+            case .notificationSettings:
+                NotificationSettingsView()
+            case .dailyStyleSettings:
+                DailyStyleSettingsView(apiClient: apiClient)
+            case .fashionPreferences:
+                FashionPreferencesView()
+            case .guidedTour:
+                GuidedTourView()
             }
         }
         .preferredColorScheme(.dark)
