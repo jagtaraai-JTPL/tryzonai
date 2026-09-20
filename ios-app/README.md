@@ -4,7 +4,7 @@ This directory contains the 100% native iOS application for **TryZon AI**, built
 
 It operates as a completely decoupled codebase from `android-app/`, sharing the exact same backend API endpoints at `https://tryzonai.com/api`.
 
-> **Latest TestFlight Release Build Triggered**: 2026-09-20 (Auth & Apple Sign In Fixes Verified 100%)
+> **Latest TestFlight Release Build Triggered**: 2026-09-20 23:50 UTC (Auth & Apple Sign In Fixes Verified 100%)
 
 ---
 
