@@ -97,12 +97,8 @@ public struct LoginView: View {
                     Button(action: {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         let cleanFormEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !cleanFormEmail.isEmpty && cleanFormEmail.contains("@") {
-                            performGoogleSignIn(email: cleanFormEmail)
-                        } else {
-                            googleEmailInput = cleanFormEmail
-                            showGooglePrompt = true
-                        }
+                        googleEmailInput = cleanFormEmail
+                        showGooglePrompt = true
                     }) {
                         HStack(spacing: 10) {
                             if isLoading {
@@ -233,21 +229,10 @@ public struct LoginView: View {
             .padding(20)
         }
         .background(TryZonTheme.backgroundColor(for: colorScheme).ignoresSafeArea())
-        .alert("Sign In with Google 🚀", isPresented: $showGooglePrompt) {
-            TextField("Google Email (e.g. user@gmail.com)", text: $googleEmailInput)
-                .autocapitalization(.none)
-                .keyboardType(.emailAddress)
-            Button("Continue with Google") {
-                let clean = googleEmailInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !clean.isEmpty && clean.contains("@") {
-                    performGoogleSignIn(email: clean)
-                } else {
-                    errorMessage = "Please enter a valid Google email address."
-                }
+        .sheet(isPresented: $showGooglePrompt) {
+            GoogleSignInSheet(apiClient: apiClient, initialEmail: googleEmailInput) {
+                dismiss()
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Enter your Google Account email address to sign in or register instantly with 2 FREE credits.")
         }
         .onAppear {
             Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
