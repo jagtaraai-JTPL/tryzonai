@@ -429,7 +429,7 @@ public struct TryOnResultView: View {
             }
         }) {
             VStack(alignment: .leading, spacing: 4) {
-                ZStack(alignment: .bottomEnd) {
+                ZStack(alignment: .bottomTrailing) {
                     AsyncImage(url: item.fullImageURL) { phase in
                         if let img = phase.image {
                             img.resizable().aspectRatio(contentMode: .fill)

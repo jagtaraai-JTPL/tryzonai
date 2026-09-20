@@ -399,8 +399,8 @@ public struct SideDrawer: View {
     private func sidebarItem(
         icon: String,
         title: String,
-        subtitle: String? = null,
-        badge: String? = null,
+        subtitle: String? = nil,
+        badge: String? = nil,
         isDestructive: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
