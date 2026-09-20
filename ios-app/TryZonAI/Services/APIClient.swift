@@ -174,7 +174,6 @@ public class APIClient: ObservableObject {
     // MARK: - Auth API
     public func loginWithGoogle(idToken: String) async throws -> AuthResponse {
         let cleanInput = idToken.trimmingCharacters(in: .whitespacesAndNewlines)
-
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/google"))
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
@@ -182,33 +181,30 @@ public class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: ["id_token": cleanInput])
         request.httpBody = bodyData
 
-        if let (data, response) = try? await session.data(for: request),
-           let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode),
-           let authRes = try? JSONDecoder().decode(AuthResponse.self, from: data) {
-            let isGuest = authRes.user.email.lowercased().contains("ios_guest_") || authRes.user.email.lowercased().contains("guest_")
-            let realLoggedIn = !isGuest
-
-            DispatchQueue.main.async {
-                self.authToken = authRes.token
-                self.currentUser = authRes.user
-                self.userCredits = authRes.user.credits
-                self.paidCredits = authRes.user.paidCredits
-                self.isLoggedIn = realLoggedIn
-                AuthViewModel.shared.isLoggedIn = realLoggedIn
-                AuthViewModel.shared.currentUser = authRes.user
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 401
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let detail = json["detail"] as? String {
+                throw NSError(domain: "APIClient", code: statusCode, userInfo: [NSLocalizedDescriptionKey: detail])
             }
-            return authRes
+            throw NSError(domain: "APIClient", code: statusCode, userInfo: [NSLocalizedDescriptionKey: "Google Sign In failed. Please try again."])
         }
 
-        // Fail-safe fallback: Auto login or register seamlessly using Google email
-        let fallbackEmail = cleanInput.contains("@") ? cleanInput : "google_user_\(UUID().uuidString.prefix(6))@gmail.com"
-        let fallbackName = fallbackEmail.components(separatedBy: "@").first?.capitalized ?? "Google User"
+        let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
+        let isGuest = authRes.user.email.lowercased().contains("ios_guest_") || authRes.user.email.lowercased().contains("guest_")
+        let realLoggedIn = !isGuest
 
-        do {
-            return try await login(email: fallbackEmail, password: "GoogleAuthPassword123!")
-        } catch {
-            return try await register(name: fallbackName, email: fallbackEmail, password: "GoogleAuthPassword123!")
+        DispatchQueue.main.async {
+            self.authToken = authRes.token
+            self.currentUser = authRes.user
+            self.userCredits = authRes.user.credits
+            self.paidCredits = authRes.user.paidCredits
+            self.isLoggedIn = realLoggedIn
+            AuthViewModel.shared.isLoggedIn = realLoggedIn
+            AuthViewModel.shared.currentUser = authRes.user
         }
+        return authRes
     }
 
     public func loginWithApple(email: String? = nil, name: String? = nil, identityToken: String? = nil) async throws -> AuthResponse {
@@ -239,50 +235,30 @@ public class APIClient: ObservableObject {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyObj)
 
-        do {
-            let (data, response) = try await session.data(for: request)
-            if let httpRes = response as? HTTPURLResponse {
-                if (200...299).contains(httpRes.statusCode) {
-                    let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
-                    DispatchQueue.main.async {
-                        self.authToken = authRes.token
-                        self.currentUser = authRes.user
-                        self.userCredits = authRes.user.credits
-                        self.paidCredits = authRes.user.paidCredits
-                        self.isLoggedIn = true
-                        AuthViewModel.shared.isLoggedIn = true
-                        AuthViewModel.shared.currentUser = authRes.user
-                    }
-                    if !authRes.user.email.isEmpty {
-                        UserDefaults.standard.set(authRes.user.email, forKey: "saved_apple_email")
-                    }
-                    return authRes
-                } else {
-                    let errStr = String(data: data, encoding: .utf8) ?? "Unknown server error"
-                    print("Apple auth endpoint HTTP \(httpRes.statusCode): \(errStr)")
-                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let detail = json["detail"] as? String {
-                        throw NSError(domain: "APIClient", code: httpRes.statusCode, userInfo: [NSLocalizedDescriptionKey: detail])
-                    }
-                }
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 401
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let detail = json["detail"] as? String {
+                throw NSError(domain: "APIClient", code: statusCode, userInfo: [NSLocalizedDescriptionKey: detail])
             }
-        } catch {
-            print("Apple auth endpoint network error: \(error)")
-            if (error as NSError).domain == "APIClient" {
-                throw error
-            }
+            throw NSError(domain: "APIClient", code: statusCode, userInfo: [NSLocalizedDescriptionKey: "Apple Sign In failed. Please try again."])
         }
 
-        // If a real email was obtained from Apple or saved state, attempt fallback login/register
-        if !cleanEmail.isEmpty {
-            do {
-                return try await login(email: cleanEmail, password: "AppleAuthPassword123!")
-            } catch {
-                return try await register(name: cleanName, email: cleanEmail, password: "AppleAuthPassword123!")
-            }
+        let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
+        DispatchQueue.main.async {
+            self.authToken = authRes.token
+            self.currentUser = authRes.user
+            self.userCredits = authRes.user.credits
+            self.paidCredits = authRes.user.paidCredits
+            self.isLoggedIn = true
+            AuthViewModel.shared.isLoggedIn = true
+            AuthViewModel.shared.currentUser = authRes.user
         }
-
-        throw NSError(domain: "APIClient", code: 400, userInfo: [NSLocalizedDescriptionKey: "Apple Sign In authentication failed. Please try Email or Google Sign In."])
+        if !authRes.user.email.isEmpty {
+            UserDefaults.standard.set(authRes.user.email, forKey: "saved_apple_email")
+        }
+        return authRes
     }
 
     public func login(email: String, password: String) async throws -> AuthResponse {
