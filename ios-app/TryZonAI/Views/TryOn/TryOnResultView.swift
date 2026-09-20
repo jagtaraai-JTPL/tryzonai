@@ -494,17 +494,21 @@ public struct TryOnResultView: View {
             return
         }
         isDownloading = true
-        Task { @MainActor in
+        Task {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 if let image = UIImage(data: data) {
                     UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                    isDownloading = false
-                    showToast("📸 HD Photo Saved to Camera Roll!")
+                    await MainActor.run {
+                        self.isDownloading = false
+                        self.showToast("📸 HD Photo Saved to Camera Roll!")
+                    }
                 }
             } catch {
-                isDownloading = false
-                showToast("Download failed — please retry")
+                await MainActor.run {
+                    self.isDownloading = false
+                    self.showToast("Download failed — please retry")
+                }
             }
         }
     }
@@ -512,14 +516,18 @@ public struct TryOnResultView: View {
     // MARK: - Share Image
     private func shareResultImage() {
         guard let url = URL(string: displayUrl) else { return }
-        Task { @MainActor in
+        Task {
             if let (data, _) = try? await URLSession.shared.data(from: url),
                let image = UIImage(data: data) {
-                sharedItems = [image, "Check out my AI virtual outfit try-on on TryZon AI! 🤩 #TryZonAI"]
-                showShareSheet = true
+                await MainActor.run {
+                    self.sharedItems = [image, "Check out my AI virtual outfit try-on on TryZon AI! 🤩 #TryZonAI"]
+                    self.showShareSheet = true
+                }
             } else {
-                sharedItems = [url]
-                showShareSheet = true
+                await MainActor.run {
+                    self.sharedItems = [url]
+                    self.showShareSheet = true
+                }
             }
         }
     }

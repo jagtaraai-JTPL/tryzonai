@@ -149,11 +149,13 @@ public struct AdminDashboardView: View {
         guard !targetEmail.isEmpty else { return }
         isGranting = true
 
-        Task { @MainActor in
+        Task {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
-            self.isGranting = false
-            self.showToast("👑 \(self.grantAmount) Credits Granted to \(self.targetEmail)!")
-            self.targetEmail = ""
+            await MainActor.run {
+                self.isGranting = false
+                self.showToast("👑 \(self.grantAmount) Credits Granted to \(self.targetEmail)!")
+                self.targetEmail = ""
+            }
         }
     }
 
