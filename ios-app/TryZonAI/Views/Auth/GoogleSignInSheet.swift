@@ -25,6 +25,7 @@ public struct GoogleSignInSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
+    @AppStorage("saved_google_email") private var savedGoogleEmail: String = ""
     @State private var googleEmail: String = ""
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
@@ -40,19 +41,19 @@ public struct GoogleSignInSheet: View {
 
     public var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
+            VStack(spacing: 18) {
                 Spacer(minLength: 10)
 
                 // ── 1. GOOGLE BRAND HEADER ──
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     ZStack {
                         Circle()
                             .fill(Color.white)
-                            .frame(width: 72, height: 72)
-                            .shadow(color: Color.black.opacity(0.12), radius: 10, y: 4)
+                            .frame(width: 68, height: 68)
+                            .shadow(color: Color.black.opacity(0.12), radius: 8, y: 3)
 
                         Text("G")
-                            .font(.system(size: 38, weight: .black, design: .rounded))
+                            .font(.system(size: 36, weight: .black, design: .rounded))
                             .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
                     }
 
@@ -60,7 +61,7 @@ public struct GoogleSignInSheet: View {
                         .font(.system(size: 22, weight: .bold))
                         .foregroundColor(TryZonTheme.textColor(for: colorScheme))
 
-                    Text("Choose an account to continue to TryZon AI")
+                    Text("Select a Google account to continue to TryZon AI")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
                         .multilineTextAlignment(.center)
@@ -74,10 +75,56 @@ public struct GoogleSignInSheet: View {
                         .padding(.horizontal)
                 }
 
-                // ── 2. QUICK GOOGLE ACCOUNT SELECTOR ──
-                VStack(spacing: 14) {
+                // ── 2. SAVED 1-TAP GOOGLE ACCOUNT CARD (IF SAVED) ──
+                if !savedGoogleEmail.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("GOOGLE EMAIL ADDRESS")
+                        Text("SAVED GOOGLE ACCOUNT (1-TAP SIGN IN)")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundColor(TryZonTheme.primaryGold)
+
+                        Button(action: {
+                            googleEmail = savedGoogleEmail
+                            performGoogleSignIn()
+                        }) {
+                            HStack(spacing: 12) {
+                                Circle()
+                                    .fill(Color(red: 66/255, green: 133/255, blue: 244/255).opacity(0.18))
+                                    .frame(width: 44, height: 44)
+                                    .overlay(
+                                        Text("G")
+                                            .font(.system(size: 20, weight: .black))
+                                            .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
+                                    )
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(savedGoogleEmail)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(TryZonTheme.textColor(for: colorScheme))
+                                    Text("✦ Instant 1-Tap Google Sign-In")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(TryZonTheme.primaryGold)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "arrow.right.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+                            }
+                            .padding(14)
+                            .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
+                            .cornerRadius(18)
+                            .overlay(RoundedRectangle(cornerRadius: 18).stroke(TryZonTheme.primaryGold, lineWidth: 1.2))
+                        }
+                        .buttonStyle(BounceButtonStyle())
+                    }
+                    .padding(.horizontal, 20)
+                }
+
+                // ── 3. ACCOUNT SELECTOR & INPUT ──
+                VStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(savedGoogleEmail.isEmpty ? "ENTER GOOGLE EMAIL" : "OR USE ANOTHER GOOGLE ACCOUNT")
                             .font(.system(size: 10, weight: .black))
                             .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
 
@@ -103,37 +150,6 @@ public struct GoogleSignInSheet: View {
                         .cornerRadius(14)
                     }
 
-                    // Quick Suggested Accounts (if empty)
-                    if googleEmail.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("QUICK SUGGESTIONS")
-                                .font(.system(size: 10, weight: .black))
-                                .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
-
-                            Button(action: {
-                                googleEmail = "user_\(UUID().uuidString.prefix(5).lowercased())@gmail.com"
-                            }) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "person.crop.circle.badge.plus")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(TryZonTheme.primaryGold)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Create Instant Google Guest Account")
-                                            .font(.system(size: 13, weight: .bold))
-                                            .foregroundColor(TryZonTheme.textColor(for: colorScheme))
-                                        Text("Claim 2 FREE Bonus Try-On Credits instantly")
-                                            .font(.system(size: 11))
-                                            .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
-                                    }
-                                    Spacer()
-                                }
-                                .padding(12)
-                                .background(TryZonTheme.surfaceVariantColor(for: colorScheme).opacity(0.6))
-                                .cornerRadius(12)
-                            }
-                        }
-                    }
-
                     // Primary Google Sign In Button
                     Button(action: performGoogleSignIn) {
                         HStack(spacing: 10) {
@@ -154,9 +170,9 @@ public struct GoogleSignInSheet: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: 52)
+                        .frame(height: 50)
                         .background(TryZonTheme.primaryGold)
-                        .cornerRadius(26)
+                        .cornerRadius(25)
                         .shadow(color: TryZonTheme.primaryGold.opacity(0.3), radius: 6, y: 3)
                     }
                     .disabled(isLoading)
@@ -167,18 +183,18 @@ public struct GoogleSignInSheet: View {
                         HStack(spacing: 8) {
                             Image(systemName: "safari")
                                 .font(.system(size: 14))
-                            Text("Open Google Web Login Sheet 🌐")
+                            Text("Select Account from Google Safari Web Sheet 🌐")
                                 .font(.system(size: 12.5, weight: .semibold))
                         }
                         .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                     }
                 }
                 .padding(.horizontal, 20)
 
-                // ── 3. PRIVACY & FOOTER ──
                 Spacer()
 
+                // Footer
                 VStack(spacing: 6) {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.seal.fill")
@@ -189,13 +205,13 @@ public struct GoogleSignInSheet: View {
                             .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                     }
 
-                    Text("To continue, Google will share your name, email address, and profile picture with TryZon AI.")
+                    Text("Google will securely share your email & profile to authenticate with TryZon AI.")
                         .font(.system(size: 10, weight: .regular))
                         .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
                 }
-                .padding(.bottom, 20)
+                .padding(.bottom, 16)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -207,7 +223,7 @@ public struct GoogleSignInSheet: View {
                 }
             }
             .sheet(isPresented: $showSafariWebLogin) {
-                if let url = URL(string: "https://accounts.google.com/signin") {
+                if let url = URL(string: "https://accounts.google.com/AccountChooser") {
                     SafariView(url: url)
                 }
             }
@@ -234,6 +250,7 @@ public struct GoogleSignInSheet: View {
                 _ = try await apiClient.loginWithGoogle(idToken: cleanEmail)
                 await MainActor.run {
                     self.isLoading = false
+                    self.savedGoogleEmail = cleanEmail
                     self.onLoginSuccess()
                     self.dismiss()
                 }
