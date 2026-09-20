@@ -1,5 +1,12 @@
 import SwiftUI
 
+public enum UserProfileSheet: String, Identifiable {
+    case premium
+    case dailyReward
+
+    public var id: String { rawValue }
+}
+
 public struct UserProfileView: View {
     @ObservedObject var apiClient: APIClient
     @ObservedObject private var authViewModel = AuthViewModel.shared
@@ -17,6 +24,13 @@ public struct UserProfileView: View {
 
     private var currentUser: UserProfile? {
         apiClient.currentUser ?? authViewModel.currentUser
+    }
+
+    private var displayName: String {
+        if let name = currentUser?.name, !name.isEmpty {
+            return name
+        }
+        return currentUser?.username ?? "TryZon Member"
     }
 
     public var body: some View {
@@ -47,7 +61,7 @@ public struct UserProfileView: View {
                         }
 
                         VStack(spacing: 4) {
-                            Text(currentUser?.name ?? currentUser?.username ?? "TryZon Member")
+                            Text(displayName)
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundColor(TryZonTheme.textColor(for: colorScheme))
 
