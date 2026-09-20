@@ -177,7 +177,7 @@ public struct LoginView: View {
                             .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                             .keyboardType(.emailAddress)
                             .autocapitalization(.none)
-                            .autocorrectionDisabled(true)
+                            .disableAutocorrection(true)
                     }
                     .padding(14)
                     .background(TryZonTheme.surfaceVariantColor(for: colorScheme))

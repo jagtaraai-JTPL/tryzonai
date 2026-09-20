@@ -104,7 +104,7 @@ public struct RegisterView: View {
                             .foregroundColor(.white)
                             .keyboardType(.emailAddress)
                             .autocapitalization(.none)
-                            .autocorrectionDisabled(true)
+                            .disableAutocorrection(true)
                     }
                     .padding(14)
                     .background(TryZonTheme.surfaceVariant)
