@@ -22,6 +22,10 @@ public struct SideDrawer: View {
     @State private var showPurchaseHistorySheet = false
     @State private var showSubscriptionManagementSheet = false
     @State private var showGuidedTourSheet = false
+    @State private var showThemeSettingsSheet = false
+    @State private var showNotificationSettingsSheet = false
+    @State private var showDailyStyleSettingsSheet = false
+    @State private var showFashionPreferencesSheet = false
     @State private var toastMessage: String? = nil
 
     public init(isOpen: Binding<Bool>, apiClient: APIClient) {
@@ -199,22 +203,23 @@ public struct SideDrawer: View {
                         // ── SECTION 2: AI CONTROL & PREFERENCES ──
                         sidebarSection(title: "AI CONTROL & PREFERENCES") {
                             sidebarItem(icon: isDarkTheme ? "sun.max.fill" : "moon.fill", title: isDarkTheme ? "Light Theme" : "Dark Theme", subtitle: "Switch visual appearance", badge: isDarkTheme ? "Dark 🌙" : "Light ☀️") {
-                                isDarkTheme.toggle()
-                                showToast(isDarkTheme ? "🌙 Dark Theme Active" : "☀️ Light Theme Active")
+                                closeDrawer()
+                                showThemeSettingsSheet = true
                             }
 
                             sidebarItem(icon: pushEnabled ? "bell.fill" : "bell.slash.fill", title: "Push Notifications", subtitle: pushEnabled ? "Active for Try-On alerts" : "Disabled", badge: pushEnabled ? "ON" : "OFF") {
-                                pushEnabled.toggle()
-                                showToast(pushEnabled ? "🔔 Push Notifications ON" : "🔕 Push Notifications OFF")
+                                closeDrawer()
+                                showNotificationSettingsSheet = true
                             }
 
                             sidebarItem(icon: "tshirt.fill", title: "Daily AI Style Engine", subtitle: dailyStyleEnabled ? "Automated daily outfit suggestions" : "Disabled", badge: dailyStyleEnabled ? "ACTIVE" : "OFF") {
-                                dailyStyleEnabled.toggle()
-                                showToast(dailyStyleEnabled ? "✨ Daily AI Style Active" : "Daily AI Style Disabled")
+                                closeDrawer()
+                                showDailyStyleSettingsSheet = true
                             }
 
                             sidebarItem(icon: "person.2.fill", title: "Fashion Preference", subtitle: genderSubtitle(userGender), badge: userGender) {
-                                cycleGender()
+                                closeDrawer()
+                                showFashionPreferencesSheet = true
                             }
                         }
 
@@ -333,6 +338,18 @@ public struct SideDrawer: View {
         }
         .sheet(isPresented: $showGuidedTourSheet) {
             GuidedTourView()
+        }
+        .sheet(isPresented: $showThemeSettingsSheet) {
+            ThemeSettingsView()
+        }
+        .sheet(isPresented: $showNotificationSettingsSheet) {
+            NotificationSettingsView()
+        }
+        .sheet(isPresented: $showDailyStyleSettingsSheet) {
+            DailyStyleSettingsView(apiClient: apiClient)
+        }
+        .sheet(isPresented: $showFashionPreferencesSheet) {
+            FashionPreferencesView()
         }
         .confirmationDialog("Logout Session", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
             Button("Logout", role: .destructive) {
