@@ -165,7 +165,7 @@ public struct TryOnProcessingView: View {
             }
             .padding(20)
         }
-        .task {
+        .onAppear {
             startPollingLoop()
             startTipTimer()
         }
