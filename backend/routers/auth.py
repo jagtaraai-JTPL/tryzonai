@@ -301,9 +301,10 @@ async def register(req: RegisterRequest, request: Request, db: AsyncSession = De
     # However, to stop massive bot registration, we can just use Redis or an in-memory cache.
     # For now, let's just make sure the email is completely unique and valid.
     
-    # Check duplicate email
-    existing = await db.execute(select(User).where(User.email == req.email))
-    if existing.scalar_one_or_none():
+    # Check duplicate email (case-insensitive)
+    clean_email = str(req.email).strip().lower()
+    existing = await db.execute(select(User).where(func.lower(User.email) == clean_email))
+    if existing.scalars().first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
     # For TryZon, we use 'name' as 'username' internally if username isn't provided
@@ -311,13 +312,13 @@ async def register(req: RegisterRequest, request: Request, db: AsyncSession = De
     
     # Ensure unique username
     existing_u = await db.execute(select(User).where(User.username == username))
-    if existing_u.scalar_one_or_none():
+    if existing_u.scalars().first():
         import random
         username += str(random.randint(100, 999))
 
     _welcome_expiry = datetime.now(timezone.utc) + timedelta(hours=24)
     user = User(
-        email=req.email,
+        email=clean_email,
         username=username,
         full_name=req.name,
         hashed_password=hash_password(req.password),
@@ -369,8 +370,9 @@ async def register(req: RegisterRequest, request: Request, db: AsyncSession = De
 
 @router.post("/login", response_model=LoginResponse)
 async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == req.email))
-    user = result.scalar_one_or_none()
+    clean_email = str(req.email or "").strip().lower()
+    result = await db.execute(select(User).where(func.lower(User.email) == clean_email))
+    user = result.scalars().first()
 
     safe_pwd = (req.password or "")[:72]
     if not user or not user.hashed_password or not verify_password(safe_pwd, user.hashed_password):
@@ -510,11 +512,12 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
     if not email:
         raise HTTPException(status_code=400, detail="Google token payload missing email")
 
-    result = await db.execute(select(User).where(User.email == email))
+    clean_email = str(email).strip().lower()
+    result = await db.execute(select(User).where(func.lower(User.email) == clean_email))
     user = result.scalars().first()
 
     if not user:
-        username = email.split("@")[0].lower()
+        username = clean_email.split("@")[0].lower()
         existing_u = await db.execute(select(User).where(User.username == username))
         if existing_u.scalars().first():
             import random
@@ -525,7 +528,7 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
         
         _welcome_expiry = datetime.now(timezone.utc) + timedelta(hours=24)
         user = User(
-            email=email,
+            email=clean_email,
             username=username,
             full_name=name,
             hashed_password=hash_password(dummy_password),
@@ -618,14 +621,14 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
 
     if not email:
         raise HTTPException(status_code=400, detail="Missing Apple email or identity token")
-    email = email.strip().lower()
+    clean_email = email.strip().lower()
 
     # Query DB using or_ to find user by email, jwt_email, relay_email, or username (apple_sub)
-    query_conds = [User.email == email]
-    if relay_email and relay_email != email:
-        query_conds.append(User.email == relay_email)
-    if jwt_email and jwt_email.strip().lower() != email:
-        query_conds.append(User.email == jwt_email.strip().lower())
+    query_conds = [func.lower(User.email) == clean_email]
+    if relay_email and relay_email.strip().lower() != clean_email:
+        query_conds.append(func.lower(User.email) == relay_email.strip().lower())
+    if jwt_email and jwt_email.strip().lower() != clean_email:
+        query_conds.append(func.lower(User.email) == jwt_email.strip().lower())
     if apple_sub:
         query_conds.append(User.username == f"apple_{apple_sub[:80]}")
 
