@@ -156,7 +156,8 @@ public struct ProductDetailView: View {
                     .buttonStyle(BounceButtonStyle())
 
                     Button(action: {
-                        if let url = URL(string: "https://myntra.com") {
+                        let targetStoreUrl = (item.store_url != nil && !item.store_url!.isEmpty) ? item.store_url! : "https://myntra.com"
+                        if let url = URL(string: targetStoreUrl) {
                             UIApplication.shared.open(url)
                         }
                     }) {

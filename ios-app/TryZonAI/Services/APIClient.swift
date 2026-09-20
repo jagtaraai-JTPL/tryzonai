@@ -139,9 +139,13 @@ public class APIClient: ObservableObject {
         session.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 if let data = data,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let credits = json["credits"] as? Int {
-                    self?.userCredits = credits
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let credits = json["credits"] as? Int {
+                        self?.userCredits = credits
+                    }
+                    if let paid = json["paid_credits"] as? Int {
+                        self?.paidCredits = paid
+                    }
                 }
             }
         }.resume()

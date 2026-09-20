@@ -461,15 +461,6 @@ public struct TryOnUploadView: View {
     }
 
     private func executeTryOnFlow() {
-        if viewModel.selectedGarmentImage == nil && !sampleOutfits.isEmpty {
-            let firstOutfit = sampleOutfits[0]
-            selectedOutfitUrl = firstOutfit.imageUrl
-            loadSampleGarmentImage(urlStr: firstOutfit.imageUrl)
-        }
-        if viewModel.selectedPersonImage == nil {
-            loadSamplePersonImage(urlStr: samplePersonModelUrl)
-        }
-
         if !authViewModel.canExecuteTryOn() {
             if authViewModel.showLoginRequiredModal {
                 showLoginRequiredModal = true
@@ -478,23 +469,58 @@ public struct TryOnUploadView: View {
             }
             return
         }
-        authViewModel.deductTryOnCredit()
-        runActualTryOnSubmission()
-    }
 
-    private func runActualTryOnSubmission() {
         Task {
-            await viewModel.startTryOn { sessionId in
+            let (person, garment) = await ensureImagesPrepared()
+            guard person != nil, garment != nil else {
+                DispatchQueue.main.async {
+                    self.viewModel.errorMessage = "Please upload both your photo and garment image."
+                }
+                return
+            }
+
+            self.authViewModel.deductTryOnCredit()
+            await self.viewModel.startTryOn { sessionId in
                 self.navPath = [.processing(sessionId)]
             }
         }
     }
 
+    private func ensureImagesPrepared() async -> (UIImage?, UIImage?) {
+        var personImg = viewModel.selectedPersonImage
+        var garmentImg = viewModel.selectedGarmentImage
+
+        if personImg == nil {
+            personImg = await downloadSampleImage(from: samplePersonModelUrl)
+            if let img = personImg {
+                DispatchQueue.main.async { self.viewModel.selectedPersonImage = img }
+            }
+        }
+
+        if garmentImg == nil && !sampleOutfits.isEmpty {
+            let outfitUrl = selectedOutfitUrl.isEmpty ? sampleOutfits[0].imageUrl : selectedOutfitUrl
+            garmentImg = await downloadSampleImage(from: outfitUrl)
+            if let img = garmentImg {
+                DispatchQueue.main.async { self.viewModel.selectedGarmentImage = img }
+            }
+        }
+
+        return (personImg, garmentImg)
+    }
+
+    private func downloadSampleImage(from urlStr: String) async -> UIImage? {
+        guard let url = URL(string: urlStr),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let img = UIImage(data: data) else {
+            return nil
+        }
+        return img
+    }
+
     private func loadSampleGarmentImage(urlStr: String) {
         guard let url = URL(string: urlStr) else { return }
         Task {
-            if let (data, _) = try? await URLSession.shared.data(from: url),
-               let img = UIImage(data: data) {
+            if let img = await downloadSampleImage(from: urlStr) {
                 DispatchQueue.main.async {
                     self.viewModel.selectedGarmentImage = img
                 }
@@ -505,8 +531,7 @@ public struct TryOnUploadView: View {
     private func loadSamplePersonImage(urlStr: String) {
         guard let url = URL(string: urlStr) else { return }
         Task {
-            if let (data, _) = try? await URLSession.shared.data(from: url),
-               let img = UIImage(data: data) {
+            if let img = await downloadSampleImage(from: urlStr) {
                 DispatchQueue.main.async {
                     self.viewModel.selectedPersonImage = img
                 }
