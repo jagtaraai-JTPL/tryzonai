@@ -149,7 +149,8 @@ public struct AdminDashboardView: View {
         guard !targetEmail.isEmpty else { return }
         isGranting = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
             self.isGranting = false
             self.showToast("👑 \(self.grantAmount) Credits Granted to \(self.targetEmail)!")
             self.targetEmail = ""

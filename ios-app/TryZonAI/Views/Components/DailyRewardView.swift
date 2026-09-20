@@ -137,24 +137,19 @@ public struct DailyRewardView: View {
         guard adCountToday < maxAds else { return }
         isLoadingAd = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            Task {
-                do {
-                    try await apiClient.claimRewardCredit(amount: 1)
-                    DispatchQueue.main.async {
-                        self.isLoadingAd = false
-                        self.adCountToday += 1
-                        let today = AuthViewModel.todayDateString()
-                        UserDefaults.standard.set(self.adCountToday, forKey: "ad_reward_count")
-                        UserDefaults.standard.set(today, forKey: "ad_reward_date")
-                        self.showToast("🎁 +0.5 Credit Claimed! Total: \(self.adCountToday)/\(self.maxAds)")
-                    }
-                } catch {
-                    DispatchQueue.main.async {
-                        self.isLoadingAd = false
-                        self.showToast("Ad reward error — please retry")
-                    }
-                }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            do {
+                try await apiClient.claimRewardCredit(amount: 1)
+                self.isLoadingAd = false
+                self.adCountToday += 1
+                let today = AuthViewModel.todayDateString()
+                UserDefaults.standard.set(self.adCountToday, forKey: "ad_reward_count")
+                UserDefaults.standard.set(today, forKey: "ad_reward_date")
+                self.showToast("🎁 +0.5 Credit Claimed! Total: \(self.adCountToday)/\(self.maxAds)")
+            } catch {
+                self.isLoadingAd = false
+                self.showToast("Ad reward error — please retry")
             }
         }
     }

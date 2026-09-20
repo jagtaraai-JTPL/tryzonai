@@ -494,21 +494,17 @@ public struct TryOnResultView: View {
             return
         }
         isDownloading = true
-        Task {
+        Task { @MainActor in
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 if let image = UIImage(data: data) {
                     UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                    DispatchQueue.main.async {
-                        isDownloading = false
-                        showToast("📸 HD Photo Saved to Camera Roll!")
-                    }
+                    isDownloading = false
+                    showToast("📸 HD Photo Saved to Camera Roll!")
                 }
             } catch {
-                DispatchQueue.main.async {
-                    isDownloading = false
-                    showToast("Download failed — please retry")
-                }
+                isDownloading = false
+                showToast("Download failed — please retry")
             }
         }
     }
@@ -516,18 +512,14 @@ public struct TryOnResultView: View {
     // MARK: - Share Image
     private func shareResultImage() {
         guard let url = URL(string: displayUrl) else { return }
-        Task {
+        Task { @MainActor in
             if let (data, _) = try? await URLSession.shared.data(from: url),
                let image = UIImage(data: data) {
-                DispatchQueue.main.async {
-                    sharedItems = [image, "Check out my AI virtual outfit try-on on TryZon AI! 🤩 #TryZonAI"]
-                    showShareSheet = true
-                }
+                sharedItems = [image, "Check out my AI virtual outfit try-on on TryZon AI! 🤩 #TryZonAI"]
+                showShareSheet = true
             } else {
-                DispatchQueue.main.async {
-                    sharedItems = [url]
-                    showShareSheet = true
-                }
+                sharedItems = [url]
+                showShareSheet = true
             }
         }
     }
