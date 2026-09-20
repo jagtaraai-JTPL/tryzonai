@@ -447,6 +447,7 @@ public class APIClient: ObservableObject {
     public func logout() {
         UserDefaults.standard.removeObject(forKey: "tryzon_session_id")
         UserDefaults.standard.removeObject(forKey: "auth_token")
+        UserDefaults.standard.removeObject(forKey: "saved_apple_email")
         authToken = nil
         currentUser = nil
         isLoggedIn = false
