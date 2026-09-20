@@ -142,8 +142,36 @@ public struct ComplementProduct: Codable, Identifiable {
     public var url: String?
     public var matchScore: Int?
 
+    public init(
+        id: String,
+        name: String,
+        category: String,
+        price: Int,
+        imageUrl: String? = nil,
+        url: String? = nil,
+        matchScore: Int? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.category = category
+        self.price = price
+        self.imageUrl = imageUrl
+        self.url = url
+        self.matchScore = matchScore
+    }
+
     public var fullImageURL: URL? {
         return resolveURL(imageUrl)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case category
+        case price
+        case imageUrl = "image_url"
+        case url
+        case matchScore = "match_score"
     }
 }
 
