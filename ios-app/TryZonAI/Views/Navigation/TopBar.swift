@@ -26,11 +26,27 @@ public struct TopBar: View {
                         Text("Pro ✨")
                             .font(.system(size: 12, weight: .black))
                             .foregroundColor(TryZonTheme.primaryGold)
-                    } else {
+                    } else if apiClient.paidCredits > 0 {
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 10))
                             .foregroundColor(TryZonTheme.primaryGold)
-                        Text("\(apiClient.userCredits) Credits")
+                        Text("\(apiClient.paidCredits) Paid")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(TryZonTheme.textColor(for: colorScheme))
+                    } else if apiClient.bonusCredits > 0 {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 10))
+                            .foregroundColor(TryZonTheme.primaryGold)
+                        Text("\(apiClient.bonusCredits) Bonus")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(TryZonTheme.textColor(for: colorScheme))
+                    } else {
+                        let dailyCount = AuthViewModel.shared.dailyTryCount
+                        let freeText = dailyCount < 1 ? "1/1 Free" : "0/1 Free"
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(dailyCount < 1 ? TryZonTheme.primaryGold : .red)
+                        Text(freeText)
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                     }

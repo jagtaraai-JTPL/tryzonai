@@ -19,6 +19,9 @@ public struct UserProfile: Codable, Identifiable {
     public var name: String?
     public var credits: Int
     public var paidCredits: Int
+    public var bonusCredits: Int
+    public var bonusCreditsExpiry: String?
+    public var welcomeBonusGiven: Bool
     public var isPremium: Bool
     public var tryOnsToday: Int
     public var tryOnsLimit: Int
@@ -26,13 +29,32 @@ public struct UserProfile: Codable, Identifiable {
     public var dailyRewardAdCount: Int
     public var prefGender: String?
 
-    public init(id: Int, email: String, username: String, name: String? = nil, credits: Int = 3, paidCredits: Int = 0, isPremium: Bool = false, tryOnsToday: Int = 0, tryOnsLimit: Int = 1, subscriptionTier: String? = nil, dailyRewardAdCount: Int = 0, prefGender: String? = "Women") {
+    public init(
+        id: Int,
+        email: String,
+        username: String,
+        name: String? = nil,
+        credits: Int = 1,
+        paidCredits: Int = 0,
+        bonusCredits: Int = 0,
+        bonusCreditsExpiry: String? = nil,
+        welcomeBonusGiven: Bool = false,
+        isPremium: Bool = false,
+        tryOnsToday: Int = 0,
+        tryOnsLimit: Int = 1,
+        subscriptionTier: String? = nil,
+        dailyRewardAdCount: Int = 0,
+        prefGender: String? = "Women"
+    ) {
         self.id = id
         self.email = email
         self.username = username
         self.name = name
         self.credits = credits
         self.paidCredits = paidCredits
+        self.bonusCredits = bonusCredits
+        self.bonusCreditsExpiry = bonusCreditsExpiry
+        self.welcomeBonusGiven = welcomeBonusGiven
         self.isPremium = isPremium
         self.tryOnsToday = tryOnsToday
         self.tryOnsLimit = tryOnsLimit
@@ -48,6 +70,9 @@ public struct UserProfile: Codable, Identifiable {
         case name
         case credits
         case paidCredits = "paid_credits"
+        case bonusCredits = "bonus_credits"
+        case bonusCreditsExpiry = "bonus_credits_expiry"
+        case welcomeBonusGiven = "welcome_bonus_given"
         case isPremium = "is_premium"
         case tryOnsToday = "try_ons_today"
         case tryOnsLimit = "try_ons_limit"

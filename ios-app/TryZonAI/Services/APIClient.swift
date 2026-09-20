@@ -6,8 +6,9 @@ public class APIClient: ObservableObject {
     public static let shared = APIClient()
 
     @Published public var currentUser: UserProfile?
-    @Published public var userCredits: Int = 3
+    @Published public var userCredits: Int = 1
     @Published public var paidCredits: Int = 0
+    @Published public var bonusCredits: Int = 0
     @Published public var isLoggedIn: Bool = false
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String?
@@ -117,6 +118,7 @@ public class APIClient: ObservableObject {
                     self?.currentUser = user
                     self?.userCredits = user.credits
                     self?.paidCredits = user.paidCredits
+                    self?.bonusCredits = user.bonusCredits
                     let isGuest = user.email.lowercased().contains("ios_guest_") || user.email.lowercased().contains("guest_")
                     let realLoggedIn = !isGuest
                     self?.isLoggedIn = realLoggedIn

@@ -79,21 +79,21 @@ public struct ChoicePopup: View {
                         .font(.system(size: 18, weight: .black, design: .rounded))
                         .foregroundColor(TryZonTheme.primaryGold)
 
-                    Text("You have \(apiClient.userCredits + apiClient.paidCredits) credits remaining today")
+                    Text("Daily free try used (0/1 Free) • \(apiClient.paidCredits + apiClient.bonusCredits) credits remaining")
                         .font(.system(size: 12))
                         .foregroundColor(.white.opacity(0.7))
                 }
 
                 VStack(spacing: 12) {
-                    // Option 1: Use Paid / Free Credit (Fast Pass Zero Ads)
-                    if (apiClient.userCredits + apiClient.paidCredits) > 0 {
+                    // Option 1: Use Paid / Bonus Credit (Fast Pass Zero Ads)
+                    if (apiClient.paidCredits + apiClient.bonusCredits) > 0 {
                         Button(action: {
                             isPresented = false
                             onUseCredit()
                         }) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("⚡ Use 1 Credit")
+                                    Text("⚡ Use 1 Credit (\(apiClient.paidCredits) Paid / \(apiClient.bonusCredits) Bonus)")
                                         .font(.system(size: 15, weight: .bold))
                                         .foregroundColor(.black)
                                     Text("100% Zero Ads • Instant Fast Pass")

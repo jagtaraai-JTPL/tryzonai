@@ -478,6 +478,7 @@ public struct TryOnUploadView: View {
             }
             return
         }
+        authViewModel.deductTryOnCredit()
         runActualTryOnSubmission()
     }
 
