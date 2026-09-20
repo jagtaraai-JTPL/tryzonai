@@ -28,6 +28,7 @@ public struct UserProfile: Codable, Identifiable {
     public var subscriptionTier: String?
     public var dailyRewardAdCount: Int
     public var prefGender: String?
+    public var isAdmin: Bool?
 
     public init(
         id: Int,
@@ -44,7 +45,8 @@ public struct UserProfile: Codable, Identifiable {
         tryOnsLimit: Int = 1,
         subscriptionTier: String? = nil,
         dailyRewardAdCount: Int = 0,
-        prefGender: String? = "Women"
+        prefGender: String? = "Women",
+        isAdmin: Bool? = false
     ) {
         self.id = id
         self.email = email
@@ -61,6 +63,7 @@ public struct UserProfile: Codable, Identifiable {
         self.subscriptionTier = subscriptionTier
         self.dailyRewardAdCount = dailyRewardAdCount
         self.prefGender = prefGender
+        self.isAdmin = isAdmin
     }
 
     enum CodingKeys: String, CodingKey {
@@ -79,6 +82,7 @@ public struct UserProfile: Codable, Identifiable {
         case subscriptionTier = "subscription_tier"
         case dailyRewardAdCount = "daily_reward_ad_count"
         case prefGender = "pref_gender"
+        case isAdmin = "is_admin"
     }
 }
 
