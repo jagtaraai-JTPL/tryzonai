@@ -213,7 +213,37 @@ public class APIClient: ObservableObject {
         let cleanEmail = (email != nil && !email!.isEmpty) ? email! : "apple_user_\(UUID().uuidString.prefix(6))@tryzonai.com"
         let cleanName = (name != nil && !name!.isEmpty) ? name! : "Apple User"
 
-        // Try logging in or auto-register if new user
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/apple"))
+        request.httpMethod = "POST"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+        let bodyObj: [String: Any] = [
+            "email": cleanEmail,
+            "name": cleanName,
+            "id_token": cleanEmail
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: bodyObj)
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
+                let authRes = try JSONDecoder().decode(AuthResponse.self, from: data)
+                DispatchQueue.main.async {
+                    self.authToken = authRes.token
+                    self.currentUser = authRes.user
+                    self.userCredits = authRes.user.credits
+                    self.paidCredits = authRes.user.paidCredits
+                    self.isLoggedIn = true
+                    AuthViewModel.shared.isLoggedIn = true
+                    AuthViewModel.shared.currentUser = authRes.user
+                }
+                return authRes
+            }
+        } catch {
+            print("Apple auth endpoint error: \(error)")
+        }
+
+        // Fail-safe fallback login/register
         do {
             return try await login(email: cleanEmail, password: "AppleAuthPassword123!")
         } catch {

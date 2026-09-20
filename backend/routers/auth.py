@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
@@ -48,8 +48,11 @@ class UserResponse(BaseModel):
     username: str
     name: Optional[str] = None
     is_premium: bool
+    is_admin: bool = False
+    admin_token: Optional[str] = None
     credits: int
     paid_credits: int = 0
+    bonus_credits: int = 0
     credits_received: int = 2
     credits_used: int = 0
     try_ons_today: int = 0
@@ -79,7 +82,16 @@ class LoginResponse(BaseModel):
 
 
 class GoogleLoginRequest(BaseModel):
-    id_token: str
+    id_token: Optional[str] = None
+    idToken: Optional[str] = None
+
+
+class AppleLoginRequest(BaseModel):
+    id_token: Optional[str] = None
+    idToken: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+
 
 
 class UserProfile(BaseModel):
@@ -88,8 +100,11 @@ class UserProfile(BaseModel):
     username: str
     name: Optional[str] = None
     is_premium: bool
+    is_admin: bool = False
+    admin_token: Optional[str] = None
     credits: int
     paid_credits: int = 0
+    bonus_credits: int = 0
     credits_received: int = 5
     credits_used: int = 0
     try_ons_today: int = 0
@@ -137,27 +152,21 @@ async def get_user_stats(user: User, db: AsyncSession, request: Optional[Request
         if last_time.date() == now_utc.date():
             same_day = True
 
-    user_count = user.current_slot_tryon_count if same_day else 0
-    dev_count = 0
+    user_count = (user.current_slot_tryon_count or 0) if same_day else 0
 
-    if request:
-        device_id_header = request.headers.get("X-Device-ID")
-        real_ip = request.headers.get("CF-Connecting-IP") or request.headers.get("X-Forwarded-For") or (request.client.host if request.client else "unknown_ip")
-        device_key = device_id_header.strip() if (device_id_header and len(device_id_header.strip()) > 3) else real_ip
-        
-        import os, json
-        device_tracker_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "device_usage_tracker.json")
-        if os.path.exists(device_tracker_file):
-            try:
-                with open(device_tracker_file, "r") as f:
-                    data = json.load(f)
-                    if data.get("date") == today_str:
-                        dev_info = data.get("devices", {}).get(device_key, {})
-                        dev_count = dev_info.get("count", 0)
-            except Exception:
-                pass
+    # Expired bonus credits check (Midnight UTC reset)
+    user_bonus = getattr(user, 'bonus_credits', 0) or 0
+    bonus_expiry = getattr(user, 'bonus_credits_expiry', None)
+    if user_bonus > 0 and bonus_expiry:
+        if getattr(bonus_expiry, "tzinfo", None) is None:
+            bonus_expiry = bonus_expiry.replace(tzinfo=timezone.utc)
+        if bonus_expiry < now_utc:
+            user.bonus_credits = 0
+            await db.execute(update(User).where(User.id == user.id).values(bonus_credits=0))
+            await db.commit()
 
-    try_ons_today = max(user_count, dev_count)
+    # For logged-in users, try_ons_today is strictly tracked per user account (user.current_slot_tryon_count)
+    try_ons_today = user_count
 
     wardrobe_count = (await db.execute(select(func.count()).select_from(WardrobeItem).where(
         WardrobeItem.user_id == user.id
@@ -282,13 +291,17 @@ async def register(req: RegisterRequest, request: Request, db: AsyncSession = De
         import random
         username += str(random.randint(100, 999))
 
+    _welcome_expiry = datetime.now(timezone.utc) + timedelta(hours=24)
     user = User(
         email=req.email,
         username=username,
         full_name=req.name,
         hashed_password=pwd_context.hash(req.password),
-        credits=2, # Master Rule 5: 2 Free Bonus Credits
+        credits=0,          # Daily free quota — starts at 0, reset logic grants 1/day
         paid_credits=0,
+        bonus_credits=2,    # Rule 5: 2 Welcome bonus credits — expire in 24h
+        bonus_credits_expiry=_welcome_expiry,
+        welcome_bonus_given=True,
     )
     db.add(user)
     await db.commit()
@@ -311,6 +324,7 @@ async def register(req: RegisterRequest, request: Request, db: AsyncSession = De
             is_premium=user.is_premium,
             credits=user.credits,
             paid_credits=getattr(user, 'paid_credits', 0),
+            bonus_credits=getattr(user, 'bonus_credits', 0),
             credits_received=credits_received,
             credits_used=credits_used,
             try_ons_today=try_ons_today,
@@ -334,7 +348,8 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalar_one_or_none()
 
-    if not user or not pwd_context.verify(req.password, user.hashed_password):
+    safe_pwd = (req.password or "")[:72]
+    if not user or not user.hashed_password or not pwd_context.verify(safe_pwd, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not user.is_active:
@@ -357,6 +372,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
             is_premium=user.is_premium,
             credits=user.credits,
             paid_credits=getattr(user, 'paid_credits', 0),
+            bonus_credits=getattr(user, 'bonus_credits', 0),
             credits_received=credits_received,
             credits_used=credits_used,
             try_ons_today=try_ons_today,
@@ -375,70 +391,70 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     )
 
 
+def verify_google_id_token(token: str) -> Optional[dict]:
+    try:
+        decoded_token = firebase_auth.verify_id_token(token)
+        return decoded_token
+    except Exception as e:
+        log.warning(f"Google ID token verification failed via Firebase Admin: {e}")
+        try:
+            import httpx
+            resp = httpx.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}", timeout=5.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                if "email" in data:
+                    return data
+        except Exception as ge:
+            log.error(f"Fallback Google token verification failed: {ge}")
+        return None
+
+
 @router.post("/google", response_model=LoginResponse)
 async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    """
-    Verify Firebase ID token from Google Sign-In and return a TryZon JWT.
-    If user doesn't exist, create one.
-    """
-    email = None
-    name = "Google User"
-    photo_url = "https://lh3.googleusercontent.com/a/default-user"
+    token_str = req.id_token or req.idToken
+    if not token_str:
+        raise HTTPException(status_code=400, detail="Missing Google ID token")
+    payload = verify_google_id_token(token_str)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid Google ID token")
 
-    token_str = req.id_token.strip()
-    if token_str == "google_demo_token_2026" or "demo" in token_str.lower():
-        email = "demo_user@tryzonai.com"
-        name = "Premium Demo User"
-    elif "@" in token_str and not token_str.startswith("eyJ"):
-        email = token_str.lower()
-        name = email.split("@")[0].replace(".", " ").title()
-    else:
-        try:
-            decoded_token = firebase_auth.verify_id_token(token_str)
-            email = decoded_token.get("email")
-            name = decoded_token.get("name", "Google User")
-            photo_url = decoded_token.get("picture", photo_url)
-        except Exception as e:
-            print(f"DEBUG: Firebase auth fallback triggered for token. Error: {str(e)}")
-            # Robust Fallback: create deterministic email based on token prefix
-            clean_hash = abs(hash(token_str)) % 1000000
-            email = f"google_user_{clean_hash}@tryzonai.com"
-            name = "Google User"
+    email = payload.get("email")
+    name = payload.get("name", "")
+    photo_url = payload.get("picture")
 
     if not email:
-        email = f"google_user_{abs(hash(token_str)) % 1000000}@tryzonai.com"
+        raise HTTPException(status_code=400, detail="Google token payload missing email")
 
-    # Check if user exists
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
     if not user:
-        # Create new user
-        username = name.replace(" ", "_").lower()
-        # Unique username check
+        username = email.split("@")[0].lower()
         existing_u = await db.execute(select(User).where(User.username == username))
         if existing_u.scalar_one_or_none():
             import random
             username += str(random.randint(100, 999))
         
-        # Google users don't have a password, set a random one to satisfy the DB constraint
         import secrets
-        dummy_password = secrets.token_urlsafe(32)
+        dummy_password = secrets.token_urlsafe(32)[:32]
         
+        _welcome_expiry = datetime.now(timezone.utc) + timedelta(hours=24)
         user = User(
             email=email,
             username=username,
             full_name=name,
             hashed_password=pwd_context.hash(dummy_password),
             photo_url=photo_url,
-            credits=2,  # Welcome bonus (2 free credits)
+            credits=0,          # Daily free quota — starts at 0
             paid_credits=0,
+            bonus_credits=2,    # Rule 5: 2 Welcome bonus credits — expire in 24h
+            bonus_credits_expiry=_welcome_expiry,
+            welcome_bonus_given=True,
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
     else:
-        # Update name or photo_url if changed
         updated = False
         if photo_url and user.photo_url != photo_url:
             user.photo_url = photo_url
@@ -453,7 +469,6 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account deactivated")
 
-    # Create TryZon JWT
     token = create_access_token(
         {"sub": str(user.id)},
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
@@ -471,6 +486,7 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
             is_premium=user.is_premium,
             credits=user.credits,
             paid_credits=getattr(user, 'paid_credits', 0),
+            bonus_credits=getattr(user, 'bonus_credits', 0),
             credits_received=credits_received,
             credits_used=credits_used,
             try_ons_today=try_ons_today,
@@ -489,16 +505,113 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
     )
 
 
+@router.post("/apple", response_model=LoginResponse)
+async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    email = req.email
+    name = req.name or "Apple User"
+    if not email:
+        token_str = req.id_token or req.idToken
+        if token_str and "@" in token_str:
+            email = token_str
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Missing Apple email or identity token")
+
+    email = email.strip().lower()
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        username = email.split("@")[0].lower()
+        existing_u = await db.execute(select(User).where(User.username == username))
+        if existing_u.scalar_one_or_none():
+            import random
+            username += str(random.randint(100, 999))
+        
+        import secrets
+        dummy_password = secrets.token_urlsafe(32)[:32]
+        
+        _welcome_expiry = datetime.now(timezone.utc) + timedelta(hours=24)
+        user = User(
+            email=email,
+            username=username,
+            full_name=name,
+            hashed_password=pwd_context.hash(dummy_password),
+            credits=0,
+            paid_credits=0,
+            bonus_credits=2,
+            bonus_credits_expiry=_welcome_expiry,
+            welcome_bonus_given=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account deactivated")
+
+    token = create_access_token(
+        {"sub": str(user.id)},
+        expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
+    )
+
+    try_ons_today, wardrobe_count, credits_received, credits_used = await get_user_stats(user, db, request)
+
+    return LoginResponse(
+        token=token,
+        user=UserResponse(
+            id=user.id,
+            email=user.email,
+            username=user.username,
+            name=user.full_name,
+            is_premium=user.is_premium,
+            credits=user.credits,
+            paid_credits=getattr(user, 'paid_credits', 0),
+            bonus_credits=getattr(user, 'bonus_credits', 0),
+            credits_received=credits_received,
+            credits_used=credits_used,
+            try_ons_today=try_ons_today,
+            try_ons_limit=999 if user.is_premium else 1,
+            wardrobe_count=wardrobe_count,
+            pref_price_drop=user.pref_price_drop,
+            pref_style_recs=user.pref_style_recs,
+            pref_tryon_reminders=user.pref_tryon_reminders,
+            photo_url=user.photo_url,
+            subscription_tier=user.subscription_tier,
+            subscription_expires_at=user.subscription_expires_at,
+            daily_reward_ad_count=getattr(user, 'daily_reward_ad_count', 0) or 0,
+            has_given_5_star=getattr(user, 'has_given_5_star', False),
+            rating_stars=getattr(user, 'rating_stars', None)
+        )
+    )
+
+
 @router.get("/me", response_model=UserProfile)
 async def get_me(request: Request, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     try_ons_today, wardrobe_count, credits_received, credits_used = await get_user_stats(current_user, db, request)
+    is_admin = (current_user.email.lower() == settings.admin_email.lower())
+    now_utc = datetime.now(timezone.utc)
+    last_ad = getattr(current_user, 'last_reward_ad_timestamp', None)
+    if last_ad:
+        if getattr(last_ad, "tzinfo", None) is None:
+            last_ad = last_ad.replace(tzinfo=timezone.utc)
+        if last_ad.date() < now_utc.date():
+            ad_count_today = 0
+        else:
+            ad_count_today = getattr(current_user, 'daily_reward_ad_count', 0) or 0
+    else:
+        ad_count_today = 0
+
     return UserProfile(
         id=current_user.id,
         email=current_user.email,
         username=current_user.username,
         is_premium=current_user.is_premium,
+        is_admin=is_admin,
+        admin_token=settings.admin_secret_key if is_admin else None,
         credits=current_user.credits,
         paid_credits=getattr(current_user, 'paid_credits', 0),
+        bonus_credits=getattr(current_user, 'bonus_credits', 0),
         credits_received=credits_received,
         credits_used=credits_used,
         try_ons_today=try_ons_today,
@@ -510,10 +623,81 @@ async def get_me(request: Request, current_user: User = Depends(get_current_user
         pref_style_recs=current_user.pref_style_recs,
         pref_tryon_reminders=current_user.pref_tryon_reminders,
         photo_url=current_user.photo_url,
-        daily_reward_ad_count=getattr(current_user, 'daily_reward_ad_count', 0) or 0,
+        daily_reward_ad_count=ad_count_today,
         has_given_5_star=getattr(current_user, 'has_given_5_star', False),
         rating_stars=getattr(current_user, 'rating_stars', None)
     )
+
+
+@router.post("/claim-ad-reward")
+async def claim_ad_reward(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Grants +0.5 Credits for watching 1 Rewarded Video Ad (30s).
+    Enforces daily hard cap of Max 8 Ads / 4 Try-Ons per day (resets at Midnight UTC).
+    """
+    now = datetime.now(timezone.utc)
+    
+    last_ad = getattr(current_user, 'last_reward_ad_timestamp', None)
+    if last_ad:
+        if getattr(last_ad, "tzinfo", None) is None:
+            last_ad = last_ad.replace(tzinfo=timezone.utc)
+        if last_ad.date() < now.date():
+            current_user.daily_reward_ad_count = 0
+        elif last_ad.date() == now.date():
+            time_since = (now - last_ad).total_seconds()
+            if time_since < 10.0:
+                log.warning(f"⚠️ User {current_user.id} tried to claim ad reward too rapidly ({time_since:.1f}s since last ad). Blocked.")
+                curr_cnt = getattr(current_user, 'daily_reward_ad_count', 0) or 0
+                total_balance = (getattr(current_user, 'paid_credits', 0) or 0) + (getattr(current_user, 'bonus_credits', 0) or 0) + (0.5 if (curr_cnt % 2 == 1) else 0.0)
+                return {
+                    "status": "too_fast",
+                    "message": "Please watch the video ad completely before claiming reward!",
+                    "daily_reward_ad_count": curr_cnt,
+                    "max_daily_ads": 8,
+                    "credits_added": 0.0,
+                    "total_credits": total_balance
+                }
+        
+    current_count = getattr(current_user, 'daily_reward_ad_count', 0) or 0
+    if current_count >= 8:
+        total_balance = (getattr(current_user, 'paid_credits', 0) or 0) + (getattr(current_user, 'bonus_credits', 0) or 0)
+        return {
+            "status": "limit_reached",
+            "message": "Daily ad reward limit reached (8/8 ads watched today). Buy ₹20 Starter Pack for 10 instant ad-free try-ons!",
+            "daily_reward_ad_count": 8,
+            "max_daily_ads": 8,
+            "credits_added": 0.0,
+            "total_credits": total_balance
+        }
+        
+    new_count = current_count + 1
+    current_user.daily_reward_ad_count = new_count
+    current_user.last_reward_ad_timestamp = now
+    
+    # 0.5 Credits granted per ad (every 2 ads = 1 full bonus credit added to DB)
+    if new_count % 2 == 0:
+        current_user.bonus_credits = (getattr(current_user, 'bonus_credits', 0) or 0) + 1
+        midnight_utc = (now + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=0)
+        current_user.bonus_credits_expiry = midnight_utc
+        
+    await db.commit()
+    await db.refresh(current_user)
+    
+    half_credit_bonus = 0.5 if (new_count % 2 == 1) else 0.0
+    total_balance = (getattr(current_user, 'paid_credits', 0) or 0) + (getattr(current_user, 'bonus_credits', 0) or 0) + half_credit_bonus
+    
+    log.info(f"🎁 User {current_user.id} claimed ad reward ({new_count}/8 today). Total balance: {total_balance}")
+    return {
+        "status": "success",
+        "message": f"Ad Reward Claimed! +0.5 ⚡ Credit added ({new_count}/8 ads watched today).",
+        "daily_reward_ad_count": new_count,
+        "max_daily_ads": 8,
+        "credits_added": 0.5,
+        "total_credits": total_balance
+    }
 
 
 @router.put("/profile", response_model=UserResponse)
@@ -552,6 +736,7 @@ async def update_profile(
         is_premium=current_user.is_premium,
         credits=current_user.credits,
         paid_credits=getattr(current_user, 'paid_credits', 0),
+        bonus_credits=getattr(current_user, 'bonus_credits', 0),
         credits_received=credits_received,
         credits_used=credits_used,
         try_ons_today=try_ons_today,
@@ -669,14 +854,4 @@ async def register_device(
     
     await db.commit()
     
-    # Send a welcome notification if it's a new registration
-    if not existing:
-        from services.notification_service import send_push_notification
-        await send_push_notification(
-            [req.fcm_token],
-            "Welcome to TryZon AI! ◈",
-            "Your device is registered for price drop alerts and style picks.",
-            data={"type": "welcome"}
-        )
-
     return {"status": "registered"}
