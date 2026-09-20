@@ -18,6 +18,10 @@ public struct SideDrawer: View {
     @State private var showPremiumSheet = false
     @State private var showAdminDashboardSheet = false
     @State private var showShareSheet = false
+    @State private var showUserProfileSheet = false
+    @State private var showPurchaseHistorySheet = false
+    @State private var showSubscriptionManagementSheet = false
+    @State private var showGuidedTourSheet = false
     @State private var toastMessage: String? = nil
 
     public init(isOpen: Binding<Bool>, apiClient: APIClient) {
@@ -81,7 +85,7 @@ public struct SideDrawer: View {
                         Button(action: {
                             closeDrawer()
                             if apiClient.isLoggedIn {
-                                // Navigate to Profile / Wardrobe
+                                showUserProfileSheet = true
                             } else {
                                 showLoginSheet = true
                             }
@@ -183,16 +187,12 @@ public struct SideDrawer: View {
 
                             sidebarItem(icon: "creditcard.fill", title: "Manage Subscriptions", subtitle: "Manage or cancel active subscription") {
                                 closeDrawer()
-                                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                                    UIApplication.shared.open(url)
-                                }
+                                showSubscriptionManagementSheet = true
                             }
 
                             sidebarItem(icon: "clock.arrow.circlepath", title: "Purchase History", subtitle: "View past transactions & receipts") {
                                 closeDrawer()
-                                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                                    UIApplication.shared.open(url)
-                                }
+                                showPurchaseHistorySheet = true
                             }
                         }
 
@@ -222,7 +222,7 @@ public struct SideDrawer: View {
                         sidebarSection(title: "EXPLORE & FEATURES") {
                             sidebarItem(icon: "academiccap.fill", title: "Guided App Tour 🎓", subtitle: "Interactive step-by-step feature walk") {
                                 closeDrawer()
-                                showToast("🎓 Tour active on Home Screen!")
+                                showGuidedTourSheet = true
                             }
 
                             sidebarItem(icon: "bolt.fill", title: "Test Daily AI Style Now ⚡", subtitle: "Trigger instant background style generation") {
@@ -321,6 +321,18 @@ public struct SideDrawer: View {
         }
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: ["Try out TryZon AI Virtual Outfit Fitting! 🤩 Download now: https://tryzonai.com"])
+        }
+        .sheet(isPresented: $showUserProfileSheet) {
+            UserProfileView(apiClient: apiClient)
+        }
+        .sheet(isPresented: $showPurchaseHistorySheet) {
+            PurchaseHistoryView(apiClient: apiClient)
+        }
+        .sheet(isPresented: $showSubscriptionManagementSheet) {
+            SubscriptionManagementView(apiClient: apiClient)
+        }
+        .sheet(isPresented: $showGuidedTourSheet) {
+            GuidedTourView()
         }
         .confirmationDialog("Logout Session", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
             Button("Logout", role: .destructive) {
