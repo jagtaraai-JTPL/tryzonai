@@ -32,7 +32,31 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
+import bcrypt
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def hash_password(password: str) -> str:
+    safe_pwd = (password or "")[:72]
+    try:
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(safe_pwd.encode("utf-8"), salt).decode("utf-8")
+    except Exception:
+        return pwd_context.hash(safe_pwd)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    if not plain_password or not hashed_password:
+        return False
+    safe_pwd = plain_password[:72]
+    try:
+        return bcrypt.checkpw(safe_pwd.encode("utf-8"), hashed_password.encode("utf-8"))
+    except Exception:
+        try:
+            return pwd_context.verify(safe_pwd, hashed_password)
+        except Exception:
+            return False
 
 
 # ── Schemas ───────────────────────────────────────────────
@@ -296,7 +320,7 @@ async def register(req: RegisterRequest, request: Request, db: AsyncSession = De
         email=req.email,
         username=username,
         full_name=req.name,
-        hashed_password=pwd_context.hash(req.password),
+        hashed_password=hash_password(req.password),
         credits=0,          # Daily free quota — starts at 0, reset logic grants 1/day
         paid_credits=0,
         bonus_credits=2,    # Rule 5: 2 Welcome bonus credits — expire in 24h
@@ -349,7 +373,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     user = result.scalar_one_or_none()
 
     safe_pwd = (req.password or "")[:72]
-    if not user or not user.hashed_password or not pwd_context.verify(safe_pwd, user.hashed_password):
+    if not user or not user.hashed_password or not verify_password(safe_pwd, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not user.is_active:
@@ -486,14 +510,14 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
             username += str(random.randint(100, 999))
         
         import secrets
-        dummy_password = secrets.token_urlsafe(32)[:32]
+        dummy_password = secrets.token_hex(16)
         
         _welcome_expiry = datetime.now(timezone.utc) + timedelta(hours=24)
         user = User(
             email=email,
             username=username,
             full_name=name,
-            hashed_password=pwd_context.hash(dummy_password),
+            hashed_password=hash_password(dummy_password),
             photo_url=photo_url,
             credits=0,          # Daily free quota — starts at 0
             paid_credits=0,
@@ -587,14 +611,14 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
             username += str(random.randint(100, 999))
         
         import secrets
-        dummy_password = secrets.token_urlsafe(32)[:32]
+        dummy_password = secrets.token_hex(16)
         
         _welcome_expiry = datetime.now(timezone.utc) + timedelta(hours=24)
         user = User(
             email=email,
             username=username,
             full_name=name,
-            hashed_password=pwd_context.hash(dummy_password),
+            hashed_password=hash_password(dummy_password),
             credits=0,
             paid_credits=0,
             bonus_credits=2,
