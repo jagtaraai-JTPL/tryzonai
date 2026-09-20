@@ -295,15 +295,20 @@ public struct LoginView: View {
             isLoading = true
             var userEmail: String? = nil
             var userName: String? = nil
+            var identityTokenStr: String? = nil
             if let appleIDCredential = auth.credential as? ASAuthorizationAppleIDCredential {
                 userEmail = appleIDCredential.email
+                if let tokenData = appleIDCredential.identityToken,
+                   let tokenString = String(data: tokenData, encoding: .utf8) {
+                    identityTokenStr = tokenString
+                }
                 if let name = appleIDCredential.fullName {
                     userName = "\(name.givenName ?? "") \(name.familyName ?? "")".trimmingCharacters(in: .whitespaces)
                 }
             }
             Task {
                 do {
-                    _ = try await apiClient.loginWithApple(email: userEmail, name: userName)
+                    _ = try await apiClient.loginWithApple(email: userEmail, name: userName, identityToken: identityTokenStr)
                     DispatchQueue.main.async {
                         self.isLoading = false
                         dismiss()

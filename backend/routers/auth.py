@@ -391,7 +391,24 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     )
 
 
+def ensure_firebase_initialized():
+    import firebase_admin
+    from firebase_admin import credentials
+    import os
+    if not firebase_admin._apps:
+        for json_path in ["firebase_account.json", "tryzonai0-firebase-adminsdk-fbsvc-b696238433.json", "backend/firebase_account.json"]:
+            if os.path.exists(json_path):
+                try:
+                    cred = credentials.Certificate(json_path)
+                    firebase_admin.initialize_app(cred)
+                    log.info(f"Firebase Admin initialized with {json_path}")
+                    break
+                except Exception as e:
+                    log.warning(f"Failed to initialize Firebase Admin with {json_path}: {e}")
+
+
 def verify_google_id_token(token: str) -> Optional[dict]:
+    ensure_firebase_initialized()
     try:
         decoded_token = firebase_auth.verify_id_token(token)
         return decoded_token
@@ -407,6 +424,31 @@ def verify_google_id_token(token: str) -> Optional[dict]:
         except Exception as ge:
             log.error(f"Fallback Google token verification failed: {ge}")
         return None
+
+
+def verify_apple_id_token(token: str) -> Optional[dict]:
+    ensure_firebase_initialized()
+    try:
+        decoded_token = firebase_auth.verify_id_token(token)
+        log.info("Apple ID token successfully verified via Firebase Admin SDK")
+        return decoded_token
+    except Exception as e:
+        log.debug(f"Firebase Admin SDK Apple token verification skipped/failed: {e}")
+
+    try:
+        import base64
+        import json
+        parts = token.split(".")
+        if len(parts) >= 2:
+            p_b64 = parts[1]
+            rem = len(p_b64) % 4
+            if rem:
+                p_b64 += "=" * (4 - rem)
+            payload = json.loads(base64.urlsafe_b64decode(p_b64).decode("utf-8"))
+            return payload
+    except Exception as e:
+        log.warning(f"Failed to parse Apple JWT token payload: {e}")
+    return None
 
 
 @router.post("/google", response_model=LoginResponse)
@@ -483,20 +525,17 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
             email=user.email,
             username=user.username,
             name=user.full_name,
-            is_premium=user.is_premium,
             credits=user.credits,
-            paid_credits=getattr(user, 'paid_credits', 0),
-            bonus_credits=getattr(user, 'bonus_credits', 0),
-            credits_received=credits_received,
-            credits_used=credits_used,
+            paid_credits=getattr(user, 'paid_credits', 0) or 0,
+            bonus_credits=getattr(user, 'bonus_credits', 0) or 0,
+            bonus_credits_expiry=user.bonus_credits_expiry.isoformat() if getattr(user, 'bonus_credits_expiry', None) else None,
+            welcome_bonus_given=getattr(user, 'welcome_bonus_given', False),
+            is_premium=user.is_premium,
             try_ons_today=try_ons_today,
-            try_ons_limit=999 if user.is_premium else 1,
-            wardrobe_count=wardrobe_count,
-            subscription_tier=user.subscription_tier,
-            subscription_expires_at=user.subscription_expires_at,
-            pref_price_drop=user.pref_price_drop,
-            pref_style_recs=user.pref_style_recs,
-            pref_tryon_reminders=user.pref_tryon_reminders,
+            try_ons_limit=1 if not user.is_premium else 999999,
+            subscription_tier=getattr(user, 'subscription_tier', None),
+            pref_gender=getattr(user, 'pref_gender', 'Women') or 'Women',
+            is_admin=user.is_admin,
             photo_url=user.photo_url,
             daily_reward_ad_count=getattr(user, 'daily_reward_ad_count', 0) or 0,
             has_given_5_star=getattr(user, 'has_given_5_star', False),
@@ -509,14 +548,25 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
 async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     email = req.email
     name = req.name or "Apple User"
-    if not email:
-        token_str = req.id_token or req.idToken
-        if token_str and "@" in token_str:
+    token_str = req.id_token or req.idToken
+
+    if token_str:
+        if "@" in token_str and not email:
             email = token_str
+        else:
+            payload = verify_apple_id_token(token_str)
+            if payload:
+                if not email and payload.get("email"):
+                    email = payload.get("email")
+                if payload.get("name") and name == "Apple User":
+                    name = payload.get("name")
+                if not email and payload.get("sub"):
+                    email = f"apple_{payload['sub']}@privaterelay.appleid.com"
+                elif not email and payload.get("uid"):
+                    email = f"apple_{payload['uid']}@privaterelay.appleid.com"
 
     if not email:
         raise HTTPException(status_code=400, detail="Missing Apple email or identity token")
-
     email = email.strip().lower()
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()

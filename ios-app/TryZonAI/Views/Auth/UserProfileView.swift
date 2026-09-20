@@ -6,10 +6,9 @@ public struct UserProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
+    @State private var activeSheet: UserProfileSheet? = nil
     @State private var showLogoutConfirm = false
     @State private var showDeleteConfirm = false
-    @State private var showPremiumSheet = false
-    @State private var showDailyRewardSheet = false
     @State private var toastMessage: String? = nil
 
     public init(apiClient: APIClient) {
@@ -136,7 +135,7 @@ public struct UserProfileView: View {
                     }
 
                     // Top-Up Call to Action
-                    Button(action: { showPremiumSheet = true }) {
+                    Button(action: { activeSheet = .premium }) {
                         HStack {
                             Image(systemName: "crown.fill")
                                 .font(.system(size: 16))
@@ -164,7 +163,7 @@ public struct UserProfileView: View {
                             .tracking(1)
 
                         VStack(spacing: 0) {
-                            Button(action: { showDailyRewardSheet = true }) {
+                            Button(action: { activeSheet = .dailyReward }) {
                                 HStack {
                                     Image(systemName: "gift.fill")
                                         .foregroundColor(TryZonTheme.primaryGold)
@@ -232,11 +231,13 @@ public struct UserProfileView: View {
                         .font(.system(size: 14, weight: .bold))
                 }
             }
-            .sheet(isPresented: $showPremiumSheet) {
-                PremiumView(apiClient: apiClient)
-            }
-            .sheet(isPresented: $showDailyRewardSheet) {
-                DailyRewardView(apiClient: apiClient)
+            .sheet(item: $activeSheet) { item in
+                switch item {
+                case .premium:
+                    PremiumView(apiClient: apiClient)
+                case .dailyReward:
+                    DailyRewardView(apiClient: apiClient)
+                }
             }
             .confirmationDialog("Logout", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
                 Button("Logout", role: .destructive) {

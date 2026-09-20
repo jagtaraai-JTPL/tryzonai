@@ -209,19 +209,26 @@ public class APIClient: ObservableObject {
         }
     }
 
-    public func loginWithApple(email: String? = nil, name: String? = nil) async throws -> AuthResponse {
-        let cleanEmail = (email != nil && !email!.isEmpty) ? email! : "apple_user_\(UUID().uuidString.prefix(6))@tryzonai.com"
+    public func loginWithApple(email: String? = nil, name: String? = nil, identityToken: String? = nil) async throws -> AuthResponse {
+        let cleanEmail = (email != nil && !email!.isEmpty) ? email! : ""
         let cleanName = (name != nil && !name!.isEmpty) ? name! : "Apple User"
 
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/apple"))
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
-        let bodyObj: [String: Any] = [
-            "email": cleanEmail,
-            "name": cleanName,
-            "id_token": cleanEmail
+        var bodyObj: [String: Any] = [
+            "name": cleanName
         ]
+        if !cleanEmail.isEmpty {
+            bodyObj["email"] = cleanEmail
+        }
+        if let token = identityToken, !token.isEmpty {
+            bodyObj["id_token"] = token
+        } else if !cleanEmail.isEmpty {
+            bodyObj["id_token"] = cleanEmail
+        }
+
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyObj)
 
         do {
@@ -243,11 +250,13 @@ public class APIClient: ObservableObject {
             print("Apple auth endpoint error: \(error)")
         }
 
+        let fallbackEmail = !cleanEmail.isEmpty ? cleanEmail : "apple_user_\(UUID().uuidString.prefix(6))@tryzonai.com"
+
         // Fail-safe fallback login/register
         do {
-            return try await login(email: cleanEmail, password: "AppleAuthPassword123!")
+            return try await login(email: fallbackEmail, password: "AppleAuthPassword123!")
         } catch {
-            return try await register(name: cleanName, email: cleanEmail, password: "AppleAuthPassword123!")
+            return try await register(name: cleanName, email: fallbackEmail, password: "AppleAuthPassword123!")
         }
     }
 

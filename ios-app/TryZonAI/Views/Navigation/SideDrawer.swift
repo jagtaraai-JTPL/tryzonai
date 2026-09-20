@@ -1,5 +1,24 @@
 import SwiftUI
 
+public enum SideDrawerSheet: String, Identifiable {
+    case userProfile
+    case login
+    case adminDashboard
+    case dailyReward
+    case spinWheel
+    case share
+    case premium
+    case subscriptionManagement
+    case purchaseHistory
+    case themeSettings
+    case notificationSettings
+    case dailyStyleSettings
+    case fashionPreferences
+    case guidedTour
+
+    public var id: String { rawValue }
+}
+
 public struct SideDrawer: View {
     @Binding var isOpen: Bool
     @ObservedObject var apiClient: APIClient
@@ -10,22 +29,9 @@ public struct SideDrawer: View {
     @AppStorage("daily_style_enabled") private var dailyStyleEnabled: Bool = true
     @AppStorage("is_dark_theme") private var isDarkTheme: Bool = true
 
+    @State private var activeSheet: SideDrawerSheet? = nil
     @State private var showLogoutConfirm = false
     @State private var showDeleteConfirm = false
-    @State private var showLoginSheet = false
-    @State private var showSpinWheelSheet = false
-    @State private var showDailyRewardSheet = false
-    @State private var showPremiumSheet = false
-    @State private var showAdminDashboardSheet = false
-    @State private var showShareSheet = false
-    @State private var showUserProfileSheet = false
-    @State private var showPurchaseHistorySheet = false
-    @State private var showSubscriptionManagementSheet = false
-    @State private var showGuidedTourSheet = false
-    @State private var showThemeSettingsSheet = false
-    @State private var showNotificationSettingsSheet = false
-    @State private var showDailyStyleSettingsSheet = false
-    @State private var showFashionPreferencesSheet = false
     @State private var toastMessage: String? = nil
 
     public init(isOpen: Binding<Bool>, apiClient: APIClient) {
@@ -89,9 +95,9 @@ public struct SideDrawer: View {
                         Button(action: {
                             closeDrawer()
                             if apiClient.isLoggedIn {
-                                showUserProfileSheet = true
+                                activeSheet = .userProfile
                             } else {
-                                showLoginSheet = true
+                                activeSheet = .login
                             }
                         }) {
                             HStack(spacing: 12) {
@@ -139,7 +145,7 @@ public struct SideDrawer: View {
                         if isFounderUser {
                             Button(action: {
                                 closeDrawer()
-                                showAdminDashboardSheet = true
+                                activeSheet = .adminDashboard
                             }) {
                                 HStack(spacing: 10) {
                                     Text("👑")
@@ -168,17 +174,17 @@ public struct SideDrawer: View {
                         sidebarSection(title: "REWARDS & FREE CREDITS 🎁") {
                             sidebarItem(icon: "gift.fill", title: "Daily Ad Rewards 🎁", subtitle: "Watch 8 Ads • Earn +4.0⚡ Tries FREE", badge: "+0.5⚡/ad") {
                                 closeDrawer()
-                                showDailyRewardSheet = true
+                                activeSheet = .dailyReward
                             }
 
                             sidebarItem(icon: "sparkles", title: "Daily Spin & Win Wheel 🎡", subtitle: "Earn Free Try-On Credits", badge: "FREE CREDITS") {
                                 closeDrawer()
-                                showSpinWheelSheet = true
+                                activeSheet = .spinWheel
                             }
 
                             sidebarItem(icon: "square.and.arrow.up.fill", title: "Refer & Share App 🎁", subtitle: "Invite Friends & Earn Credits", badge: "+2 CREDITS") {
                                 closeDrawer()
-                                showShareSheet = true
+                                activeSheet = .share
                             }
                         }
 
@@ -186,17 +192,17 @@ public struct SideDrawer: View {
                         sidebarSection(title: "ACCOUNT & BILLING") {
                             sidebarItem(icon: "crown.fill", title: "Pricing Plans & Credits", subtitle: "Upgrade to Pro or buy credit packs", badge: currentUser?.isPremium == true ? nil : "PRO 👑") {
                                 closeDrawer()
-                                showPremiumSheet = true
+                                activeSheet = .premium
                             }
 
                             sidebarItem(icon: "creditcard.fill", title: "Manage Subscriptions", subtitle: "Manage or cancel active subscription") {
                                 closeDrawer()
-                                showSubscriptionManagementSheet = true
+                                activeSheet = .subscriptionManagement
                             }
 
                             sidebarItem(icon: "clock.arrow.circlepath", title: "Purchase History", subtitle: "View past transactions & receipts") {
                                 closeDrawer()
-                                showPurchaseHistorySheet = true
+                                activeSheet = .purchaseHistory
                             }
                         }
 
@@ -204,22 +210,22 @@ public struct SideDrawer: View {
                         sidebarSection(title: "AI CONTROL & PREFERENCES") {
                             sidebarItem(icon: isDarkTheme ? "sun.max.fill" : "moon.fill", title: isDarkTheme ? "Light Theme" : "Dark Theme", subtitle: "Switch visual appearance", badge: isDarkTheme ? "Dark 🌙" : "Light ☀️") {
                                 closeDrawer()
-                                showThemeSettingsSheet = true
+                                activeSheet = .themeSettings
                             }
 
                             sidebarItem(icon: pushEnabled ? "bell.fill" : "bell.slash.fill", title: "Push Notifications", subtitle: pushEnabled ? "Active for Try-On alerts" : "Disabled", badge: pushEnabled ? "ON" : "OFF") {
                                 closeDrawer()
-                                showNotificationSettingsSheet = true
+                                activeSheet = .notificationSettings
                             }
 
                             sidebarItem(icon: "tshirt.fill", title: "Daily AI Style Engine", subtitle: dailyStyleEnabled ? "Automated daily outfit suggestions" : "Disabled", badge: dailyStyleEnabled ? "ACTIVE" : "OFF") {
                                 closeDrawer()
-                                showDailyStyleSettingsSheet = true
+                                activeSheet = .dailyStyleSettings
                             }
 
                             sidebarItem(icon: "person.2.fill", title: "Fashion Preference", subtitle: genderSubtitle(userGender), badge: userGender) {
                                 closeDrawer()
-                                showFashionPreferencesSheet = true
+                                activeSheet = .fashionPreferences
                             }
                         }
 
@@ -227,7 +233,7 @@ public struct SideDrawer: View {
                         sidebarSection(title: "EXPLORE & FEATURES") {
                             sidebarItem(icon: "academiccap.fill", title: "Guided App Tour 🎓", subtitle: "Interactive step-by-step feature walk") {
                                 closeDrawer()
-                                showGuidedTourSheet = true
+                                activeSheet = .guidedTour
                             }
 
                             sidebarItem(icon: "bolt.fill", title: "Test Daily AI Style Now ⚡", subtitle: "Trigger instant background style generation") {
@@ -258,7 +264,7 @@ public struct SideDrawer: View {
                             } else {
                                 sidebarItem(icon: "person.crop.circle.badge.plus", title: "Login / Switch Account", subtitle: "Sign in to sync your wardrobe", badge: "LOGIN 🚀") {
                                     closeDrawer()
-                                    showLoginSheet = true
+                                    activeSheet = .login
                                 }
                             }
                         }
@@ -309,47 +315,37 @@ public struct SideDrawer: View {
                 .zIndex(200)
             }
         }
-        .sheet(isPresented: $showDailyRewardSheet) {
-            DailyRewardView(apiClient: apiClient)
-        }
-        .sheet(isPresented: $showSpinWheelSheet) {
-            SpinWheelView(apiClient: apiClient)
-        }
-        .sheet(isPresented: $showPremiumSheet) {
-            PremiumView(apiClient: apiClient)
-        }
-        .sheet(isPresented: $showAdminDashboardSheet) {
-            AdminDashboardView(apiClient: apiClient)
-        }
-        .sheet(isPresented: $showLoginSheet) {
-            LoginView(apiClient: apiClient, onNavigateToRegister: {})
-        }
-        .sheet(isPresented: $showShareSheet) {
-            ActivityViewController(activityItems: ["Try out TryZon AI Virtual Outfit Fitting! 🤩 Download now: https://tryzonai.com"])
-        }
-        .sheet(isPresented: $showUserProfileSheet) {
-            UserProfileView(apiClient: apiClient)
-        }
-        .sheet(isPresented: $showPurchaseHistorySheet) {
-            PurchaseHistoryView(apiClient: apiClient)
-        }
-        .sheet(isPresented: $showSubscriptionManagementSheet) {
-            SubscriptionManagementView(apiClient: apiClient)
-        }
-        .sheet(isPresented: $showGuidedTourSheet) {
-            GuidedTourView()
-        }
-        .sheet(isPresented: $showThemeSettingsSheet) {
-            ThemeSettingsView()
-        }
-        .sheet(isPresented: $showNotificationSettingsSheet) {
-            NotificationSettingsView()
-        }
-        .sheet(isPresented: $showDailyStyleSettingsSheet) {
-            DailyStyleSettingsView(apiClient: apiClient)
-        }
-        .sheet(isPresented: $showFashionPreferencesSheet) {
-            FashionPreferencesView()
+        .sheet(item: $activeSheet) { item in
+            switch item {
+            case .userProfile:
+                UserProfileView(apiClient: apiClient)
+            case .login:
+                LoginView(apiClient: apiClient, onNavigateToRegister: {})
+            case .adminDashboard:
+                AdminDashboardView(apiClient: apiClient)
+            case .dailyReward:
+                DailyRewardView(apiClient: apiClient)
+            case .spinWheel:
+                SpinWheelView(apiClient: apiClient)
+            case .share:
+                ActivityViewController(activityItems: ["Try out TryZon AI Virtual Outfit Fitting! 🤩 Download now: https://tryzonai.com"])
+            case .premium:
+                PremiumView(apiClient: apiClient)
+            case .subscriptionManagement:
+                SubscriptionManagementView(apiClient: apiClient)
+            case .purchaseHistory:
+                PurchaseHistoryView(apiClient: apiClient)
+            case .themeSettings:
+                ThemeSettingsView()
+            case .notificationSettings:
+                NotificationSettingsView()
+            case .dailyStyleSettings:
+                DailyStyleSettingsView(apiClient: apiClient)
+            case .fashionPreferences:
+                FashionPreferencesView()
+            case .guidedTour:
+                GuidedTourView()
+            }
         }
         .confirmationDialog("Logout Session", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
             Button("Logout", role: .destructive) {
@@ -385,17 +381,6 @@ public struct SideDrawer: View {
         case "Men": return "👨 Men's Outfits"
         default: return "👫 Unisex Outfits"
         }
-    }
-
-    private func cycleGender() {
-        let next: String
-        switch userGender {
-        case "Women": next = "Men"
-        case "Men": next = "Unisex"
-        default: next = "Women"
-        }
-        userGender = next
-        showToast("Preference: \(genderSubtitle(next))")
     }
 
     private func showToast(_ msg: String) {

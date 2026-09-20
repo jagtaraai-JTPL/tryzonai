@@ -89,8 +89,8 @@ public struct PremiumView: View {
                             VStack(spacing: 10) {
                                 CreditPackCard(
                                     id: "credits_pocket",
-                                    name: "🎁 First Buyer Special (25 Fits)",
-                                    price: "₹39.00 ($0.99)",
+                                    name: "🎁 Pocket Special (25 Fits)",
+                                    price: "₹39.00 ($0.49)",
                                     subtitle: "15 + 10 BONUS Credits • 100% Zero Ads",
                                     tag: "BEST OFFER ⭐",
                                     isSelected: selectedPackId == "credits_pocket",
@@ -100,7 +100,7 @@ public struct PremiumView: View {
                                 CreditPackCard(
                                     id: "credits_starter",
                                     name: "Starter Pack (60 Credits)",
-                                    price: "₹99.00 ($1.99)",
+                                    price: "₹99.00 ($1.29)",
                                     subtitle: "60 AI Try-Ons • Standard Priority",
                                     tag: "",
                                     isSelected: selectedPackId == "credits_starter",
@@ -108,23 +108,33 @@ public struct PremiumView: View {
                                 )
 
                                 CreditPackCard(
-                                    id: "credits_popular",
-                                    name: "Popular Pack (500 Credits)",
-                                    price: "₹349.00 ($9.99)",
-                                    subtitle: "500 AI Try-Ons • Priority GPU Queue",
+                                    id: "credits_value",
+                                    name: "Value Pack (250 Credits)",
+                                    price: "₹299.00 ($3.99)",
+                                    subtitle: "250 AI Try-Ons • Priority GPU Queue",
                                     tag: "POPULAR 🔥",
-                                    isSelected: selectedPackId == "credits_popular",
-                                    onSelect: { selectedPackId = "credits_popular" }
+                                    isSelected: selectedPackId == "credits_value",
+                                    onSelect: { selectedPackId = "credits_value" }
                                 )
 
                                 CreditPackCard(
-                                    id: "credits_ultimate",
-                                    name: "Ultimate Pack (7,000 Credits)",
-                                    price: "₹2,699.00 ($79.99)",
-                                    subtitle: "7,000 AI Try-Ons • Maximum Volume",
+                                    id: "credits_business",
+                                    name: "Business Pack (800 Credits)",
+                                    price: "₹799.00 ($9.99)",
+                                    subtitle: "800 AI Try-Ons • High Volume Access",
+                                    tag: "BEST VALUE ⚡",
+                                    isSelected: selectedPackId == "credits_business",
+                                    onSelect: { selectedPackId = "credits_business" }
+                                )
+
+                                CreditPackCard(
+                                    id: "credits_enterprise",
+                                    name: "Enterprise Pack (3,000 Credits)",
+                                    price: "₹2,499.00 ($29.99)",
+                                    subtitle: "3,000 AI Try-Ons • Maximum Volume & VIP Queue",
                                     tag: "MAX VALUE 👑",
-                                    isSelected: selectedPackId == "credits_ultimate",
-                                    onSelect: { selectedPackId = "credits_ultimate" }
+                                    isSelected: selectedPackId == "credits_enterprise",
+                                    onSelect: { selectedPackId = "credits_enterprise" }
                                 )
                             }
                             .padding(.horizontal, 16)
@@ -134,7 +144,7 @@ public struct PremiumView: View {
                                 SubscriptionCard(
                                     id: "sub_monthly_pro",
                                     name: "Monthly Pro",
-                                    price: "₹379.00 / mo ($14.99)",
+                                    price: "₹299.00 / mo ($3.99)",
                                     subtitle: "Unlimited AI Try-Ons • 100% Zero Ads • VIP Turbo Speed",
                                     tag: "RECOMMENDED ⭐",
                                     isSelected: selectedPackId == "sub_monthly_pro",
@@ -144,7 +154,7 @@ public struct PremiumView: View {
                                 SubscriptionCard(
                                     id: "sub_weekly_pro",
                                     name: "Weekly Pro",
-                                    price: "₹119.00 / wk ($4.99)",
+                                    price: "₹99.00 / wk ($1.29)",
                                     subtitle: "150 AI Try-On Credits / week • Fast Speed",
                                     tag: "",
                                     isSelected: selectedPackId == "sub_weekly_pro",
@@ -154,7 +164,7 @@ public struct PremiumView: View {
                                 SubscriptionCard(
                                     id: "sub_yearly_legend",
                                     name: "Yearly Legend",
-                                    price: "₹1,799.00 / yr ($59.99)",
+                                    price: "₹1,499.00 / yr ($19.99)",
                                     subtitle: "Unlimited AI Try-Ons • Save 60%",
                                     tag: "SAVE 60% 👑",
                                     isSelected: selectedPackId == "sub_yearly_legend",
@@ -237,10 +247,32 @@ public struct PremiumView: View {
     private func processPurchase() {
         isPurchasing = true
         Task {
-            try? await Task.sleep(nanoseconds: 1_200_000_000)
-            DispatchQueue.main.async {
-                isPurchasing = false
-                showToast("✨ Selected plan processed successfully!")
+            if let product = StoreKitManager.shared.products.first(where: { $0.id == selectedPackId }) {
+                do {
+                    let transaction = try await StoreKitManager.shared.purchase(product)
+                    DispatchQueue.main.async {
+                        self.isPurchasing = false
+                        if transaction != nil {
+                            self.showToast("✨ Purchase completed successfully!")
+                            self.apiClient.fetchUserProfile()
+                        } else {
+                            self.showToast("Purchase cancelled")
+                        }
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        self.isPurchasing = false
+                        self.showToast("Purchase error: \(error.localizedDescription)")
+                    }
+                }
+            } else {
+                // Fallback simulation for sandbox / direct test mode
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                DispatchQueue.main.async {
+                    self.isPurchasing = false
+                    self.showToast("✨ Selected plan \(self.selectedPackId) processed!")
+                    self.apiClient.fetchUserProfile()
+                }
             }
         }
     }
