@@ -277,7 +277,7 @@ public class APIClient: ObservableObject {
             }
         }
 
-        throw APIError.custom("Apple Sign In authentication failed. Please try Email or Google Sign In.")
+        throw NSError(domain: "APIClient", code: 400, userInfo: [NSLocalizedDescriptionKey: "Apple Sign In authentication failed. Please try Email or Google Sign In."])
     }
 
     public func login(email: String, password: String) async throws -> AuthResponse {
