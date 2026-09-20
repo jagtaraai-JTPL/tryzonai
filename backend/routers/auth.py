@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
@@ -582,37 +582,57 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
     name = req.name or "Apple User"
     token_str = req.id_token or req.idToken
 
+    apple_sub = None
+    jwt_email = None
+
     if token_str:
         if "@" in token_str and not email:
             email = token_str
         else:
             payload = verify_apple_id_token(token_str)
             if payload:
-                if not email and payload.get("email"):
-                    email = payload.get("email")
+                jwt_email = payload.get("email")
+                apple_sub = payload.get("sub") or payload.get("uid")
                 if payload.get("name") and name == "Apple User":
                     name = payload.get("name")
-                if not email and payload.get("sub"):
-                    email = f"apple_{payload['sub']}@privaterelay.appleid.com"
-                elif not email and payload.get("uid"):
-                    email = f"apple_{payload['uid']}@privaterelay.appleid.com"
+
+    if not email and jwt_email:
+        email = jwt_email
+
+    relay_email = f"apple_{apple_sub}@privaterelay.appleid.com" if apple_sub else None
+    if not email and relay_email:
+        email = relay_email
 
     if not email:
         raise HTTPException(status_code=400, detail="Missing Apple email or identity token")
     email = email.strip().lower()
-    result = await db.execute(select(User).where(User.email == email))
+
+    # Query DB using or_ to find user by email, jwt_email, relay_email, or username (apple_sub)
+    query_conds = [User.email == email]
+    if relay_email and relay_email != email:
+        query_conds.append(User.email == relay_email)
+    if jwt_email and jwt_email.strip().lower() != email:
+        query_conds.append(User.email == jwt_email.strip().lower())
+    if apple_sub:
+        query_conds.append(User.username == f"apple_{apple_sub[:80]}")
+
+    result = await db.execute(select(User).where(or_(*query_conds)))
     user = result.scalar_one_or_none()
 
     if not user:
-        username = email.split("@")[0].lower()
+        if apple_sub:
+            username = f"apple_{apple_sub[:80]}"
+        else:
+            username = email.split("@")[0].lower()
+
         existing_u = await db.execute(select(User).where(User.username == username))
         if existing_u.scalar_one_or_none():
             import random
             username += str(random.randint(100, 999))
-        
+
         import secrets
         dummy_password = secrets.token_hex(16)
-        
+
         _welcome_expiry = datetime.now(timezone.utc) + timedelta(hours=24)
         user = User(
             email=email,
