@@ -262,10 +262,17 @@ public class APIClient: ObservableObject {
                 } else {
                     let errStr = String(data: data, encoding: .utf8) ?? "Unknown server error"
                     print("Apple auth endpoint HTTP \(httpRes.statusCode): \(errStr)")
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let detail = json["detail"] as? String {
+                        throw NSError(domain: "APIClient", code: httpRes.statusCode, userInfo: [NSLocalizedDescriptionKey: detail])
+                    }
                 }
             }
         } catch {
             print("Apple auth endpoint network error: \(error)")
+            if (error as NSError).domain == "APIClient" {
+                throw error
+            }
         }
 
         // If a real email was obtained from Apple or saved state, attempt fallback login/register

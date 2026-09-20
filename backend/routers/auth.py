@@ -451,6 +451,26 @@ def verify_google_id_token(token: str) -> Optional[dict]:
 
 
 def verify_apple_id_token(token: str) -> Optional[dict]:
+    if not token:
+        return None
+
+    # First attempt: Direct base64url decode of JWT payload
+    try:
+        import base64
+        import json
+        parts = token.split(".")
+        if len(parts) >= 2:
+            p_b64 = parts[1].replace("-", "+").replace("_", "/")
+            rem = len(p_b64) % 4
+            if rem:
+                p_b64 += "=" * (4 - rem)
+            payload = json.loads(base64.b64decode(p_b64).decode("utf-8"))
+            log.info("Apple ID token payload decoded cleanly via base64url")
+            return payload
+    except Exception as e:
+        log.debug(f"Direct base64url decode of Apple token payload failed: {e}")
+
+    # Second attempt: Firebase Admin SDK
     ensure_firebase_initialized()
     try:
         decoded_token = firebase_auth.verify_id_token(token)
@@ -459,27 +479,15 @@ def verify_apple_id_token(token: str) -> Optional[dict]:
     except Exception as e:
         log.debug(f"Firebase Admin SDK Apple token verification skipped/failed: {e}")
 
+    # Third attempt: PyJWT decode without verification
     try:
         import jwt
-        payload = jwt.decode(token, options={"verify_signature": False})
+        payload = jwt.decode(token, algorithms=["RS256", "HS256", "ES256"], options={"verify_signature": False})
         log.info("Apple ID token decoded via PyJWT")
         return payload
     except Exception as e:
         log.debug(f"PyJWT decode failed for Apple token: {e}")
 
-    try:
-        import base64
-        import json
-        parts = token.split(".")
-        if len(parts) >= 2:
-            p_b64 = parts[1]
-            rem = len(p_b64) % 4
-            if rem:
-                p_b64 += "=" * (4 - rem)
-            payload = json.loads(base64.urlsafe_b64decode(p_b64).decode("utf-8"))
-            return payload
-    except Exception as e:
-        log.warning(f"Failed to parse Apple JWT token payload: {e}")
     return None
 
 
@@ -500,12 +508,12 @@ async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSessi
         raise HTTPException(status_code=400, detail="Google token payload missing email")
 
     result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
 
     if not user:
         username = email.split("@")[0].lower()
         existing_u = await db.execute(select(User).where(User.username == username))
-        if existing_u.scalar_one_or_none():
+        if existing_u.scalars().first():
             import random
             username += str(random.randint(100, 999))
         
@@ -588,6 +596,8 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
     if token_str:
         if "@" in token_str and not email:
             email = token_str
+        elif "." not in token_str:
+            apple_sub = token_str
         else:
             payload = verify_apple_id_token(token_str)
             if payload:
@@ -617,7 +627,7 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
         query_conds.append(User.username == f"apple_{apple_sub[:80]}")
 
     result = await db.execute(select(User).where(or_(*query_conds)))
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
 
     if not user:
         if apple_sub:
@@ -626,7 +636,9 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
             username = email.split("@")[0].lower()
 
         existing_u = await db.execute(select(User).where(User.username == username))
-        if existing_u.scalar_one_or_none():
+        if existing_u.scalars().first():
+            import random
+            username += str(random.randint(100, 999))
             import random
             username += str(random.randint(100, 999))
 

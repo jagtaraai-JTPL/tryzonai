@@ -301,8 +301,10 @@ public struct LoginView: View {
             if let appleIDCredential = auth.credential as? ASAuthorizationAppleIDCredential {
                 userEmail = appleIDCredential.email
                 if let tokenData = appleIDCredential.identityToken,
-                   let tokenString = String(data: tokenData, encoding: .utf8) {
+                   let tokenString = String(data: tokenData, encoding: .utf8), !tokenString.isEmpty {
                     identityTokenStr = tokenString
+                } else {
+                    identityTokenStr = appleIDCredential.user
                 }
                 if let name = appleIDCredential.fullName {
                     userName = "\(name.givenName ?? "") \(name.familyName ?? "")".trimmingCharacters(in: .whitespaces)
