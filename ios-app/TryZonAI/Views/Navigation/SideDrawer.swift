@@ -359,10 +359,11 @@ public struct SideDrawer: View {
     }
 
     private func cycleGender() {
-        let next = switch userGender {
-        case "Women": "Men"
-        case "Men": "Unisex"
-        default: "Women"
+        let next: String
+        switch userGender {
+        case "Women": next = "Men"
+        case "Men": next = "Unisex"
+        default: next = "Women"
         }
         userGender = next
         showToast("Preference: \(genderSubtitle(next))")
