@@ -48,6 +48,7 @@ platform :ios do
       scheme: "TryZonAI",
       destination: "generic/platform=iOS",
       codesigning_identity: "Apple Distribution",
+      skip_profile_detection: true,
       export_method: "app-store",
       export_options: {
         method: "app-store",
