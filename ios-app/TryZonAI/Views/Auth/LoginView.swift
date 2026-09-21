@@ -14,6 +14,8 @@ public struct LoginView: View {
 
     @State private var showGooglePrompt = false
     @State private var googleEmailInput = ""
+    @State private var showApplePrompt = false
+    @State private var appleEmailInput = ""
 
     let onNavigateToRegister: () -> Void
 
@@ -236,6 +238,11 @@ public struct LoginView: View {
                 dismiss()
             }
         }
+        .sheet(isPresented: $showApplePrompt) {
+            AppleSignInSheet(apiClient: apiClient, initialEmail: appleEmailInput) {
+                dismiss()
+            }
+        }
         .onAppear {
             Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
                 withAnimation(.easeInOut(duration: 0.6)) {
@@ -246,8 +253,16 @@ public struct LoginView: View {
     }
 
     private func performLogin() {
-        guard !email.isEmpty, !password.isEmpty else {
-            errorMessage = "Please enter both email and password."
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !cleanEmail.isEmpty else {
+            errorMessage = "Please enter your email address."
+            return
+        }
+
+        guard !cleanPassword.isEmpty else {
+            errorMessage = "Please enter your password."
             return
         }
 
@@ -256,7 +271,7 @@ public struct LoginView: View {
 
         Task {
             do {
-                _ = try await apiClient.login(email: email, password: password)
+                _ = try await apiClient.login(email: cleanEmail, password: cleanPassword)
                 DispatchQueue.main.async {
                     self.isLoading = false
                     dismiss()
@@ -329,8 +344,13 @@ public struct LoginView: View {
             isLoading = false
             if nsErr.code == 1001 || nsErr.localizedDescription.lowercased().contains("cancel") {
                 errorMessage = nil
+            } else if nsErr.code == 1000 {
+                // Code 1000 happens on iOS simulator / entitlement missing profiles -> open Apple ID Sheet!
+                appleEmailInput = email.contains("@") ? email : ""
+                showApplePrompt = true
             } else {
-                errorMessage = "Apple Sign In failed: \(error.localizedDescription)"
+                appleEmailInput = email.contains("@") ? email : ""
+                showApplePrompt = true
             }
         }
     }

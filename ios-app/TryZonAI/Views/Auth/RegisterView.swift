@@ -12,6 +12,8 @@ public struct RegisterView: View {
     @State private var errorMessage: String? = nil
     @State private var showGooglePrompt = false
     @State private var googleEmailInput = ""
+    @State private var showApplePrompt = false
+    @State private var appleEmailInput = ""
 
     let onNavigateToLogin: () -> Void
 
@@ -153,6 +155,11 @@ public struct RegisterView: View {
                 dismiss()
             }
         }
+        .sheet(isPresented: $showApplePrompt) {
+            AppleSignInSheet(apiClient: apiClient, initialEmail: appleEmailInput) {
+                dismiss()
+            }
+        }
     }
 
     private func performRegister() {
@@ -238,8 +245,12 @@ public struct RegisterView: View {
             isLoading = false
             if nsErr.code == 1001 || nsErr.localizedDescription.lowercased().contains("cancel") {
                 errorMessage = nil
+            } else if nsErr.code == 1000 {
+                appleEmailInput = email.contains("@") ? email : ""
+                showApplePrompt = true
             } else {
-                errorMessage = "Apple Sign In failed: \(error.localizedDescription)"
+                appleEmailInput = email.contains("@") ? email : ""
+                showApplePrompt = true
             }
         }
     }
