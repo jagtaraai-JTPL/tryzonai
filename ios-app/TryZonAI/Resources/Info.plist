@@ -33,6 +33,8 @@
     <string>TryZon AI requires camera access to capture your body photo for instant virtual outfit fitting.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>TryZon AI requires photo library access to select outfit garments and model pictures for try-on.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>TryZon AI requires permission to save high-resolution try-on result photos directly to your Photos library.</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UIRequiredDeviceCapabilities</key>

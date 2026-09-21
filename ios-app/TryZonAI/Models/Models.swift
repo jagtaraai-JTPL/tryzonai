@@ -31,9 +31,9 @@ public struct UserProfile: Codable, Identifiable {
     public var isAdmin: Bool?
 
     public init(
-        id: Int,
-        email: String,
-        username: String,
+        id: Int = 0,
+        email: String = "",
+        username: String = "",
         name: String? = nil,
         credits: Int = 1,
         paidCredits: Int = 0,
@@ -83,6 +83,26 @@ public struct UserProfile: Codable, Identifiable {
         case dailyRewardAdCount = "daily_reward_ad_count"
         case prefGender = "pref_gender"
         case isAdmin = "is_admin"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(Int.self, forKey: .id) ?? 0
+        self.email = try container.decodeIfPresent(String.self, forKey: .email) ?? ""
+        self.username = try container.decodeIfPresent(String.self, forKey: .username) ?? self.email
+        self.name = try container.decodeIfPresent(String.self, forKey: .name)
+        self.credits = try container.decodeIfPresent(Int.self, forKey: .credits) ?? 1
+        self.paidCredits = try container.decodeIfPresent(Int.self, forKey: .paidCredits) ?? 0
+        self.bonusCredits = try container.decodeIfPresent(Int.self, forKey: .bonusCredits) ?? 0
+        self.bonusCreditsExpiry = try container.decodeIfPresent(String.self, forKey: .bonusCreditsExpiry)
+        self.welcomeBonusGiven = try container.decodeIfPresent(Bool.self, forKey: .welcomeBonusGiven) ?? false
+        self.isPremium = try container.decodeIfPresent(Bool.self, forKey: .isPremium) ?? false
+        self.tryOnsToday = try container.decodeIfPresent(Int.self, forKey: .tryOnsToday) ?? 0
+        self.tryOnsLimit = try container.decodeIfPresent(Int.self, forKey: .tryOnsLimit) ?? 1
+        self.subscriptionTier = try container.decodeIfPresent(String.self, forKey: .subscriptionTier)
+        self.dailyRewardAdCount = try container.decodeIfPresent(Int.self, forKey: .dailyRewardAdCount) ?? 0
+        self.prefGender = try container.decodeIfPresent(String.self, forKey: .prefGender)
+        self.isAdmin = try container.decodeIfPresent(Bool.self, forKey: .isAdmin) ?? false
     }
 }
 
@@ -228,6 +248,31 @@ public struct CatalogItem: Codable, Identifiable {
         case badge
     }
 
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let intId = try? container.decode(Int.self, forKey: .id) {
+            self.id = String(intId)
+        } else {
+            self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        }
+        self.name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Fashion Garment"
+        self.brand = try container.decodeIfPresent(String.self, forKey: .brand)
+        if let intPrice = try? container.decode(Int.self, forKey: .price) {
+            self.price = intPrice
+        } else if let doublePrice = try? container.decode(Double.self, forKey: .price) {
+            self.price = Int(doublePrice)
+        } else {
+            self.price = 999
+        }
+        self.original_price = try? container.decodeIfPresent(Int.self, forKey: .original_price)
+        self.image_url = try container.decodeIfPresent(String.self, forKey: .image_url) ?? ""
+        self.category = try container.decodeIfPresent(String.self, forKey: .category) ?? "Outfits"
+        self.store = try container.decodeIfPresent(String.self, forKey: .store)
+        self.store_url = try container.decodeIfPresent(String.self, forKey: .store_url)
+        self.gender = try container.decodeIfPresent(String.self, forKey: .gender)
+        self.badge = try container.decodeIfPresent(String.self, forKey: .badge)
+    }
+
     public var fullImageURL: URL? {
         return resolveURL(image_url)
     }
@@ -254,6 +299,15 @@ public struct TryOnHistoryItem: Codable, Identifiable {
         case result_url
         case created_at = "timestamp"
         case garment_name
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.session_id = try container.decodeIfPresent(Int.self, forKey: .session_id) ?? 0
+        self.product_id = try container.decodeIfPresent(String.self, forKey: .product_id)
+        self.result_url = try container.decodeIfPresent(String.self, forKey: .result_url) ?? ""
+        self.created_at = try container.decodeIfPresent(String.self, forKey: .created_at)
+        self.garment_name = try container.decodeIfPresent(String.self, forKey: .garment_name)
     }
 
     public var fullResultURL: URL? {
