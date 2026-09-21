@@ -17,12 +17,15 @@ jobs:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
-      - name: Install XcodeGen (Direct Binary & Brew Fallback)
+      - name: Install XcodeGen
         run: |
-          (curl -sL https://github.com/yonaskolb/XcodeGen/releases/download/2.42.0/xcodegen.zip -o /tmp/xcodegen.zip && \
-          unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen_dist && \
-          sudo cp /tmp/xcodegen_dist/xcodegen/bin/xcodegen /usr/local/bin/) || brew install xcodegen || true
-          xcodegen --version || true
+          brew install xcodegen || true
+          if ! command -v xcodegen &> /dev/null; then
+            curl -sL https://github.com/yonaskolb/XcodeGen/releases/download/2.42.0/xcodegen.zip -o /tmp/xcodegen.zip
+            unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen_dist
+            sudo cp /tmp/xcodegen_dist/xcodegen/bin/xcodegen /usr/local/bin/ || true
+          fi
+          xcodegen --version
 
       - name: Inject Dynamic Build Number into Info.plist
         run: |
