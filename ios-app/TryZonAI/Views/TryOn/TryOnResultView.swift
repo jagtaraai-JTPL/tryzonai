@@ -18,6 +18,7 @@ public struct TryOnResultView: View {
     @State private var showShareSheet = false
     @State private var sharedItems: [Any] = []
     @State private var showReviewBanner = true
+    @State private var hasRunDemoAnimation = false
 
     private let sampleComplements: [ComplementProduct] = [
         ComplementProduct(id: "comp_1", name: "Italian Leather Loafers", category: "Shoes", price: 2999, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp", url: "https://myntra.com", matchScore: 98),
@@ -54,7 +55,7 @@ public struct TryOnResultView: View {
             TryZonTheme.darkBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // ── 1. TOP HEADER BAR ──
+                // ── 1. TOP HEADER BAR (Matching Android TopBar) ──
                 HStack {
                     Button(action: onTryAnother) {
                         HStack(spacing: 6) {
@@ -109,12 +110,13 @@ public struct TryOnResultView: View {
                                 .stroke(Color.green.opacity(0.4), lineWidth: 1)
                         )
 
-                        // ── 3. INTERACTIVE BEFORE/AFTER SLIDER VIEWPORT ──
+                        // ── 3. INTERACTIVE BEFORE/AFTER SLIDER VIEWPORT (Exact Android Spec) ──
                         GeometryReader { geo in
                             let validOrigUrl = (originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty) ? originalPhotoUrl! : displayUrl
+                            let isSplitMode = originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty
 
                             ZStack(alignment: .leading) {
-                                // Background Layer: AI Result Image
+                                // Base Layer: AI Result Image
                                 AsyncImage(url: URL(string: displayUrl)) { phase in
                                     switch phase {
                                     case .success(let img):
@@ -141,82 +143,85 @@ public struct TryOnResultView: View {
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .clipped()
 
-                                // Foreground Layer: Original Photo (Clipped by sliderOffset)
-                                AsyncImage(url: URL(string: validOrigUrl)) { phase in
-                                    if let img = phase.image {
-                                        img.resizable().aspectRatio(contentMode: .fill)
-                                    } else {
-                                        TryZonTheme.darkSurface
+                                // Overlay Layer: Original Photo (Clipped by sliderOffset)
+                                if isSplitMode {
+                                    AsyncImage(url: URL(string: validOrigUrl)) { phase in
+                                        if let img = phase.image {
+                                            img.resizable().aspectRatio(contentMode: .fill)
+                                        } else {
+                                            TryZonTheme.darkSurface
+                                        }
                                     }
-                                }
-                                .frame(width: geo.size.width, height: geo.size.height)
-                                .mask(
-                                    HStack(spacing: 0) {
-                                        Rectangle()
-                                            .frame(width: geo.size.width * sliderOffset)
-                                        Spacer(minLength: 0)
+                                    .frame(width: geo.size.width, height: geo.size.height)
+                                    .mask(
+                                        HStack(spacing: 0) {
+                                            Rectangle()
+                                                .frame(width: max(0, geo.size.width * sliderOffset))
+                                            Spacer(minLength: 0)
+                                        }
+                                    )
+                                    .clipped()
+
+                                    // Floating Badges ("ORIGINAL" & "RESULT")
+                                    HStack {
+                                        Text("ORIGINAL")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.black.opacity(0.65))
+                                            .cornerRadius(8)
+                                            .padding(12)
+                                            .opacity(sliderOffset > 0.1 ? 1 : 0)
+
+                                        Spacer()
+
+                                        Text("RESULT")
+                                            .font(.system(size: 10, weight: .heavy))
+                                            .foregroundColor(.black)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(TryZonTheme.primaryGold.opacity(0.9))
+                                            .cornerRadius(8)
+                                            .padding(12)
+                                            .opacity(sliderOffset < 0.9 ? 1 : 0)
                                     }
-                                )
-                                .clipped()
+                                    .frame(maxHeight: .infinity, alignment: .bottom)
 
-                                // Floating Badges ("ORIGINAL" & "RESULT ✨")
-                                HStack {
-                                    Text("ORIGINAL")
-                                        .font(.system(size: 10, weight: .black))
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(Color.black.opacity(0.7))
-                                        .cornerRadius(8)
-                                        .padding(12)
-                                        .opacity(sliderOffset > 0.12 ? 1 : 0)
-
-                                    Spacer()
-
-                                    Text("RESULT ✨")
-                                        .font(.system(size: 10, weight: .black))
-                                        .foregroundColor(.black)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(TryZonTheme.primaryGold)
-                                        .cornerRadius(8)
-                                        .padding(12)
-                                        .opacity(sliderOffset < 0.88 ? 1 : 0)
-                                }
-                                .frame(maxHeight: .infinity, alignment: .bottom)
-
-                                // Vertical Divider Line & Golden Touch Handle
-                                ZStack {
+                                    // Vertical Comparison Divider Line (3dp PrimaryGold)
                                     Rectangle()
                                         .fill(TryZonTheme.primaryGold)
                                         .frame(width: 3, height: geo.size.height)
+                                        .offset(x: geo.size.width * sliderOffset - 1.5)
 
-                                    Circle()
-                                        .fill(TryZonTheme.primaryGold)
-                                        .frame(width: 40, height: 40)
-                                        .shadow(color: Color.black.opacity(0.6), radius: 8, y: 2)
-                                        .overlay(
-                                            Circle().stroke(Color.white, lineWidth: 1.5)
-                                        )
-                                        .overlay(
-                                            HStack(spacing: 2) {
-                                                Image(systemName: "chevron.left")
-                                                Image(systemName: "chevron.right")
-                                            }
-                                            .font(.system(size: 11, weight: .black))
-                                            .foregroundColor(.black)
-                                        )
+                                    // Centered Compare Arrow Handle Badge (Circle 36dp, PrimaryGold, 1.5dp White border, Shadow)
+                                    ZStack {
+                                        Circle()
+                                            .fill(TryZonTheme.primaryGold)
+                                            .frame(width: 36, height: 36)
+                                            .shadow(color: Color.black.opacity(0.5), radius: 6, x: 0, y: 2)
+                                            .overlay(
+                                                Circle().stroke(Color.white, lineWidth: 1.5)
+                                            )
+                                            .overlay(
+                                                Image(systemName: "arrow.left.and.right")
+                                                    .font(.system(size: 15, weight: .black))
+                                                    .foregroundColor(.black)
+                                            )
+                                    }
+                                    .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
                                 }
-                                .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
 
-                                // Full Viewport Drag Gesture
+                                // Full Viewport Drag Gesture (Smooth Swipe)
                                 Color.clear
                                     .contentShape(Rectangle())
                                     .gesture(
                                         DragGesture(minimumDistance: 0)
                                             .onChanged { val in
-                                                let newRatio = val.location.x / geo.size.width
-                                                sliderOffset = min(max(newRatio, 0.02), 0.98)
+                                                if isSplitMode {
+                                                    let newRatio = val.location.x / geo.size.width
+                                                    sliderOffset = min(max(newRatio, 0.0), 1.0)
+                                                }
                                             }
                                     )
 
@@ -224,9 +229,9 @@ public struct TryOnResultView: View {
                                 if showHeartAnimation {
                                     Image(systemName: "heart.fill")
                                         .font(.system(size: 90))
-                                        .foregroundColor(.red.opacity(0.9))
+                                        .foregroundColor(.red.opacity(0.85))
                                         .shadow(color: .black.opacity(0.6), radius: 12)
-                                        .position(heartPosition)
+                                        .position(heartPosition.x == 0 ? CGPoint(x: geo.size.width/2, y: geo.size.height/2) : heartPosition)
                                         .transition(.scale.combined(with: .opacity))
                                 }
                             }
@@ -242,13 +247,20 @@ public struct TryOnResultView: View {
                             }
                         }
                         .frame(height: 380)
+                        .background(TryZonTheme.surfaceVariant)
                         .cornerRadius(24)
                         .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                        .onAppear {
+                            if originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty && !hasRunDemoAnimation {
+                                hasRunDemoAnimation = true
+                                runDemoSliderAnimation()
+                            }
+                        }
 
                         // Caption below slider
-                        Text("👆 Swipe handle to compare • Double-tap to heart")
+                        Text((originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty) ? "👆 Swipe handle to compare • Double-tap to heart" : "❤️ Double-tap to heart your AI Try-On Result")
                             .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundColor(.white.opacity(0.7))
                             .multilineTextAlignment(.center)
 
                         // ── 4. ACTION BUTTONS ROW ──
@@ -416,6 +428,25 @@ public struct TryOnResultView: View {
         }
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: sharedItems)
+        }
+    }
+
+    // MARK: - Auto-Demo Slider Animation (Matching Android easing & timing)
+    private func runDemoSliderAnimation() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            withAnimation(.easeOut(duration: 0.65)) {
+                sliderOffset = 0.15
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+                withAnimation(.easeInOut(duration: 0.9)) {
+                    sliderOffset = 0.85
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                    withAnimation(.easeInOut(duration: 0.65)) {
+                        sliderOffset = 0.5
+                    }
+                }
+            }
         }
     }
 
