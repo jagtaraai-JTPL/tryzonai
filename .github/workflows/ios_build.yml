@@ -138,12 +138,7 @@ jobs:
 
           cd ios-app
           sudo gem install fastlane --no-document
-          fastlane pilot upload \
-            --api_key_path api_key.json \
-            --app_identifier "com.jagtarapvtltd.tryzonai" \
-            --ipa "TryZonAI.ipa" \
-            --skip_waiting_for_build_processing true \
-            --skip_submission true || fastlane build_and_upload --verbose
+          fastlane upload_only || fastlane build_and_upload --verbose
 
       - name: Upload Native Signed IPA Artifact
         if: always()

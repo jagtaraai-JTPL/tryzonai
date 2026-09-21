@@ -14,8 +14,6 @@
     <string>Apple Distribution</string>
     <key>signingStyle</key>
     <string>manual</string>
-    <key>destination</key>
-    <string>export</string>
     <key>provisioningProfiles</key>
     <dict>
         <key>com.jagtarapvtltd.tryzonai</key>
