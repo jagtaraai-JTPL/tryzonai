@@ -77,6 +77,8 @@ class UserResponse(BaseModel):
     credits: int
     paid_credits: int = 0
     bonus_credits: int = 0
+    bonus_credits_expiry: Optional[str] = None
+    welcome_bonus_given: bool = False
     credits_received: int = 2
     credits_used: int = 0
     try_ons_today: int = 0
@@ -129,6 +131,8 @@ class UserProfile(BaseModel):
     credits: int
     paid_credits: int = 0
     bonus_credits: int = 0
+    bonus_credits_expiry: Optional[str] = None
+    welcome_bonus_given: bool = False
     credits_received: int = 5
     credits_used: int = 0
     try_ons_today: int = 0
@@ -350,6 +354,8 @@ async def register(req: RegisterRequest, request: Request, db: AsyncSession = De
             credits=user.credits,
             paid_credits=getattr(user, 'paid_credits', 0),
             bonus_credits=getattr(user, 'bonus_credits', 0),
+            bonus_credits_expiry=user.bonus_credits_expiry.isoformat() if getattr(user, 'bonus_credits_expiry', None) else None,
+            welcome_bonus_given=getattr(user, 'welcome_bonus_given', False),
             credits_received=credits_received,
             credits_used=credits_used,
             try_ons_today=try_ons_today,
@@ -357,7 +363,6 @@ async def register(req: RegisterRequest, request: Request, db: AsyncSession = De
             wardrobe_count=wardrobe_count,
             pref_price_drop=user.pref_price_drop,
             pref_style_recs=user.pref_style_recs,
-            pref_tryon_reminders=user.pref_tryon_reminders,
             photo_url=user.photo_url,
             subscription_tier=user.subscription_tier,
             subscription_expires_at=user.subscription_expires_at,
@@ -399,6 +404,8 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
             credits=user.credits,
             paid_credits=getattr(user, 'paid_credits', 0),
             bonus_credits=getattr(user, 'bonus_credits', 0),
+            bonus_credits_expiry=user.bonus_credits_expiry.isoformat() if getattr(user, 'bonus_credits_expiry', None) else None,
+            welcome_bonus_given=getattr(user, 'welcome_bonus_given', False),
             credits_received=credits_received,
             credits_used=credits_used,
             try_ons_today=try_ons_today,
