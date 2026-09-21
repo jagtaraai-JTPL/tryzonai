@@ -46,18 +46,7 @@ platform :ios do
     build_app(
       project: project_path,
       scheme: "TryZonAI",
-      destination: "generic/platform=iOS",
-      codesigning_identity: "Apple Distribution",
-      skip_profile_detection: true,
-      export_method: "app-store",
-      export_options: {
-        method: "app-store",
-        teamID: "4WRPJFD6RA",
-        signingStyle: "manual",
-        signingCertificate: "Apple Distribution",
-        provisioningProfiles: {
-          "com.jagtarapvtltd.tryzonai" => "TryZon AI App Store Profile"
-      export_xcargs: "-allowProvisioningUpdates",
+      export_options: File.expand_path("../ExportOptions.plist", __dir__),
       output_directory: output_dir,
       output_name: "TryZonAI.ipa",
       clean: true
