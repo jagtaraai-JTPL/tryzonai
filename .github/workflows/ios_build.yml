@@ -95,7 +95,7 @@ jobs:
           echo "=== PROVISIONING PROFILES ==="
           ls -la "$HOME/Library/MobileDevice/Provisioning Profiles"
 
-      - name: Archive iOS App via xcodebuild
+      - name: Build Signed IPA & Push to App Store Connect / TestFlight via Fastlane
         run: |
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD="tryzonpassword123"
@@ -103,42 +103,13 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
           security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
 
-          cd ios-app
-          xcodebuild archive \
-            -project TryZonAI.xcodeproj \
-            -scheme TryZonAI \
-            -destination "generic/platform=iOS" \
-            -configuration Release \
-            -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="TryZon AI App Store Profile" \
-            DEVELOPMENT_TEAM="4WRPJFD6RA"
-
-      - name: Export Signed Release IPA via xcodebuild
-        run: |
-          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
-          KEYCHAIN_PASSWORD="tryzonpassword123"
-          
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH || true
-
-          xcodebuild -exportArchive \
-            -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
-            -exportOptionsPlist ios-app/ExportOptions.plist \
-            -exportPath ios-app \
-            -allowProvisioningUpdates
-          
-          ls -la ios-app/*.ipa
-
-      - name: Upload Signed IPA to App Store Connect / TestFlight
-        run: |
           mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys
           cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.appstoreconnect/private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
           cp ios-app/AuthKey_LF5HAF3NWP.p8 ~/.private_keys/AuthKey_LF5HAF3NWP.p8 2>/dev/null || true
 
           cd ios-app
           sudo gem install fastlane --no-document
-          fastlane upload_only || fastlane build_and_upload --verbose
+          fastlane build_and_upload --verbose
 
       - name: Upload Native Signed IPA Artifact
         if: always()
