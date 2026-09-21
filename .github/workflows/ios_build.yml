@@ -107,6 +107,7 @@ jobs:
           xcodebuild archive \
             -project TryZonAI.xcodeproj \
             -scheme TryZonAI \
+            -destination "generic/platform=iOS" \
             -configuration Release \
             -archivePath $RUNNER_TEMP/TryZonAI.xcarchive \
             CODE_SIGN_STYLE=Manual \
