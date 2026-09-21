@@ -1,4 +1,5 @@
 import SwiftUI
+import SafariServices
 
 public struct AppleSignInSheet: View {
     @ObservedObject var apiClient: APIClient
