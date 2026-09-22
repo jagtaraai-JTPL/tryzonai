@@ -146,13 +146,28 @@ public struct TryOnResultView: View {
                                 // Overlay Layer: Original Photo (Clipped by sliderOffset)
                                 if isSplitMode {
                                     AsyncImage(url: URL(string: validOrigUrl)) { phase in
-                                        if let img = phase.image {
+                                        switch phase {
+                                        case .success(let img):
                                             img.resizable().aspectRatio(contentMode: .fill)
-                                        } else {
-                                            TryZonTheme.darkSurface
+                                        case .failure:
+                                            AsyncImage(url: URL(string: displayUrl)) { fallbackPhase in
+                                                if let fImg = fallbackPhase.image {
+                                                    fImg.resizable().aspectRatio(contentMode: .fill)
+                                                } else {
+                                                    TryZonTheme.darkSurface
+                                                }
+                                            }
+                                        case .empty:
+                                            ZStack {
+                                                TryZonTheme.darkSurface
+                                                ProgressView().tint(TryZonTheme.primaryGold)
+                                            }
+                                        @unknown default:
+                                            EmptyView()
                                         }
                                     }
                                     .frame(width: geo.size.width, height: geo.size.height)
+
                                     .mask(
                                         HStack(spacing: 0) {
                                             Rectangle()
