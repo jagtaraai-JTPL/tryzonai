@@ -181,6 +181,16 @@ public struct TryOnUploadView: View {
                 showCatalogPickerSheet = false
             })
         }
+        .sheet(isPresented: $showingCameraForPerson) {
+            CameraImagePicker(sourceType: .camera) { img in
+                viewModel.selectedPersonImage = img
+            }
+        }
+        .sheet(isPresented: $showingCameraForGarment) {
+            CameraImagePicker(sourceType: .camera) { img in
+                viewModel.selectedGarmentImage = img
+            }
+        }
     }
 
     // MARK: - Upload Screen Content (Matching Android TryOnUploadScreen)
@@ -580,7 +590,7 @@ public struct TryOnUploadView: View {
                     .foregroundColor(TryZonTheme.primaryGold)
             }
 
-            ZStack {
+            ZStack(alignment: .bottom) {
                 if let img = image {
                     Image(uiImage: img)
                         .resizable()
@@ -593,8 +603,8 @@ public struct TryOnUploadView: View {
                             Button(action: onClear) {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.title3)
-                                    .foregroundColor(.red)
-                                    .background(Circle().fill(Color.black))
+                                    .foregroundColor(.white)
+                                    .shadow(radius: 4)
                             }
                             .padding(8),
                             alignment: .topTrailing
@@ -611,42 +621,58 @@ public struct TryOnUploadView: View {
                                     style: StrokeStyle(lineWidth: 1.5, dash: [6])
                                 )
                         )
-
-                    VStack(spacing: 10) {
-                        PhotosPicker(selection: pickerItem, matching: .images) {
-                            VStack(spacing: 4) {
+                        .overlay(
+                            VStack(spacing: 6) {
                                 Image(systemName: iconName)
-                                    .font(.system(size: 24))
+                                    .font(.system(size: 28))
                                     .foregroundColor(TryZonTheme.primaryGold)
                                 Text(hint)
                                     .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(TryZonTheme.primaryGold)
+                                    .foregroundColor(.white)
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .background(TryZonTheme.darkSurface)
-                            .cornerRadius(12)
-                        }
+                        )
+                }
 
-                        Button(action: onCamera) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "camera.fill")
-                                    .font(.caption2)
-                                Text("Camera")
-                                    .font(.system(size: 10, weight: .bold))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.white.opacity(0.12))
-                            .cornerRadius(8)
+                // ── DUAL ACTION BAR (GALLERY & CAMERA) AT BOTTOM OF CARD ──
+                HStack(spacing: 6) {
+                    // Gallery Button (PhotosPicker)
+                    PhotosPicker(selection: pickerItem, matching: .images) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "photo.on.rectangle.angled")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("Gallery")
+                                .font(.system(size: 10, weight: .bold))
                         }
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(TryZonTheme.primaryGold)
+                        .cornerRadius(100)
+                        .shadow(color: .black.opacity(0.4), radius: 4)
+                    }
+
+                    // Camera Button
+                    Button(action: onCamera) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("Camera")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.85))
+                        .cornerRadius(100)
+                        .overlay(RoundedRectangle(cornerRadius: 100).stroke(Color.white.opacity(0.2), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.4), radius: 4)
                     }
                 }
+                .padding(.bottom, 8)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(8)
+        .padding(4)
     }
 
     // MARK: - Auto Prepare Defaults
@@ -950,5 +976,50 @@ public struct SampleOutfit: Identifiable {
         self.category = category
         self.color = color
         self.imageUrl = imageUrl
+    }
+}
+
+// MARK: - Native iOS Camera Image Picker
+public struct CameraImagePicker: UIViewControllerRepresentable {
+    @Environment(\.dismiss) private var dismiss
+    let sourceType: UIImagePickerController.SourceType
+    let onImagePicked: (UIImage) -> Void
+
+    public init(sourceType: UIImagePickerController.SourceType = .camera, onImagePicked: @escaping (UIImage) -> Void) {
+        self.sourceType = sourceType
+        self.onImagePicked = onImagePicked
+    }
+
+    public func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(sourceType) ? sourceType : .photoLibrary
+        picker.delegate = context.coordinator
+        picker.allowsEditing = false
+        return picker
+    }
+
+    public func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    public func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    public class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraImagePicker
+
+        init(_ parent: CameraImagePicker) {
+            self.parent = parent
+        }
+
+        public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let img = info[.originalImage] as? UIImage {
+                parent.onImagePicked(img)
+            }
+            parent.dismiss()
+        }
+
+        public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
     }
 }
