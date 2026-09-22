@@ -36,7 +36,7 @@ public struct LoginView: View {
             VStack(spacing: 18) {
                 Spacer(minLength: 10)
 
-                // ── 1. DOMINANT HERO FASHION CANVAS (Matching Android Rounded 30dp) ──
+                // ── 1. DOMINANT HERO FASHION CANVAS ──
                 ZStack(alignment: .bottomLeading) {
                     AsyncImage(url: URL(string: heroOutfits[currentHeroIndex].0)) { phase in
                         if let img = phase.image {
@@ -45,12 +45,12 @@ public struct LoginView: View {
                             TryZonTheme.surfaceVariantColor(for: colorScheme)
                         }
                     }
-                    .frame(height: 220)
+                    .frame(height: 200)
                     .frame(maxWidth: .infinity)
                     .clipped()
 
                     LinearGradient(
-                        colors: [Color.clear, Color.black.opacity(0.75)],
+                        colors: [Color.clear, Color.black.opacity(0.8)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -59,43 +59,119 @@ public struct LoginView: View {
                         Text(heroOutfits[currentHeroIndex].1)
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
-                        Text("AI Virtual Outfit Fitting • 1 Free Try Daily")
+                        Text("AI Virtual Outfit Fitting • Real Account Authentication")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.white.opacity(0.8))
                     }
                     .padding(16)
                 }
-                .frame(height: 220)
-                .cornerRadius(30)
+                .frame(height: 200)
+                .cornerRadius(24)
                 .clipped()
                 .shadow(color: Color.black.opacity(0.15), radius: 8, y: 4)
 
-                // ── 2. HEADER BRANDING & DYNAMIC LOGO ──
+                // ── 2. HEADER BRANDING ──
                 VStack(spacing: 6) {
-                    DynamicAppLogo(width: 56, height: 56)
+                    DynamicAppLogo(width: 52, height: 52)
                         .shadow(color: TryZonTheme.primaryGold.opacity(0.3), radius: 8)
 
-                    Text("Enter Your Virtual Studio")
+                    Text("Sign In to TryZon AI")
                         .font(.system(size: 22, weight: .black, design: .rounded))
                         .foregroundColor(TryZonTheme.textColor(for: colorScheme))
 
-                    Text("Your private wardrobe, one tap away.")
+                    Text("Authenticate your registered email & password")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
                         .multilineTextAlignment(.center)
                 }
 
                 if let err = errorMessage {
-                    Text(err)
-                        .font(.caption.bold())
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 16)
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                        Text(err)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(12)
+                    .background(Color.red.opacity(0.12))
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red.opacity(0.4), lineWidth: 1))
+                    .padding(.horizontal, 16)
                 }
 
-                // ── 3. FLOATING ROUND PILL SOCIAL LOGIN BUTTONS ──
+                // ── 3. REAL EMAIL & PASSWORD LOGIN FORM ──
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("EMAIL & PASSWORD SIGN IN")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(TryZonTheme.primaryGold)
+                        .tracking(1)
+
+                    VStack(spacing: 10) {
+                        HStack {
+                            Image(systemName: "envelope.fill")
+                                .foregroundColor(TryZonTheme.primaryGold)
+                            TextField("Registered Email Address", text: $email)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(TryZonTheme.textColor(for: colorScheme))
+                                .keyboardType(.emailAddress)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                        }
+                        .padding(14)
+                        .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
+                        .clipShape(Capsule())
+
+                        HStack {
+                            Image(systemName: "lock.fill")
+                                .foregroundColor(TryZonTheme.primaryGold)
+                            SecureField("Account Password", text: $password)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(TryZonTheme.textColor(for: colorScheme))
+                        }
+                        .padding(14)
+                        .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
+                        .clipShape(Capsule())
+                    }
+
+                    // Sign In CTA Button
+                    Button(action: performLogin) {
+                        HStack {
+                            if isLoading {
+                                ProgressView().tint(.black)
+                                Text("Verifying Account...")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.black)
+                            } else {
+                                Text("AUTHENTICATE & SIGN IN 🚀")
+                                    .font(.system(size: 14, weight: .black, design: .rounded))
+                                    .foregroundColor(.black)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(TryZonTheme.primaryGold)
+                        .clipShape(Capsule())
+                        .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 8, y: 3)
+                    }
+                    .disabled(isLoading)
+                    .buttonStyle(BounceButtonStyle())
+                }
+                .padding(.horizontal, 16)
+
+                // Divider Line
+                HStack {
+                    Rectangle().fill(TryZonTheme.textColor(for: colorScheme).opacity(0.12)).frame(height: 1)
+                    Text("OR 1-TAP SOCIAL SIGN-IN")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
+                    Rectangle().fill(TryZonTheme.textColor(for: colorScheme).opacity(0.12)).frame(height: 1)
+                }
+
+                // ── 4. SOCIAL LOGIN BUTTONS ──
                 VStack(spacing: 12) {
-                    // Google Pill Button (Gol shape height 50)
+                    // Google Pill Button
                     Button(action: {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         let cleanFormEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -103,20 +179,12 @@ public struct LoginView: View {
                         showGooglePrompt = true
                     }) {
                         HStack(spacing: 10) {
-                            if isLoading {
-                                ProgressView()
-                                    .tint(colorScheme == .dark ? .black : .primary)
-                                Text("Signing in...")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(colorScheme == .dark ? .black : .primary)
-                            } else {
-                                Text("G")
-                                    .font(.system(size: 20, weight: .black, design: .rounded))
-                                    .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
-                                Text("Continue with Google")
-                                    .font(.system(size: 14.5, weight: .bold))
-                                    .foregroundColor(colorScheme == .dark ? .black : .primary)
-                            }
+                            Text("G")
+                                .font(.system(size: 20, weight: .black, design: .rounded))
+                                .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
+                            Text("Continue with Google OAuth")
+                                .font(.system(size: 14.5, weight: .bold))
+                                .foregroundColor(colorScheme == .dark ? .black : .primary)
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
@@ -130,7 +198,7 @@ public struct LoginView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
 
-                    // Apple Pill Button (Gol shape height 50)
+                    // Apple Pill Button
                     SignInWithAppleButton(
                         .continue,
                         onRequest: { request in
@@ -145,12 +213,12 @@ public struct LoginView: View {
                     .clipShape(Capsule())
                     .contentShape(Capsule())
 
-                    // Guest Login Link
+                    // Guest Continue Link
                     Button(action: { dismiss() }) {
                         HStack(spacing: 6) {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 13))
-                            Text("✦ 1 free try-on every day · No card required")
+                            Text("✦ Continue as Guest · 1 Free Try Daily")
                                 .font(.system(size: 11.5, weight: .semibold))
                         }
                         .foregroundColor(TryZonTheme.primaryGold)
@@ -158,75 +226,20 @@ public struct LoginView: View {
                         .contentShape(Rectangle())
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 16)
 
-                // Divider Line
-                HStack {
-                    Rectangle().fill(TryZonTheme.textColor(for: colorScheme).opacity(0.12)).frame(height: 1)
-                    Text("OR EMAIL")
-                        .font(.system(size: 10, weight: .black))
-                        .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
-                    Rectangle().fill(TryZonTheme.textColor(for: colorScheme).opacity(0.12)).frame(height: 1)
-                }
-
-                // ── 4. EMAIL & PASSWORD FORM (Pill Curved inputs) ──
-                VStack(spacing: 10) {
-                    HStack {
-                        Image(systemName: "envelope.fill")
-                            .foregroundColor(TryZonTheme.primaryGold)
-                        TextField("Email Address", text: $email)
-                            .font(.system(size: 13))
-                            .foregroundColor(TryZonTheme.textColor(for: colorScheme))
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                    }
-                    .padding(14)
-                    .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
-                    .clipShape(Capsule())
-
-                    HStack {
-                        Image(systemName: "lock.fill")
-                            .foregroundColor(TryZonTheme.primaryGold)
-                        SecureField("Password", text: $password)
-                            .font(.system(size: 13))
-                            .foregroundColor(TryZonTheme.textColor(for: colorScheme))
-                    }
-                    .padding(14)
-                    .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
-                    .clipShape(Capsule())
-                }
-
-                // Sign In CTA Button (Pill shape)
-                Button(action: performLogin) {
-                    HStack {
-                        if isLoading {
-                            ProgressView().tint(.black)
-                        } else {
-                            Text("SIGN IN WITH EMAIL 🚀")
-                                .font(.system(size: 14, weight: .black, design: .rounded))
-                                .foregroundColor(.black)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(TryZonTheme.primaryGold)
-                    .clipShape(Capsule())
-                    .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 8, y: 3)
-                }
-                .buttonStyle(BounceButtonStyle())
-
-                // Register Link
+                // Register Link Footer
                 Button(action: onNavigateToRegister) {
                     HStack {
-                        Text("Don't have an account?")
+                        Text("Don't have an account yet?")
                             .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
-                        Text("Register Now")
+                        Text("Register for Free")
                             .foregroundColor(TryZonTheme.primaryGold)
                             .fontWeight(.bold)
                     }
                     .font(.system(size: 13))
                 }
+                .padding(.top, 4)
 
                 Spacer(minLength: 20)
             }
@@ -262,7 +275,7 @@ public struct LoginView: View {
         }
 
         guard !cleanPassword.isEmpty else {
-            errorMessage = "Please enter your password."
+            errorMessage = "Please enter your account password."
             return
         }
 
@@ -272,35 +285,19 @@ public struct LoginView: View {
         Task {
             do {
                 _ = try await apiClient.login(email: cleanEmail, password: cleanPassword)
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.isLoading = false
                     dismiss()
                 }
             } catch {
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.isLoading = false
-                    self.errorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
-
-    private func performGoogleSignIn(email targetEmail: String? = nil) {
-        let finalEmail = targetEmail ?? (email.contains("@") ? email.trimmingCharacters(in: .whitespacesAndNewlines) : "google_user_\(UUID().uuidString.prefix(6))@gmail.com")
-        isLoading = true
-        errorMessage = nil
-
-        Task {
-            do {
-                _ = try await apiClient.loginWithGoogle(idToken: finalEmail)
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    dismiss()
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.errorMessage = "Sign in failed: \(error.localizedDescription)"
+                    let msg = error.localizedDescription
+                    if msg.lowercased().contains("invalid") || msg.lowercased().contains("401") || msg.lowercased().contains("unauthorized") {
+                        self.errorMessage = "❌ Invalid email or password. Please verify your password or tap 'Register for Free'."
+                    } else {
+                        self.errorMessage = "❌ Login Failed: \(msg)"
+                    }
                 }
             }
         }
@@ -328,12 +325,12 @@ public struct LoginView: View {
             Task {
                 do {
                     _ = try await apiClient.loginWithApple(email: userEmail, name: userName, identityToken: identityTokenStr)
-                    DispatchQueue.main.async {
+                    await MainActor.run {
                         self.isLoading = false
                         dismiss()
                     }
                 } catch {
-                    DispatchQueue.main.async {
+                    await MainActor.run {
                         self.isLoading = false
                         self.errorMessage = "Apple Sign In failed: \(error.localizedDescription)"
                     }
@@ -344,10 +341,6 @@ public struct LoginView: View {
             isLoading = false
             if nsErr.code == 1001 || nsErr.localizedDescription.lowercased().contains("cancel") {
                 errorMessage = nil
-            } else if nsErr.code == 1000 {
-                // Code 1000 happens on iOS simulator / entitlement missing profiles -> open Apple ID Sheet!
-                appleEmailInput = email.contains("@") ? email : ""
-                showApplePrompt = true
             } else {
                 appleEmailInput = email.contains("@") ? email : ""
                 showApplePrompt = true
