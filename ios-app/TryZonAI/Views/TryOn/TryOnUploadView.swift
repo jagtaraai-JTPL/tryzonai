@@ -42,6 +42,11 @@ public struct TryOnUploadView: View {
     @State private var showingCameraForPerson = false
     @State private var showingCameraForGarment = false
 
+    @State private var showPersonOptionDialog = false
+    @State private var showGarmentOptionDialog = false
+    @State private var showGalleryForPerson = false
+    @State private var showGalleryForGarment = false
+
     @State private var showLoginRequiredModal = false
     @State private var showChoicePopupModal = false
     @State private var showPremiumModal = false
@@ -191,6 +196,26 @@ public struct TryOnUploadView: View {
                 viewModel.selectedGarmentImage = img
             }
         }
+        .confirmationDialog("Select Photo Source", isPresented: $showPersonOptionDialog, titleVisibility: .visible) {
+            Button("🖼️ Choose from Gallery") {
+                showGalleryForPerson = true
+            }
+            Button("📷 Take Photo with Camera") {
+                showingCameraForPerson = true
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Select Outfit Source", isPresented: $showGarmentOptionDialog, titleVisibility: .visible) {
+            Button("🖼️ Choose from Gallery") {
+                showGalleryForGarment = true
+            }
+            Button("📷 Take Photo with Camera") {
+                showingCameraForGarment = true
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .photosPicker(isPresented: $showGalleryForPerson, selection: $selectedPersonItem, matching: .images)
+        .photosPicker(isPresented: $showGalleryForGarment, selection: $selectedGarmentItem, matching: .images)
     }
 
     // MARK: - Upload Screen Content (Matching Android TryOnUploadScreen)
@@ -267,7 +292,8 @@ public struct TryOnUploadView: View {
                             hint: "Upload Selfie",
                             onClear: { viewModel.selectedPersonImage = nil },
                             pickerItem: $selectedPersonItem,
-                            onCamera: { showingCameraForPerson = true }
+                            onCamera: { showingCameraForPerson = true },
+                            onCardTap: { showPersonOptionDialog = true }
                         )
                         .onChange(of: selectedPersonItem) { newItem in
                             Task {
@@ -286,7 +312,8 @@ public struct TryOnUploadView: View {
                             hint: "Upload Outfit",
                             onClear: { viewModel.selectedGarmentImage = nil },
                             pickerItem: $selectedGarmentItem,
-                            onCamera: { showingCameraForGarment = true }
+                            onCamera: { showingCameraForGarment = true },
+                            onCardTap: { showGarmentOptionDialog = true }
                         )
                         .onChange(of: selectedGarmentItem) { newItem in
                             Task {
@@ -578,7 +605,8 @@ public struct TryOnUploadView: View {
         hint: String,
         onClear: @escaping () -> Void,
         pickerItem: Binding<PhotosPickerItem?>,
-        onCamera: @escaping () -> Void
+        onCamera: @escaping () -> Void,
+        onCardTap: @escaping () -> Void
     ) -> some View {
         VStack(spacing: 6) {
             HStack(spacing: 4) {
@@ -669,6 +697,10 @@ public struct TryOnUploadView: View {
                     }
                 }
                 .padding(.bottom, 8)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onCardTap()
             }
         }
         .frame(maxWidth: .infinity)
