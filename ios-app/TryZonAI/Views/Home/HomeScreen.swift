@@ -151,7 +151,7 @@ public struct HomeScreen: View {
                     .minimumScaleFactor(0.85)
 
                 // CTA Button
-                Button(action: onNavigateToTryOn) {
+                Button(action: { onNavigateToTryOn(nil) }) {
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 14, weight: .bold))
