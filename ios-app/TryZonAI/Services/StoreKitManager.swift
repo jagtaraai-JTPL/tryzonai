@@ -58,8 +58,12 @@ public class StoreKitManager: ObservableObject {
             await updatePurchasedProducts()
             await transaction.finish()
             
-            // Sync credits with backend
-            APIClient.shared.fetchUserCredits()
+            // Sync credits with backend via verifyApplePurchase
+            _ = try? await APIClient.shared.verifyApplePurchase(
+                transactionId: String(transaction.id),
+                productId: transaction.productID
+            )
+            APIClient.shared.fetchUserProfile()
             return transaction
 
         case .userCancelled, .pending:

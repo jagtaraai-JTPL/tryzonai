@@ -481,6 +481,30 @@ public class APIClient: ObservableObject {
         return try decoder.decode(WardrobeItemModel.self, from: data)
     }
 
+    // MARK: - Apple StoreKit Verification API
+    public func verifyApplePurchase(transactionId: String, productId: String) async throws -> Bool {
+        _ = try await ensureSessionAuthToken()
+        let url = baseURL.appendingPathComponent("payments/apple/verify")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+        let body: [String: String] = [
+            "transaction_id": transactionId,
+            "product_id": productId
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await session.data(for: request)
+        if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
+            fetchUserProfile()
+            return true
+        } else {
+            print("Apple purchase verification failed: \(String(data: data, encoding: .utf8) ?? "")")
+            return false
+        }
+    }
+
     // MARK: - Auth & Account Management
     public func logout() {
         UserDefaults.standard.removeObject(forKey: "tryzon_session_id")
