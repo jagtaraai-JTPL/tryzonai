@@ -339,6 +339,15 @@ public struct TryOnHistoryItem: Codable, Identifiable {
         self.garment_name = try? container.decodeIfPresent(String.self, forKey: .garment_name)
     }
 
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(session_id_str, forKey: .session_id)
+        try container.encodeIfPresent(product_id, forKey: .product_id)
+        try container.encode(result_url, forKey: .result_url)
+        try container.encodeIfPresent(created_at, forKey: .created_at)
+        try container.encodeIfPresent(garment_name, forKey: .garment_name)
+    }
+
     public var fullResultURL: URL? {
         return resolveURL(result_url)
     }
