@@ -45,8 +45,9 @@ public struct TryOnUploadView: View {
     @State private var showChoicePopupModal = false
     @State private var showPremiumModal = false
     @State private var showLoginSheet = false
-
-    private let categories = ["Tops", "Bottoms", "Dresses", "Suits", "Outerwear"]
+    @State private var showDailyRewardModal = false
+    @State private var showDemoTooltip = false
+    @State private var demoStep = 0
 
     private let sampleOutfits = [
         SampleOutfit(name: "Riviera Linen", badge: "👑 OLD MONEY", category: "Suits", color: Color.blue,
@@ -61,6 +62,12 @@ public struct TryOnUploadView: View {
                      imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_red_bridal_lehenga.webp"),
         SampleOutfit(name: "Navy Blazer", badge: "🏆 FORMAL", category: "Suits", color: Color.indigo,
                      imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_navy_blazer.webp"),
+    ]
+
+    private let sampleModels = [
+        ("Female Model", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp"),
+        ("Male Model", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp"),
+        ("Asian Model", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_formal_ceo_black_suit_1778055862174.webp")
     ]
 
     private let samplePersonModelUrl = "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp"
@@ -93,7 +100,6 @@ public struct TryOnUploadView: View {
                             }
                         )
                         .navigationBarHidden(true)
-
 
                     case .result(let statusRes):
                         TryOnResultView(
@@ -150,149 +156,309 @@ public struct TryOnUploadView: View {
         }
     }
 
-    // MARK: - Upload Screen Content
+    // MARK: - Upload Screen Content (Matching Android TryOnUploadScreen)
     private var uploadScreenContent: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                // Header Banner
-                VStack(spacing: 6) {
-                    HStack(spacing: 6) {
-                        DynamicAppLogo(width: 28, height: 28)
-                        Text("TRY-ON FITTING ROOM")
-                            .font(.system(size: 18, weight: .black, design: .rounded))
-                            .foregroundColor(TryZonTheme.primaryGold)
-                        Text("⚡")
+            VStack(spacing: 16) {
+
+                // ── 1. STUDIO HEADER: STEP PROCESS INDICATOR & QUICK ICON BUTTONS (DEMO 💡 & DAILY REWARDS 🎁) ──
+                HStack(spacing: 6) {
+                    // Process Step Indicator (1. MODEL • 2. OUTFIT • 3. RESULT)
+                    HStack(spacing: 4) {
+                        stepPill(step: 1, label: "MODEL", isActive: viewModel.selectedPersonImage == nil)
+                        Text("•")
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.3))
+                        stepPill(step: 2, label: "OUTFIT", isActive: viewModel.selectedPersonImage != nil && viewModel.selectedGarmentImage == nil)
+                        Text("•")
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.3))
+                        stepPill(step: 3, label: "RESULT", isActive: false)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(TryZonTheme.surfaceVariant)
+                    .cornerRadius(20)
+
+                    Spacer()
+
+                    // Demo Icon Button (💡)
+                    Button(action: {
+                        withAnimation {
+                            showDemoTooltip.toggle()
+                        }
+                    }) {
+                        Circle()
+                            .fill(TryZonTheme.primaryGold.opacity(0.15))
+                            .frame(width: 34, height: 34)
+                            .overlay(Circle().stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
+                            .overlay(Text("💡").font(.system(size: 15)))
                     }
 
-                    Text("Upload your photo & garment for 100% realistic AI outfit fit")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                }
-                .padding(.top, 14)
-
-                // Category Selector
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(categories, id: \.self) { cat in
-                            Button(action: { viewModel.selectedCategory = cat }) {
-                                Text(cat)
-                                    .font(.system(size: 12, weight: .bold))
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(viewModel.selectedCategory == cat ? TryZonTheme.primaryGold : TryZonTheme.surfaceVariant)
-                                    .foregroundColor(viewModel.selectedCategory == cat ? .black : .white)
-                                    .cornerRadius(20)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                }
-
-                // Dual Photo Pickers (Person + Garment)
-                HStack(spacing: 14) {
-                    photoUploadCard(
-                        label: "YOUR MODEL PHOTO",
-                        icon: "person.crop.rectangle.fill",
-                        hint: "Upload Photo",
-                        image: viewModel.selectedPersonImage,
-                        onClear: { viewModel.selectedPersonImage = nil },
-                        pickerItem: $selectedPersonItem,
-                        onCamera: { showingCameraForPerson = true }
-                    )
-                    .onChange(of: selectedPersonItem) { newItem in
-                        Task {
-                            if let data = try? await newItem?.loadTransferable(type: Data.self),
-                               let img = UIImage(data: data) {
-                                viewModel.selectedPersonImage = img
-                            }
-                        }
-                    }
-
-                    photoUploadCard(
-                        label: "GARMENT OUTFIT",
-                        icon: "tshirt.fill",
-                        hint: "Upload Outfit",
-                        image: viewModel.selectedGarmentImage,
-                        onClear: { viewModel.selectedGarmentImage = nil },
-                        pickerItem: $selectedGarmentItem,
-                        onCamera: { showingCameraForGarment = true }
-                    )
-                    .onChange(of: selectedGarmentItem) { newItem in
-                        Task {
-                            if let data = try? await newItem?.loadTransferable(type: Data.self),
-                               let img = UIImage(data: data) {
-                                viewModel.selectedGarmentImage = img
-                            }
-                        }
+                    // Daily Reward Icon Button (🎁)
+                    Button(action: {
+                        showDailyRewardModal = true
+                    }) {
+                        Circle()
+                            .fill(TryZonTheme.primaryGold)
+                            .frame(width: 34, height: 34)
+                            .overlay(Text("🎁").font(.system(size: 16)))
                     }
                 }
                 .padding(.horizontal, 16)
+                .padding(.top, 12)
 
-                // Quick Preset Outfits Selector
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("SELECT FROM POPULAR AI OUTFITS")
-                        .font(.system(size: 10, weight: .black))
-                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.9))
-                        .tracking(1)
-                        .padding(.horizontal, 16)
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(sampleOutfits) { outfit in
-                                sampleOutfitCard(outfit)
-                            }
+                if showDemoTooltip {
+                    HStack(spacing: 8) {
+                        Text("💡 Quick Demo: 1. Select/Upload Photo ➔ 2. Choose Outfit ➔ 3. Tap Generate Try-On!")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.black)
+                        Spacer()
+                        Button(action: { showDemoTooltip = false }) {
+                            Image(systemName: "xmark")
+                               .font(.system(size: 10, weight: .bold))
+                               .foregroundColor(.black)
                         }
-                        .padding(.horizontal, 16)
                     }
-                }
-
-                // Store URL Option
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("OR PASTE CLOTHING STORE URL (MYNTRA / AJIO)")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.8))
-                        .tracking(1)
-                        .padding(.horizontal, 16)
-
-                    HStack {
-                        Image(systemName: "link")
-                            .foregroundColor(TryZonTheme.primaryGold)
-                        TextField("https://myntra.com/product/...", text: $viewModel.garmentStoreUrl)
-                            .font(.system(size: 12))
-                            .foregroundColor(.white)
-                            .autocapitalization(.none)
-                    }
-                    .padding(12)
-                    .background(TryZonTheme.surfaceVariant)
+                    .padding(10)
+                    .background(TryZonTheme.primaryGold)
                     .cornerRadius(12)
                     .padding(.horizontal, 16)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                // Error Display
-                if let err = viewModel.errorMessage {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.red)
-                        Text(err)
-                            .font(.caption.bold())
-                            .foregroundColor(.red)
+                // ── 2. OVERLAPPING LIQUID GLASS DUO VIEWFINDER CARDS ──
+                ZStack(alignment: .center) {
+                    HStack(spacing: 10) {
+                        // YOUR PHOTO CARD
+                        studioDropCard(
+                            title: "YOUR PHOTO",
+                            iconName: "person.fill",
+                            image: viewModel.selectedPersonImage,
+                            hint: "Upload Selfie",
+                            onClear: { viewModel.selectedPersonImage = nil },
+                            pickerItem: $selectedPersonItem,
+                            onCamera: { showingCameraForPerson = true }
+                        )
+                        .onChange(of: selectedPersonItem) { newItem in
+                            Task {
+                                if let data = try? await newItem?.loadTransferable(type: Data.self),
+                                   let img = UIImage(data: data) {
+                                    viewModel.selectedPersonImage = img
+                                }
+                            }
+                        }
+
+                        // CHOOSE OUTFIT CARD
+                        studioDropCard(
+                            title: "CHOOSE OUTFIT",
+                            iconName: "tshirt.fill",
+                            image: viewModel.selectedGarmentImage,
+                            hint: "Upload Outfit",
+                            onClear: { viewModel.selectedGarmentImage = nil },
+                            pickerItem: $selectedGarmentItem,
+                            onCamera: { showingCameraForGarment = true }
+                        )
+                        .onChange(of: selectedGarmentItem) { newItem in
+                            Task {
+                                if let data = try? await newItem?.loadTransferable(type: Data.self),
+                                   let img = UIImage(data: data) {
+                                    viewModel.selectedGarmentImage = img
+                                }
+                            }
+                        }
                     }
-                    .padding(.horizontal, 16)
-                }
 
-                // Generate CTA Button (Always Interactive)
-                ShimmeringGoldButton(
-                    title: viewModel.isProcessing ? "SUBMITTING..." : "GENERATE VIRTUAL TRY-ON ⚡",
-                    subtitle: "100% Realistic Fit • Fast GPU Queue",
-                    isEnabled: !viewModel.isProcessing
-                ) {
-                    executeTryOnFlow()
+                    // Central AI Fusion Match Pill Overlay (✦)
+                    Circle()
+                        .fill(Color.black.opacity(0.85))
+                        .frame(width: 36, height: 36)
+                        .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 6)
+                        .overlay(Circle().stroke(TryZonTheme.primaryGold.opacity(0.6), lineWidth: 1.2))
+                        .overlay(
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 16))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                        )
                 }
                 .padding(.horizontal, 16)
 
-                // Trust Badges Row
+                // ── 3. FLOATING GLASS MODEL & OUTFIT SELECTOR STRIPS ──
+                HStack(spacing: 10) {
+                    // MODELS SELECTION STRIP
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Models")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text("View all ›")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                        }
+
+                        HStack(spacing: 6) {
+                            ForEach(0..<sampleModels.count, id: \.self) { idx in
+                                let m = sampleModels[idx]
+                                AsyncImage(url: URL(string: m.1)) { phase in
+                                    if let img = phase.image {
+                                        img.resizable().scaledToFill()
+                                    } else {
+                                        TryZonTheme.darkSurface
+                                    }
+                                }
+                                .frame(width: 38, height: 38)
+                                .cornerRadius(10)
+                                .clipped()
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
+                                .onTapGesture {
+                                    loadSamplePersonImage(urlStr: m.1)
+                                }
+                            }
+                        }
+                    }
+                    .padding(10)
+                    .background(TryZonTheme.surfaceVariant.opacity(0.4))
+                    .cornerRadius(16)
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.08), lineWidth: 1))
+
+                    // OUTFITS SELECTION STRIP
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Outfits")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Button(action: {
+                                if let randomOutfit = sampleOutfits.randomElement() {
+                                    selectedOutfitUrl = randomOutfit.imageUrl
+                                    loadSampleGarmentImage(urlStr: randomOutfit.imageUrl)
+                                }
+                            }) {
+                                Text("View all ›")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+                            }
+                        }
+
+                        HStack(spacing: 6) {
+                            ForEach(sampleOutfits.prefix(3)) { outfit in
+                                let isSelected = selectedOutfitUrl == outfit.imageUrl
+                                AsyncImage(url: URL(string: outfit.imageUrl)) { phase in
+                                    if let img = phase.image {
+                                        img.resizable().scaledToFill()
+                                    } else {
+                                        TryZonTheme.darkSurface
+                                    }
+                                }
+                                .frame(width: 38, height: 38)
+                                .cornerRadius(10)
+                                .clipped()
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(isSelected ? TryZonTheme.primaryGold : Color.white.opacity(0.15), lineWidth: isSelected ? 2 : 1)
+                                )
+                                .onTapGesture {
+                                    selectedOutfitUrl = outfit.imageUrl
+                                    loadSampleGarmentImage(urlStr: outfit.imageUrl)
+                                }
+                            }
+                        }
+                    }
+                    .padding(10)
+                    .background(TryZonTheme.surfaceVariant.opacity(0.4))
+                    .cornerRadius(16)
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                }
+                .padding(.horizontal, 16)
+
+                // ── 4. PRIMARY CTA BUTTON (GENERATE VIRTUAL TRY-ON ⚡) ──
+                Button(action: executeTryOnFlow) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.black)
+
+                        Text("GENERATE VIRTUAL TRY-ON")
+                            .font(.system(size: 14, weight: .black, design: .rounded))
+                            .foregroundColor(.black)
+                            .tracking(0.6)
+
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.black)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(TryZonTheme.primaryGold)
+                    .cornerRadius(27)
+                    .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 8, y: 4)
+                }
+                .disabled(viewModel.isProcessing)
+                .padding(.horizontal, 16)
+                .padding(.top, 6)
+
+                // ── 5. AI SAFETY POLICY FOOTER NOTE ──
+                HStack(spacing: 6) {
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.7))
+
+                    Text("AI Safety Policy: Standard apparel required. Nudity restricted.")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundColor(.white.opacity(0.65))
+                }
+                .padding(.top, 2)
+
+                // ── 6. PRO FITTING TIPS & AI QUALITY CARD ──
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(TryZonTheme.primaryGold)
+
+                        Text("PRO FITTING TIPS")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(TryZonTheme.primaryGold)
+                            .tracking(0.5)
+                    }
+
+                    Text("For crisp 8K results, use well-lit front-facing photos. TryZon AI automatically handles lighting, texture warping, & pose alignment.")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(.white.opacity(0.75))
+                        .lineSpacing(2)
+
+                    HStack(spacing: 8) {
+                        HStack(spacing: 4) {
+                            Text("⚡ High-Res Render")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(TryZonTheme.primaryGold.opacity(0.12))
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(TryZonTheme.primaryGold.opacity(0.25), lineWidth: 1))
+
+                        HStack(spacing: 4) {
+                            Text("🔒 100% Private")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(12)
+                    }
+                    .padding(.top, 2)
+                }
+                .padding(14)
+                .background(TryZonTheme.surfaceVariant.opacity(0.3))
+                .cornerRadius(18)
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                .padding(.horizontal, 16)
+
+                // ── 7. TRUST BADGES ROW ──
                 HStack(spacing: 20) {
                     trustBadge(icon: "bolt.fill", text: "Fast GPU")
                     trustBadge(icon: "lock.shield.fill", text: "Private")
@@ -300,40 +466,59 @@ public struct TryOnUploadView: View {
                     trustBadge(icon: "arrow.clockwise", text: "Real-Time")
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 30)
+                .padding(.bottom, 24)
             }
         }
         .background(TryZonTheme.darkBackground)
     }
 
-    // MARK: - Photo Upload Card
+    // MARK: - Step Pill Helper
+    private func stepPill(step: Int, label: String, isActive: Bool) -> some View {
+        HStack(spacing: 3) {
+            Text("\(step).")
+                .font(.system(size: 10, weight: .black))
+                .foregroundColor(isActive ? TryZonTheme.primaryGold : .white.opacity(0.5))
+
+            Text(label)
+                .font(.system(size: 9.5, weight: .bold))
+                .foregroundColor(isActive ? TryZonTheme.primaryGold : .white.opacity(0.5))
+        }
+    }
+
+    // MARK: - Studio Drop Card Helper View
     @ViewBuilder
-    private func photoUploadCard(
-        label: String,
-        icon: String,
-        hint: String,
+    private func studioDropCard(
+        title: String,
+        iconName: String,
         image: UIImage?,
+        hint: String,
         onClear: @escaping () -> Void,
         pickerItem: Binding<PhotosPickerItem?>,
         onCamera: @escaping () -> Void
     ) -> some View {
-        VStack(spacing: 8) {
-            Text(label)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(TryZonTheme.primaryGold)
+        VStack(spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: iconName)
+                    .font(.system(size: 11))
+                    .foregroundColor(TryZonTheme.primaryGold)
+                Text(title)
+                    .font(.system(size: 10.5, weight: .bold))
+                    .foregroundColor(TryZonTheme.primaryGold)
+            }
 
             ZStack {
                 if let img = image {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 155, height: 210)
+                        .frame(height: 180)
+                        .frame(maxWidth: .infinity)
                         .cornerRadius(16)
                         .clipped()
                         .overlay(
                             Button(action: onClear) {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.title2)
+                                    .font(.title3)
                                     .foregroundColor(.red)
                                     .background(Circle().fill(Color.black))
                             }
@@ -343,7 +528,8 @@ public struct TryOnUploadView: View {
                 } else {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(TryZonTheme.surfaceVariant)
-                        .frame(width: 155, height: 210)
+                        .frame(height: 180)
+                        .frame(maxWidth: .infinity)
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
                                 .strokeBorder(
@@ -352,18 +538,18 @@ public struct TryOnUploadView: View {
                                 )
                         )
 
-                    VStack(spacing: 12) {
+                    VStack(spacing: 10) {
                         PhotosPicker(selection: pickerItem, matching: .images) {
-                            VStack(spacing: 6) {
-                                Image(systemName: icon)
-                                    .font(.system(size: 28))
+                            VStack(spacing: 4) {
+                                Image(systemName: iconName)
+                                    .font(.system(size: 24))
                                     .foregroundColor(TryZonTheme.primaryGold)
                                 Text(hint)
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(TryZonTheme.primaryGold)
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
                             .background(TryZonTheme.darkSurface)
                             .cornerRadius(12)
                         }
@@ -371,13 +557,13 @@ public struct TryOnUploadView: View {
                         Button(action: onCamera) {
                             HStack(spacing: 4) {
                                 Image(systemName: "camera.fill")
-                                    .font(.caption)
+                                    .font(.caption2)
                                 Text("Camera")
                                     .font(.system(size: 10, weight: .bold))
                             }
                             .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
                             .background(Color.white.opacity(0.12))
                             .cornerRadius(8)
                         }
@@ -385,65 +571,18 @@ public struct TryOnUploadView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Sample Outfit Card
-    private func sampleOutfitCard(_ outfit: SampleOutfit) -> some View {
-        let isSelected = selectedOutfitUrl == outfit.imageUrl
-        return Button(action: {
-            selectedOutfitUrl = outfit.imageUrl
-            viewModel.selectedCategory = outfit.category
-            loadSampleGarmentImage(urlStr: outfit.imageUrl)
-        }) {
-            VStack(alignment: .leading, spacing: 6) {
-                ZStack(alignment: .topTrailing) {
-                    AsyncImage(url: URL(string: outfit.imageUrl)) { img in
-                        img.resizable().scaledToFill()
-                    } placeholder: {
-                        outfit.color.opacity(0.5)
-                    }
-                    .frame(width: 90, height: 110)
-                    .clipped()
-                    .cornerRadius(10)
-
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(TryZonTheme.primaryGold)
-                            .background(Circle().fill(Color.black))
-                            .padding(6)
-                    }
-                }
-
-                Text(outfit.badge)
-                    .font(.system(size: 8, weight: .bold))
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(TryZonTheme.primaryGold)
-                    .foregroundColor(.black)
-                    .cornerRadius(4)
-
-                Text(outfit.name)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-            }
-            .frame(width: 100)
-            .padding(8)
-            .background(isSelected ? TryZonTheme.primaryGold.opacity(0.18) : TryZonTheme.surfaceVariant)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? TryZonTheme.primaryGold : TryZonTheme.primaryGold.opacity(0.3), lineWidth: isSelected ? 2 : 1)
-            )
-        }
+        .frame(maxWidth: .infinity)
+        .padding(8)
+        .background(TryZonTheme.surfaceVariant.opacity(0.3))
+        .cornerRadius(20)
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
 
     // MARK: - Trust Badge
     private func trustBadge(icon: String, text: String) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.system(size: 13))
                 .foregroundColor(TryZonTheme.primaryGold)
             Text(text)
                 .font(.system(size: 9, weight: .bold))
@@ -564,4 +703,3 @@ public struct SampleOutfit: Identifiable {
         self.imageUrl = imageUrl
     }
 }
-
