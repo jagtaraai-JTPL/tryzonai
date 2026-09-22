@@ -3,171 +3,388 @@ import SwiftUI
 public struct TryOnProcessingView: View {
     let sessionId: Int
     @ObservedObject var apiClient: APIClient
+    let userPhotoUrl: String?
+    let garmentPhotoUrl: String?
     let onCompleted: (TryOnStatusResponse) -> Void
     let onCancel: () -> Void
 
-    @State private var progress: Double = 0.15
-    @State private var currentStepIndex: Int = 0
-    @State private var currentTipIndex: Int = 0
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var percentage: Int = 0
+    @State private var currentStep: Int = 1
     @State private var errorMessage: String? = nil
     @State private var isPolling = true
-    @State private var pulseScale: CGFloat = 1.0
+    @State private var outerRotation: Double = 0
+    @State private var innerRotation: Double = 0
+    @State private var isBlasting = false
+    @State private var scanY: CGFloat = 0.05
+    @State private var shimmerX: CGFloat = -0.4
 
-    private let steps = [
-        "Uploading Photo & Garment to GPU Pipeline...",
-        "Segmenting Body Pose & Garment Features...",
-        "Running AI Neural Diffusion Fitting Pipeline...",
-        "Polishing Ultra-HD Details & Fabric Texture..."
-    ]
-
-    private let tips = [
-        "💡 Tip: High resolution, well-lit photos give the most realistic outfit fit!",
-        "✨ Pro Feature: Upgrade to Pro for 100% Zero-Ad VIP Turbo GPU Processing!",
-        "👗 Inspiration: You can try on any outfit directly from Myntra, Ajio, or Amazon links!",
-        "⚡ Speed: ComfyUI GPU cluster processes fits in under 5 seconds!",
-        "🔒 Privacy: Your photo & body pose data is processed privately and securely."
-    ]
-
-    public init(sessionId: Int, apiClient: APIClient, onCompleted: @escaping (TryOnStatusResponse) -> Void, onCancel: @escaping () -> Void) {
+    public init(
+        sessionId: Int,
+        apiClient: APIClient,
+        userPhotoUrl: String? = nil,
+        garmentPhotoUrl: String? = nil,
+        onCompleted: @escaping (TryOnStatusResponse) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
         self.sessionId = sessionId
         self.apiClient = apiClient
+        self.userPhotoUrl = userPhotoUrl
+        self.garmentPhotoUrl = garmentPhotoUrl
         self.onCompleted = onCompleted
         self.onCancel = onCancel
     }
+
+    private struct TimelineStepData: Identifiable {
+        let id: Int
+        let title: String
+        let subtitle: String
+    }
+
+    private let timelineSteps = [
+        TimelineStepData(id: 1, title: "Analyzing photo fidelity", subtitle: "Checking image quality and pose..."),
+        TimelineStepData(id: 2, title: "Extracting garment mesh", subtitle: "Understanding fabric and texture..."),
+        TimelineStepData(id: 3, title: "AI virtual draping", subtitle: "Fitting outfit to your body shape..."),
+        TimelineStepData(id: 4, title: "Lighting adjustment", subtitle: "Adding realistic shadows and lights..."),
+        TimelineStepData(id: 5, title: "Final render generation", subtitle: "Putting the final touches...")
+    ]
 
     public var body: some View {
         ZStack {
             TryZonTheme.darkBackground.ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                Spacer(minLength: 20)
+            // Soft Radial Aura Behind Central Ring
+            RadialGradient(
+                gradient: Gradient(colors: [
+                    TryZonTheme.primaryGold.opacity(errorMessage != nil ? 0.05 : 0.16),
+                    TryZonTheme.primaryGold.opacity(0.03),
+                    Color.clear
+                ]),
+                center: .init(x: 0.5, y: 0.28),
+                startRadius: 20,
+                endRadius: 280
+            )
+            .ignoresSafeArea()
 
-                // Header Title
-                VStack(spacing: 4) {
-                    Text("TRYZON AI NEURAL FITTING")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(TryZonTheme.primaryGold)
-                        .tracking(2.5)
-
-                    Text("Creating Your Virtual Fit ✨")
-                        .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
-                }
-
-                Spacer(minLength: 10)
-
-                // Animated Dual-Ring Pulse Gauge
-                ZStack {
-                    // Outer static ring
-                    Circle()
-                        .stroke(TryZonTheme.surfaceVariant, lineWidth: 14)
-                        .frame(width: 160, height: 160)
-
-                    // Inner animated progress arc
-                    Circle()
-                        .trim(from: 0, to: CGFloat(progress))
-                        .stroke(
-                            AngularGradient(gradient: Gradient(colors: [TryZonTheme.primaryGold, Color.yellow, TryZonTheme.primaryGold]), center: .center),
-                            style: StrokeStyle(lineWidth: 12, lineCap: .round)
-                        )
-                        .frame(width: 160, height: 160)
-                        .rotationEffect(.degrees(-90))
-                        .animation(.easeInOut(duration: 0.8), value: progress)
-
-                    VStack(spacing: 6) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 38))
-                            .foregroundColor(TryZonTheme.primaryGold)
-                            .scaleEffect(pulseScale)
-
-                        Text("\(Int(progress * 100))%")
-                            .font(.system(size: 20, weight: .black, design: .rounded))
+            VStack(spacing: 0) {
+                // ── 1. TOP CANCEL & NAVIGATION ROW ──
+                HStack {
+                    Button(action: {
+                        isPolling = false
+                        onCancel()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.white)
                     }
-                }
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                        pulseScale = 1.18
-                    }
-                }
 
-                // Status Step Message Indicator
-                VStack(spacing: 8) {
-                    Text(steps[currentStepIndex])
+                    Spacer()
+
+                    Text("AI Virtual Fitting")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                        .id(currentStepIndex)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .animation(.easeInOut(duration: 0.5), value: currentStepIndex)
 
-                    Text("Powered by ComfyUI High-Speed GPU Cluster")
-                        .font(.system(size: 11))
-                        .foregroundColor(.white.opacity(0.5))
-                }
+                    Spacer()
 
-                Spacer(minLength: 10)
-
-                // Rotating Styling Tip Card
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("DID YOU KNOW?")
-                            .font(.system(size: 10, weight: .black))
+                    Button(action: {
+                        isPolling = false
+                        onCancel()
+                    }) {
+                        Text("Cancel")
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundColor(TryZonTheme.primaryGold)
-                            .tracking(1)
-                        Spacer()
                     }
-
-                    Text(tips[currentTipIndex])
-                        .font(.system(size: 12.5, weight: .medium))
-                        .foregroundColor(.white.opacity(0.85))
-                        .lineSpacing(3)
-                        .id(currentTipIndex)
-                        .transition(.opacity)
-                        .animation(.easeInOut(duration: 0.6), value: currentTipIndex)
                 }
-                .padding(16)
-                .background(TryZonTheme.surfaceVariant)
-                .cornerRadius(18)
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(TryZonTheme.primaryGold.opacity(0.2), lineWidth: 1))
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
 
-                // Error Message if failed
                 if let err = errorMessage {
-                    VStack(spacing: 8) {
-                        Text(err)
-                            .font(.caption.bold())
-                            .foregroundColor(.red)
-                            .multilineTextAlignment(.center)
+                    // ERROR STATE CARD
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 20) {
+                            Spacer(minLength: 30)
 
-                        Button("Retry / Back") {
-                            onCancel()
+                            VStack(spacing: 16) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 54))
+                                    .foregroundColor(.red)
+
+                                Text("Processing Update")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+
+                                Text(err)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.75))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 16)
+
+                                Button(action: {
+                                    errorMessage = nil
+                                    percentage = 0
+                                    currentStep = 1
+                                    isPolling = true
+                                    startPollingLoop()
+                                }) {
+                                    Text("RETRY PROCESSING")
+                                        .font(.system(size: 14, weight: .black))
+                                        .foregroundColor(.black)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 48)
+                                        .background(TryZonTheme.primaryGold)
+                                        .cornerRadius(14)
+                                }
+                                .padding(.horizontal, 12)
+
+                                Button(action: onCancel) {
+                                    Text("GO BACK")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(TryZonTheme.primaryGold)
+                                }
+                            }
+                            .padding(24)
+                            .background(TryZonTheme.darkSurface)
+                            .cornerRadius(24)
+                            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.red.opacity(0.3), lineWidth: 1.5))
+                            .padding(.horizontal, 16)
                         }
-                        .font(.caption.bold())
-                        .foregroundColor(TryZonTheme.primaryGold)
                     }
-                    .padding(.horizontal, 24)
-                }
+                } else {
+                    // PROCESSING CONTENT SCROLLVIEW
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 14) {
 
-                Spacer(minLength: 20)
+                            // ── 2. MAIN HEADER TITLE ──
+                            VStack(spacing: 3) {
+                                HStack(spacing: 4) {
+                                    Text("Processing your")
+                                        .font(.system(size: 22, weight: .black, design: .rounded))
+                                        .foregroundColor(.white)
+                                    Text("Try-On...")
+                                        .font(.system(size: 22, weight: .black, design: .rounded))
+                                        .foregroundColor(TryZonTheme.primaryGold)
+                                }
 
-                // Cancel Button
-                Button(action: {
-                    isPolling = false
-                    onCancel()
-                }) {
-                    Text("Cancel Fitting")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white.opacity(0.5))
-                        .padding(.vertical, 12)
+                                Text("Almost ready! Our AI is creating your perfect look.")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                            .padding(.top, 4)
+
+                            // ── 3. TIME CONFIDENCE PILL ──
+                            HStack(spacing: 6) {
+                                Image(systemName: "clock.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+                                Text("Usually takes 15–20 seconds • Please wait")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(TryZonTheme.primaryGold.opacity(0.12))
+                            .cornerRadius(20)
+                            .overlay(RoundedRectangle(cornerRadius: 20).stroke(TryZonTheme.primaryGold.opacity(0.35), lineWidth: 1))
+
+                            // ── 4. DUAL PHOTO CARDS & AI CENTRAL RING ──
+                            VStack(spacing: 12) {
+                                HStack(spacing: 16) {
+                                    // Left Card: YOUR PHOTO
+                                    PhotoPreviewCardView(
+                                        title: "YOUR PHOTO",
+                                        imageUrl: userPhotoUrl,
+                                        isScanning: true,
+                                        scanY: scanY
+                                    )
+
+                                    // Chevrons Connection Indicator
+                                    HStack(spacing: -3) {
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(TryZonTheme.primaryGold.opacity(0.5))
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundColor(TryZonTheme.primaryGold)
+                                    }
+
+                                    // Right Card: AI TRY-ON
+                                    PhotoPreviewCardView(
+                                        title: "AI TRY-ON",
+                                        imageUrl: garmentPhotoUrl,
+                                        isDraping: true,
+                                        shimmerX: shimmerX
+                                    )
+                                }
+
+                                // Central AI Progress Ring showing 0-100% Ticker
+                                ZStack {
+                                    // Outer rotating ring
+                                    Circle()
+                                        .stroke(
+                                            AngularGradient(
+                                                gradient: Gradient(colors: [TryZonTheme.primaryGold, Color.clear, TryZonTheme.primaryGold.opacity(0.6), Color.clear]),
+                                                center: .center
+                                            ),
+                                            lineWidth: 2.5
+                                        )
+                                        .frame(width: 114, height: 114)
+                                        .rotationEffect(.degrees(outerRotation))
+
+                                    // Inner counter-rotating ring
+                                    Circle()
+                                        .stroke(
+                                            AngularGradient(
+                                                gradient: Gradient(colors: [Color.clear, Color.yellow, Color.clear, TryZonTheme.primaryGold]),
+                                                center: .center
+                                            ),
+                                            lineWidth: 1.5
+                                        )
+                                        .frame(width: 98, height: 98)
+                                        .rotationEffect(.degrees(innerRotation))
+
+                                    // Core Progress Display
+                                    Circle()
+                                        .fill(TryZonTheme.primaryGold.opacity(0.12))
+                                        .frame(width: 80, height: 80)
+                                        .overlay(Circle().stroke(TryZonTheme.primaryGold.opacity(0.75), lineWidth: 1.5))
+                                        .overlay(
+                                            VStack(spacing: 1) {
+                                                Text("\(percentage)%")
+                                                    .font(.system(size: 22, weight: .black, design: .rounded))
+                                                    .foregroundColor(TryZonTheme.primaryGold)
+
+                                                Text("AI RENDERING")
+                                                    .font(.system(size: 7.5, weight: .black))
+                                                    .foregroundColor(.white)
+                                                    .tracking(1.0)
+
+                                                Image(systemName: "sparkles")
+                                                    .font(.system(size: 10))
+                                                    .foregroundColor(TryZonTheme.primaryGold)
+                                            }
+                                        )
+                                }
+                            }
+                            .padding(.vertical, 4)
+
+                            // ── 5. AI FASHION PROCESSING CAPABILITY CARD ──
+                            HStack(spacing: 10) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("AI Fashion Processing")
+                                        .font(.system(size: 12.5, weight: .black))
+                                        .foregroundColor(.white)
+
+                                    Text("Realistic fit • Natural lighting • Personalized try-on")
+                                        .font(.system(size: 10.5))
+                                        .foregroundColor(.white.opacity(0.65))
+                                }
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(TryZonTheme.darkSurface)
+                            .cornerRadius(18)
+                            .overlay(RoundedRectangle(cornerRadius: 18).stroke(TryZonTheme.primaryGold.opacity(0.22), lineWidth: 1))
+
+                            // ── 6. PROCESSING STEPS TIMELINE ──
+                            VStack(spacing: 10) {
+                                ForEach(timelineSteps) { step in
+                                    let isActive = step.id == currentStep
+                                    let isCompleted = step.id < currentStep
+
+                                    HStack(spacing: 12) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(isCompleted ? TryZonTheme.primaryGold : (isActive ? TryZonTheme.primaryGold.opacity(0.15) : Color.white.opacity(0.05)))
+                                                .frame(width: 32, height: 32)
+                                                .overlay(
+                                                    Circle()
+                                                        .stroke(
+                                                            isActive ? TryZonTheme.primaryGold : (isCompleted ? Color.clear : Color.white.opacity(0.15)),
+                                                            lineWidth: isActive ? 2 : 1
+                                                        )
+                                                )
+
+                                            if isCompleted {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 13, weight: .bold))
+                                                    .foregroundColor(.black)
+                                            } else if isActive {
+                                                ProgressView()
+                                                    .tint(TryZonTheme.primaryGold)
+                                                    .scaleEffect(0.7)
+                                            } else {
+                                                Text("\(step.id)")
+                                                    .font(.system(size: 11, weight: .bold))
+                                                    .foregroundColor(.white.opacity(0.4))
+                                            }
+                                        }
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(step.title)
+                                                .font(.system(size: 13, weight: (isActive || isCompleted) ? .bold : .medium))
+                                                .foregroundColor(isCompleted ? .white : (isActive ? TryZonTheme.primaryGold : .white.opacity(0.4)))
+
+                                            Text(step.subtitle)
+                                                .font(.system(size: 10.5))
+                                                .foregroundColor(.white.opacity(0.5))
+                                        }
+
+                                        Spacer()
+                                    }
+                                }
+                            }
+                            .padding(14)
+                            .background(TryZonTheme.darkSurface)
+                            .cornerRadius(20)
+                            .overlay(RoundedRectangle(cornerRadius: 20).stroke(TryZonTheme.primaryGold.opacity(0.22), lineWidth: 1))
+
+                            // ── 7. BOTTOM REASSURANCE CARD ──
+                            HStack(spacing: 8) {
+                                Image(systemName: "lock.shield.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+
+                                Text("Your photo & pose data is processed securely & deleted after fitting.")
+                                    .font(.system(size: 10.5, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.black.opacity(0.4))
+                            .cornerRadius(14)
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                            .padding(.bottom, 16)
+                        }
+                        .padding(.horizontal, 16)
+                    }
                 }
             }
-            .padding(20)
         }
         .onAppear {
+            startAnimations()
             startPollingLoop()
-            startTipTimer()
+        }
+    }
+
+    private func startAnimations() {
+        withAnimation(.linear(duration: 6.5).repeatForever(autoreverses: false)) {
+            outerRotation = 360
+        }
+        withAnimation(.linear(duration: 4.5).repeatForever(autoreverses: false)) {
+            innerRotation = -360
+        }
+        withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: true)) {
+            scanY = 0.95
+        }
+        withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
+            shimmerX = 1.4
         }
     }
 
@@ -176,45 +393,122 @@ public struct TryOnProcessingView: View {
             var stepCounter = 0
             while isPolling {
                 do {
-                    try await Task.sleep(nanoseconds: 1_400_000_000)
+                    try await Task.sleep(nanoseconds: 150_000_000) // 150ms smooth ticker update
                     stepCounter += 1
 
-                    let status = try await apiClient.pollTaskStatus(sessionId: sessionId)
-
-                    DispatchQueue.main.async {
-                        if stepCounter < 4 {
-                            self.currentStepIndex = stepCounter % steps.count
-                            self.progress = min(0.88, 0.2 + Double(stepCounter) * 0.2)
+                    await MainActor.run {
+                        if self.percentage < 95 {
+                            self.percentage += 1
+                            self.currentStep = min(5, (self.percentage / 20) + 1)
                         }
+                    }
+
+                    // Poll status every 2 seconds (~13 cycles of 150ms)
+                    if stepCounter % 13 == 0 {
+                        let status = try await apiClient.pollTaskStatus(sessionId: sessionId)
 
                         if status.isCompleted {
-                            self.progress = 1.0
-                            self.isPolling = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                                onCompleted(status)
+                            await MainActor.run {
+                                self.percentage = 100
+                                self.currentStep = 5
+                                self.isPolling = false
+                                self.isBlasting = true
                             }
+                            try? await Task.sleep(nanoseconds: 600_000_000)
+                            await MainActor.run {
+                                self.onCompleted(status)
+                            }
+                            break
                         } else if status.isFailed {
-                            self.isPolling = false
-                            self.errorMessage = "Failed to process AI Try-On. Please try another photo."
+                            await MainActor.run {
+                                self.isPolling = false
+                                self.errorMessage = "Failed to process AI Try-On. Please try another photo."
+                            }
+                            break
                         }
                     }
                 } catch {
-                    if stepCounter > 40 {
-                        DispatchQueue.main.async {
+                    if stepCounter > 200 { // ~30 sec timeout
+                        await MainActor.run {
                             self.isPolling = false
                             self.errorMessage = error.localizedDescription
                         }
+                        break
                     }
                 }
             }
         }
     }
+}
 
-    private func startTipTimer() {
-        Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
-            withAnimation(.easeInOut(duration: 0.6)) {
-                currentTipIndex = (currentTipIndex + 1) % tips.count
+// ── PHOTO PREVIEW CARD HELPER VIEW ──
+private struct PhotoPreviewCardView: View {
+    let title: String
+    let imageUrl: String?
+    var isScanning: Bool = false
+    var scanY: CGFloat = 0.05
+    var isDraping: Bool = false
+    var shimmerX: CGFloat = -0.4
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                if let urlStr = imageUrl, let url = URL(string: urlStr) {
+                    AsyncImage(url: url) { phase in
+                        if let img = phase.image {
+                            img.resizable().aspectRatio(contentMode: .fill)
+                        } else {
+                            TryZonTheme.darkSurface
+                        }
+                    }
+                } else {
+                    ZStack {
+                        TryZonTheme.darkSurface
+                        Image(systemName: isScanning ? "person.fill" : "tshirt.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(TryZonTheme.primaryGold.opacity(0.5))
+                    }
+                }
+
+                // Scanning Line Effect
+                if isScanning {
+                    GeometryReader { geo in
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [.clear, TryZonTheme.primaryGold, .white, TryZonTheme.primaryGold, .clear],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(height: 2.5)
+                            .offset(y: geo.size.height * scanY)
+                    }
+                }
+
+                // Title Badge Pill at Bottom
+                VStack {
+                    Spacer()
+                    HStack(spacing: 3) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 8))
+                            .foregroundColor(TryZonTheme.primaryGold)
+                        Text(title)
+                            .font(.system(size: 7.5, weight: .black))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.black.opacity(0.8))
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(TryZonTheme.primaryGold.opacity(0.7), lineWidth: 0.8))
+                    .padding(.bottom, 6)
+                }
             }
         }
+        .frame(width: 88, height: 124)
+        .cornerRadius(18)
+        .shadow(color: TryZonTheme.primaryGold.opacity(0.25), radius: 6, y: 3)
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(TryZonTheme.primaryGold.opacity(0.7), lineWidth: 1.2))
     }
 }
