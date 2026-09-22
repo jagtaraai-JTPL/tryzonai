@@ -3,6 +3,7 @@ import StoreKit
 
 public struct PremiumView: View {
     @ObservedObject var apiClient: APIClient
+    @ObservedObject private var storeKit = StoreKitManager.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedTab: Int = 1 // 0: Subscriptions, 1: Credit Packs (Pocket Pack ₹39 at top)
@@ -90,7 +91,7 @@ public struct PremiumView: View {
                                 CreditPackCard(
                                     id: "credits_pocket",
                                     name: "🎁 Pocket Special (25 Fits)",
-                                    price: "₹39.00 ($0.49)",
+                                    price: storeKit.priceString(for: "credits_pocket", fallbackINR: "₹39.00", fallbackUSD: "$0.49"),
                                     subtitle: "15 + 10 BONUS Credits • 100% Zero Ads",
                                     tag: "BEST OFFER ⭐",
                                     isSelected: selectedPackId == "credits_pocket",
@@ -100,7 +101,7 @@ public struct PremiumView: View {
                                 CreditPackCard(
                                     id: "credits_starter",
                                     name: "Starter Pack (60 Credits)",
-                                    price: "₹99.00 ($1.29)",
+                                    price: storeKit.priceString(for: "credits_starter", fallbackINR: "₹99.00", fallbackUSD: "$1.29"),
                                     subtitle: "60 AI Try-Ons • Standard Priority",
                                     tag: "",
                                     isSelected: selectedPackId == "credits_starter",
@@ -110,7 +111,7 @@ public struct PremiumView: View {
                                 CreditPackCard(
                                     id: "credits_value",
                                     name: "Value Pack (250 Credits)",
-                                    price: "₹299.00 ($3.99)",
+                                    price: storeKit.priceString(for: "credits_value", fallbackINR: "₹299.00", fallbackUSD: "$3.99"),
                                     subtitle: "250 AI Try-Ons • Priority GPU Queue",
                                     tag: "POPULAR 🔥",
                                     isSelected: selectedPackId == "credits_value",
@@ -120,7 +121,7 @@ public struct PremiumView: View {
                                 CreditPackCard(
                                     id: "credits_business",
                                     name: "Business Pack (800 Credits)",
-                                    price: "₹799.00 ($9.99)",
+                                    price: storeKit.priceString(for: "credits_business", fallbackINR: "₹799.00", fallbackUSD: "$9.99"),
                                     subtitle: "800 AI Try-Ons • High Volume Access",
                                     tag: "BEST VALUE ⚡",
                                     isSelected: selectedPackId == "credits_business",
@@ -130,7 +131,7 @@ public struct PremiumView: View {
                                 CreditPackCard(
                                     id: "credits_enterprise",
                                     name: "Enterprise Pack (3,000 Credits)",
-                                    price: "₹2,499.00 ($29.99)",
+                                    price: storeKit.priceString(for: "credits_enterprise", fallbackINR: "₹2,499.00", fallbackUSD: "$29.99"),
                                     subtitle: "3,000 AI Try-Ons • Maximum Volume & VIP Queue",
                                     tag: "MAX VALUE 👑",
                                     isSelected: selectedPackId == "credits_enterprise",
@@ -144,7 +145,7 @@ public struct PremiumView: View {
                                 SubscriptionCard(
                                     id: "sub_monthly_pro",
                                     name: "Monthly Pro",
-                                    price: "₹299.00 / mo ($3.99)",
+                                    price: storeKit.priceString(for: "sub_monthly_pro", fallbackINR: "₹299.00", fallbackUSD: "$3.99", suffix: " / mo"),
                                     subtitle: "Unlimited AI Try-Ons • 100% Zero Ads • VIP Turbo Speed",
                                     tag: "RECOMMENDED ⭐",
                                     isSelected: selectedPackId == "sub_monthly_pro",
@@ -154,7 +155,7 @@ public struct PremiumView: View {
                                 SubscriptionCard(
                                     id: "sub_weekly_pro",
                                     name: "Weekly Pro",
-                                    price: "₹99.00 / wk ($1.29)",
+                                    price: storeKit.priceString(for: "sub_weekly_pro", fallbackINR: "₹99.00", fallbackUSD: "$1.29", suffix: " / wk"),
                                     subtitle: "150 AI Try-On Credits / week • Fast Speed",
                                     tag: "",
                                     isSelected: selectedPackId == "sub_weekly_pro",
@@ -164,7 +165,7 @@ public struct PremiumView: View {
                                 SubscriptionCard(
                                     id: "sub_yearly_legend",
                                     name: "Yearly Legend",
-                                    price: "₹1,499.00 / yr ($19.99)",
+                                    price: storeKit.priceString(for: "sub_yearly_legend", fallbackINR: "₹1,499.00", fallbackUSD: "$19.99", suffix: " / yr"),
                                     subtitle: "Unlimited AI Try-Ons • Save 60%",
                                     tag: "SAVE 60% 👑",
                                     isSelected: selectedPackId == "sub_yearly_legend",

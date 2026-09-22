@@ -139,14 +139,14 @@ public struct ChoicePopup: View {
                         )
                     }
 
-                    // Option 3: Buy Pocket Pack ₹39 / $0.99 (25 Credits)
+                    // Option 3: Buy Pocket Pack (25 Credits)
                     Button(action: {
                         isPresented = false
                         onNavigateToPremium()
                     }) {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("⚡ Pocket Pack ₹39 / $0.99")
+                                Text("⚡ Pocket Pack \(StoreKitManager.shared.priceString(for: "credits_pocket", fallbackINR: "₹39.00", fallbackUSD: "$0.49"))")
                                     .font(.system(size: 15, weight: .bold))
                                     .foregroundColor(TryZonTheme.primaryGold)
                                 Text("Get 25 Credits (15 + 10 BONUS)")

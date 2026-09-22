@@ -48,6 +48,17 @@ public class StoreKitManager: ObservableObject {
         }
     }
 
+    // MARK: - Localized Price Helper
+    public func priceString(for productId: String, fallbackINR: String, fallbackUSD: String, suffix: String = "") -> String {
+        if let product = products.first(where: { $0.id == productId }) {
+            return product.displayPrice + suffix
+        }
+        let region = Locale.current.region?.identifier ?? Locale.current.identifier
+        let isIndia = region.contains("IN")
+        let fallback = isIndia ? fallbackINR : fallbackUSD
+        return fallback + suffix
+    }
+
     // MARK: - Purchase Flow
     public func purchase(_ product: Product) async throws -> StoreKit.Transaction? {
         let result = try await product.purchase()
