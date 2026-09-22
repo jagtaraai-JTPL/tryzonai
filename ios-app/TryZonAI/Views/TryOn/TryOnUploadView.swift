@@ -154,7 +154,11 @@ public struct TryOnUploadView: View {
         .sheet(isPresented: $showLoginSheet) {
             LoginView(apiClient: apiClient, onNavigateToRegister: {})
         }
+        .sheet(isPresented: $showDailyRewardModal) {
+            DailyRewardView(apiClient: apiClient)
+        }
     }
+
 
     // MARK: - Upload Screen Content (Matching Android TryOnUploadScreen)
     private var uploadScreenContent: some View {
