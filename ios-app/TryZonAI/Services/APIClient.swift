@@ -410,10 +410,10 @@ public class APIClient: ObservableObject {
     }
 
     // MARK: - Catalog API
-    public func fetchCatalog(category: String? = nil, gender: String? = nil, search: String? = nil) async throws -> [CatalogItem] {
+    public func fetchCatalog(category: String? = nil, gender: String? = nil, search: String? = nil, limit: Int = 100) async throws -> [CatalogItem] {
         var components = URLComponents(url: baseURL.appendingPathComponent("catalog"), resolvingAgainstBaseURL: false)!
-        var queryItems: [URLQueryItem] = [URLQueryItem(name: "limit", value: "30")]
-        if let cat = category, cat != "All" {
+        var queryItems: [URLQueryItem] = [URLQueryItem(name: "limit", value: "\(limit)")]
+        if let cat = category, cat != "All" && cat != "All AI Outfits" {
             queryItems.append(URLQueryItem(name: "category", value: cat))
         }
         if let g = gender, g != "All" {

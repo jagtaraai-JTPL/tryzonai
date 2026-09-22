@@ -33,6 +33,7 @@ public struct MainTabView: View {
     @State private var selectedTab: TabItem = .home
     @State private var isDrawerOpen: Bool = false
     @State private var activeSheet: SideDrawerSheet? = nil
+    @State private var preselectedGarmentForTryOn: CatalogItem? = nil
 
     public init() {
         let appearance = UITabBarAppearance()
@@ -70,7 +71,12 @@ public struct MainTabView: View {
                 TabView(selection: $selectedTab) {
                     HomeScreen(
                         apiClient: apiClient,
-                        onNavigateToTryOn: { selectedTab = .tryon },
+                        onNavigateToTryOn: { selectedItem in
+                            if let item = selectedItem {
+                                preselectedGarmentForTryOn = item
+                            }
+                            selectedTab = .tryon
+                        },
                         onNavigateToCatalog: { selectedTab = .catalog }
                     )
                     .tabItem {

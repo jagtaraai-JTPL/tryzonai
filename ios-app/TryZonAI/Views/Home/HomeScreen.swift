@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - HomeScreen — Exact Android Native Replica (Clean Proportional Hero & Cards)
 public struct HomeScreen: View {
     @ObservedObject var apiClient: APIClient
-    let onNavigateToTryOn: () -> Void
+    let onNavigateToTryOn: (CatalogItem?) -> Void
     let onNavigateToCatalog: () -> Void
 
     @State private var trendingProducts: [CatalogItem] = []
@@ -27,7 +27,7 @@ public struct HomeScreen: View {
     ]
     @State private var quoteIndex: Int = 0
 
-    public init(apiClient: APIClient, onNavigateToTryOn: @escaping () -> Void, onNavigateToCatalog: @escaping () -> Void) {
+    public init(apiClient: APIClient, onNavigateToTryOn: @escaping (CatalogItem?) -> Void, onNavigateToCatalog: @escaping () -> Void) {
         self.apiClient = apiClient
         self.onNavigateToTryOn = onNavigateToTryOn
         self.onNavigateToCatalog = onNavigateToCatalog
@@ -440,7 +440,7 @@ public struct HomeScreen: View {
 
                 Spacer(minLength: 4)
 
-                Button(action: onNavigateToTryOn) {
+                Button(action: { onNavigateToTryOn(product) }) {
                     Text("TRY ON")
                         .font(.system(size: 10.5, weight: .bold))
                         .foregroundColor(.black)
@@ -492,7 +492,10 @@ public struct HomeScreen: View {
 
                 Spacer(minLength: 4)
 
-                Button(action: onNavigateToTryOn) {
+                Button(action: {
+                    let item = CatalogItem(id: outfit.0, name: outfit.0, brand: "TryZon AI", price: 2999, original_price: 3999, image_url: outfit.2, category: "Suits", store: "TryZon AI", gender: "All", badge: outfit.1)
+                    onNavigateToTryOn(item)
+                }) {
                     Text("TRY ON")
                         .font(.system(size: 10.5, weight: .bold))
                         .foregroundColor(.black)

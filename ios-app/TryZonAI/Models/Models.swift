@@ -207,7 +207,7 @@ public struct PriceOption: Codable, Identifiable {
 }
 
 // MARK: - Catalog Item Model
-public struct CatalogItem: Codable, Identifiable {
+public struct CatalogItem: Codable, Identifiable, Equatable {
     public var id: String
     public var name: String
     public var brand: String?

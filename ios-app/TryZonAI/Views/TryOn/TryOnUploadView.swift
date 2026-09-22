@@ -129,8 +129,8 @@ public struct TryOnUploadView: View {
             fetchRealCatalog()
             checkPreselectedGarment()
         }
-        .onChange(of: preselectedGarment) { newGarment in
-            if let garment = newGarment {
+        .onChange(of: preselectedGarment?.id) { _ in
+            if let garment = preselectedGarment {
                 loadGarmentFromCatalogItem(garment)
             }
         }
@@ -347,9 +347,32 @@ public struct TryOnUploadView: View {
                                 .foregroundColor(.white)
                             Spacer()
                             Button(action: {
+                                if !realCatalogItems.isEmpty {
+                                    if let randomItem = realCatalogItems.randomElement() {
+                                        loadGarmentFromCatalogItem(randomItem)
+                                    }
+                                } else if let randomOutfit = sampleOutfits.randomElement() {
+                                    selectedOutfitUrl = randomOutfit.imageUrl
+                                    loadSampleGarmentImage(urlStr: randomOutfit.imageUrl)
+                                }
+                            }) {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "shuffle")
+                                        .font(.system(size: 9, weight: .bold))
+                                    Text("Random")
+                                        .font(.system(size: 10, weight: .bold))
+                                }
+                                .foregroundColor(TryZonTheme.primaryGold)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(TryZonTheme.primaryGold.opacity(0.15))
+                                .cornerRadius(6)
+                            }
+
+                            Button(action: {
                                 showCatalogPickerSheet = true
                             }) {
-                                Text("View all (\(realCatalogItems.isEmpty ? 1400 : realCatalogItems.count)) ›")
+                                Text("View all (\(realCatalogItems.isEmpty ? 100 : realCatalogItems.count)) ›")
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundColor(TryZonTheme.primaryGold)
                             }
@@ -358,7 +381,7 @@ public struct TryOnUploadView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
                                 if !realCatalogItems.isEmpty {
-                                    ForEach(realCatalogItems.prefix(15)) { item in
+                                    ForEach(realCatalogItems) { item in
                                         let isSelected = selectedOutfitUrl == item.image_url || selectedOutfitUrl.contains(item.id)
                                         AsyncImage(url: item.fullImageURL) { phase in
                                             if let img = phase.image {
@@ -657,7 +680,7 @@ public struct TryOnUploadView: View {
 
     private func fetchRealCatalog() {
         Task {
-            if let fetched = try? await apiClient.fetchCatalog(category: "All", gender: "All") {
+            if let fetched = try? await apiClient.fetchCatalog(category: "All", gender: "All", limit: 100) {
                 DispatchQueue.main.async {
                     self.realCatalogItems = fetched
                 }
@@ -718,8 +741,11 @@ public struct TryOnUploadView: View {
     }
 
     private func downloadSampleImage(from urlStr: String) async -> UIImage? {
-        guard let url = URL(string: urlStr),
-              let (data, _) = try? await URLSession.shared.data(from: url),
+        guard let url = URL(string: urlStr) else { return nil }
+        var request = URLRequest(url: url)
+        request.setValue("TryZonAI/1.0 (iOS; AppStore)", forHTTPHeaderField: "User-Agent")
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode),
               let img = UIImage(data: data) else {
             return nil
         }
