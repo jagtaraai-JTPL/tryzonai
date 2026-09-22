@@ -89,8 +89,8 @@ public struct TryOnUploadView: View {
                         TryOnProcessingView(
                             sessionId: sessionId,
                             apiClient: apiClient,
-                            userPhotoUrl: viewModel.personImageURL?.absoluteString,
-                            garmentPhotoUrl: viewModel.garmentImageURL?.absoluteString ?? viewModel.selectedProduct?.imageUrl,
+                            userPhotoUrl: nil,
+                            garmentPhotoUrl: selectedOutfitUrl.isEmpty ? nil : selectedOutfitUrl,
                             onCompleted: { statusRes in
                                 navPath = [.result(statusRes)]
                             },
@@ -100,6 +100,7 @@ public struct TryOnUploadView: View {
                             }
                         )
                         .navigationBarHidden(true)
+
 
                     case .result(let statusRes):
                         TryOnResultView(
