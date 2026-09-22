@@ -5,6 +5,8 @@ public struct TryOnProcessingView: View {
     @ObservedObject var apiClient: APIClient
     let userPhotoUrl: String?
     let garmentPhotoUrl: String?
+    let userImage: UIImage?
+    let garmentImage: UIImage?
     let onCompleted: (TryOnStatusResponse) -> Void
     let onCancel: () -> Void
 
@@ -24,6 +26,8 @@ public struct TryOnProcessingView: View {
         apiClient: APIClient,
         userPhotoUrl: String? = nil,
         garmentPhotoUrl: String? = nil,
+        userImage: UIImage? = nil,
+        garmentImage: UIImage? = nil,
         onCompleted: @escaping (TryOnStatusResponse) -> Void,
         onCancel: @escaping () -> Void
     ) {
@@ -31,6 +35,8 @@ public struct TryOnProcessingView: View {
         self.apiClient = apiClient
         self.userPhotoUrl = userPhotoUrl
         self.garmentPhotoUrl = garmentPhotoUrl
+        self.userImage = userImage
+        self.garmentImage = garmentImage
         self.onCompleted = onCompleted
         self.onCancel = onCancel
     }
@@ -194,6 +200,7 @@ public struct TryOnProcessingView: View {
                                     PhotoPreviewCardView(
                                         title: "YOUR PHOTO",
                                         imageUrl: userPhotoUrl,
+                                        uiImage: userImage,
                                         isScanning: true,
                                         scanY: scanY
                                     )
@@ -212,6 +219,7 @@ public struct TryOnProcessingView: View {
                                     PhotoPreviewCardView(
                                         title: "AI TRY-ON",
                                         imageUrl: garmentPhotoUrl,
+                                        uiImage: garmentImage,
                                         isDraping: true,
                                         shimmerX: shimmerX
                                     )
@@ -445,6 +453,7 @@ public struct TryOnProcessingView: View {
 private struct PhotoPreviewCardView: View {
     let title: String
     let imageUrl: String?
+    var uiImage: UIImage? = nil
     var isScanning: Bool = false
     var scanY: CGFloat = 0.05
     var isDraping: Bool = false
@@ -453,7 +462,11 @@ private struct PhotoPreviewCardView: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                if let urlStr = imageUrl, let url = URL(string: urlStr) {
+                if let uiImg = uiImage {
+                    Image(uiImage: uiImg)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } else if let urlStr = imageUrl, let url = URL(string: urlStr) {
                     AsyncImage(url: url) { phase in
                         if let img = phase.image {
                             img.resizable().aspectRatio(contentMode: .fill)

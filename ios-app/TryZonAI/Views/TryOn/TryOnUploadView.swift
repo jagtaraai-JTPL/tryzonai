@@ -100,6 +100,8 @@ public struct TryOnUploadView: View {
                             apiClient: apiClient,
                             userPhotoUrl: nil,
                             garmentPhotoUrl: selectedOutfitUrl.isEmpty ? nil : selectedOutfitUrl,
+                            userImage: viewModel.selectedPersonImage,
+                            garmentImage: viewModel.selectedGarmentImage,
                             onCompleted: { statusRes in
                                 navPath = [.result(statusRes)]
                             },

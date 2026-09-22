@@ -305,8 +305,9 @@ public struct WardrobeItemModel: Codable, Identifiable {
 
 // MARK: - Try-On History Item Model
 public struct TryOnHistoryItem: Codable, Identifiable {
-    public var id: String { String(session_id) }
-    public var session_id: Int
+    public var id: String { session_id_str }
+    public var session_id_str: String
+    public var session_id: Int { Int(session_id_str) ?? 0 }
     public var product_id: String?
     public var result_url: String
     public var created_at: String?
@@ -314,6 +315,7 @@ public struct TryOnHistoryItem: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case session_id
+        case id
         case product_id
         case result_url
         case created_at = "timestamp"
@@ -322,11 +324,19 @@ public struct TryOnHistoryItem: Codable, Identifiable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.session_id = try container.decodeIfPresent(Int.self, forKey: .session_id) ?? 0
-        self.product_id = try container.decodeIfPresent(String.self, forKey: .product_id)
-        self.result_url = try container.decodeIfPresent(String.self, forKey: .result_url) ?? ""
-        self.created_at = try container.decodeIfPresent(String.self, forKey: .created_at)
-        self.garment_name = try container.decodeIfPresent(String.self, forKey: .garment_name)
+        if let strId = try? container.decode(String.self, forKey: .session_id) {
+            self.session_id_str = strId
+        } else if let intId = try? container.decode(Int.self, forKey: .session_id) {
+            self.session_id_str = String(intId)
+        } else if let altId = try? container.decode(String.self, forKey: .id) {
+            self.session_id_str = altId
+        } else {
+            self.session_id_str = UUID().uuidString
+        }
+        self.product_id = try? container.decodeIfPresent(String.self, forKey: .product_id)
+        self.result_url = (try? container.decodeIfPresent(String.self, forKey: .result_url)) ?? ""
+        self.created_at = try? container.decodeIfPresent(String.self, forKey: .created_at)
+        self.garment_name = try? container.decodeIfPresent(String.self, forKey: .garment_name)
     }
 
     public var fullResultURL: URL? {

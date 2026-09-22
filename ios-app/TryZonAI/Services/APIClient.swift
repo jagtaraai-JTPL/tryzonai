@@ -440,9 +440,12 @@ public class APIClient: ObservableObject {
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
-        let (data, _) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            return []
+        }
         let decoder = JSONDecoder()
-        return try decoder.decode([TryOnHistoryItem].self, from: data)
+        return (try? decoder.decode([TryOnHistoryItem].self, from: data)) ?? []
     }
 
     // MARK: - Wardrobe Closet API
@@ -456,7 +459,7 @@ public class APIClient: ObservableObject {
             return []
         }
         let decoder = JSONDecoder()
-        return try decoder.decode([WardrobeItemModel].self, from: data)
+        return (try? decoder.decode([WardrobeItemModel].self, from: data)) ?? []
     }
 
     public func deleteWardrobeItem(id: Int) async throws {

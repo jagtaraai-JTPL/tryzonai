@@ -400,18 +400,14 @@ public struct WardrobeView: View {
     private func loadData() {
         isLoading = true
         Task {
-            do {
-                let closet = try await apiClient.fetchWardrobeItems()
-                let history = try await apiClient.fetchHistory()
-                DispatchQueue.main.async {
-                    self.savedItems = closet
-                    self.historyItems = history
-                    self.isLoading = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                }
+            async let closetTask = (try? apiClient.fetchWardrobeItems()) ?? []
+            async let historyTask = (try? apiClient.fetchHistory()) ?? []
+            let closet = await closetTask
+            let history = await historyTask
+            DispatchQueue.main.async {
+                self.savedItems = closet
+                self.historyItems = history
+                self.isLoading = false
             }
         }
     }
