@@ -30,6 +30,7 @@ public struct TryOnUploadView: View {
     @ObservedObject var apiClient: APIClient
     @StateObject private var viewModel = TryOnViewModel()
     @ObservedObject private var authViewModel = AuthViewModel.shared
+    @Binding var preselectedGarment: CatalogItem?
 
     let onNavigateToResult: (TryOnStatusResponse) -> Void
 
@@ -48,6 +49,9 @@ public struct TryOnUploadView: View {
     @State private var showDailyRewardModal = false
     @State private var showDemoTooltip = false
     @State private var demoStep = 0
+
+    @State private var realCatalogItems: [CatalogItem] = []
+    @State private var showCatalogPickerSheet = false
 
     private let sampleOutfits = [
         SampleOutfit(name: "Riviera Linen", badge: "👑 OLD MONEY", category: "Suits", color: Color.blue,
@@ -72,8 +76,13 @@ public struct TryOnUploadView: View {
 
     private let samplePersonModelUrl = "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp"
 
-    public init(apiClient: APIClient, onNavigateToResult: @escaping (TryOnStatusResponse) -> Void) {
+    public init(
+        apiClient: APIClient,
+        preselectedGarment: Binding<CatalogItem?> = .constant(nil),
+        onNavigateToResult: @escaping (TryOnStatusResponse) -> Void
+    ) {
         self.apiClient = apiClient
+        self._preselectedGarment = preselectedGarment
         self.onNavigateToResult = onNavigateToResult
     }
 
@@ -101,7 +110,6 @@ public struct TryOnUploadView: View {
                         )
                         .navigationBarHidden(true)
 
-
                     case .result(let statusRes):
                         TryOnResultView(
                             resultImageUrl: statusRes.fullResultURL?.absoluteString ?? "",
@@ -118,6 +126,13 @@ public struct TryOnUploadView: View {
         }
         .onAppear {
             autoPrepareDefaultPhotos()
+            fetchRealCatalog()
+            checkPreselectedGarment()
+        }
+        .onChange(of: preselectedGarment) { newGarment in
+            if let garment = newGarment {
+                loadGarmentFromCatalogItem(garment)
+            }
         }
         .overlay(
             Group {
@@ -158,17 +173,21 @@ public struct TryOnUploadView: View {
         .sheet(isPresented: $showDailyRewardModal) {
             DailyRewardView(apiClient: apiClient)
         }
+        .sheet(isPresented: $showCatalogPickerSheet) {
+            CatalogPickerSheet(apiClient: apiClient, onSelectGarment: { selectedItem in
+                loadGarmentFromCatalogItem(selectedItem)
+                showCatalogPickerSheet = false
+            })
+        }
     }
-
 
     // MARK: - Upload Screen Content (Matching Android TryOnUploadScreen)
     private var uploadScreenContent: some View {
         ScrollView {
             VStack(spacing: 16) {
 
-                // ── 1. STUDIO HEADER: STEP PROCESS INDICATOR & QUICK ICON BUTTONS (DEMO 💡 & DAILY REWARDS 🎁) ──
+                // ── 1. STUDIO HEADER: STEP PROCESS INDICATOR & QUICK ICON BUTTONS ──
                 HStack(spacing: 6) {
-                    // Process Step Indicator (1. MODEL • 2. OUTFIT • 3. RESULT)
                     HStack(spacing: 4) {
                         stepPill(step: 1, label: "MODEL", isActive: viewModel.selectedPersonImage == nil)
                         Text("•")
@@ -178,25 +197,18 @@ public struct TryOnUploadView: View {
                         Text("•")
                             .font(.system(size: 10))
                             .foregroundColor(.white.opacity(0.3))
-                        stepPill(step: 3, label: "RESULT", isActive: false)
+                        stepPill(step: 3, label: "RESULT", isActive: viewModel.selectedPersonImage != nil && viewModel.selectedGarmentImage != nil)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(TryZonTheme.surfaceVariant)
-                    .cornerRadius(20)
 
                     Spacer()
 
-                    // Demo Icon Button (💡)
+                    // Quick Demo Icon Button (💡)
                     Button(action: {
-                        withAnimation {
-                            showDemoTooltip.toggle()
-                        }
+                        withAnimation { showDemoTooltip.toggle() }
                     }) {
                         Circle()
-                            .fill(TryZonTheme.primaryGold.opacity(0.15))
+                            .fill(TryZonTheme.surfaceVariant)
                             .frame(width: 34, height: 34)
-                            .overlay(Circle().stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
                             .overlay(Text("💡").font(.system(size: 15)))
                     }
 
@@ -221,8 +233,8 @@ public struct TryOnUploadView: View {
                         Spacer()
                         Button(action: { showDemoTooltip = false }) {
                             Image(systemName: "xmark")
-                               .font(.system(size: 10, weight: .bold))
-                               .foregroundColor(.black)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.black)
                         }
                     }
                     .padding(10)
@@ -327,7 +339,7 @@ public struct TryOnUploadView: View {
                     .cornerRadius(16)
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.08), lineWidth: 1))
 
-                    // OUTFITS SELECTION STRIP
+                    // OUTFITS SELECTION STRIP (REAL CATALOG)
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Outfits")
@@ -335,37 +347,59 @@ public struct TryOnUploadView: View {
                                 .foregroundColor(.white)
                             Spacer()
                             Button(action: {
-                                if let randomOutfit = sampleOutfits.randomElement() {
-                                    selectedOutfitUrl = randomOutfit.imageUrl
-                                    loadSampleGarmentImage(urlStr: randomOutfit.imageUrl)
-                                }
+                                showCatalogPickerSheet = true
                             }) {
-                                Text("View all ›")
+                                Text("View all (\(realCatalogItems.isEmpty ? 1400 : realCatalogItems.count)) ›")
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundColor(TryZonTheme.primaryGold)
                             }
                         }
 
-                        HStack(spacing: 6) {
-                            ForEach(sampleOutfits.prefix(3)) { outfit in
-                                let isSelected = selectedOutfitUrl == outfit.imageUrl
-                                AsyncImage(url: URL(string: outfit.imageUrl)) { phase in
-                                    if let img = phase.image {
-                                        img.resizable().scaledToFill()
-                                    } else {
-                                        TryZonTheme.darkSurface
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                if !realCatalogItems.isEmpty {
+                                    ForEach(realCatalogItems.prefix(15)) { item in
+                                        let isSelected = selectedOutfitUrl == item.image_url || selectedOutfitUrl.contains(item.id)
+                                        AsyncImage(url: item.fullImageURL) { phase in
+                                            if let img = phase.image {
+                                                img.resizable().scaledToFill()
+                                            } else {
+                                                TryZonTheme.darkSurface
+                                            }
+                                        }
+                                        .frame(width: 38, height: 38)
+                                        .cornerRadius(10)
+                                        .clipped()
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(isSelected ? TryZonTheme.primaryGold : Color.white.opacity(0.15), lineWidth: isSelected ? 2 : 1)
+                                        )
+                                        .onTapGesture {
+                                            loadGarmentFromCatalogItem(item)
+                                        }
                                     }
-                                }
-                                .frame(width: 38, height: 38)
-                                .cornerRadius(10)
-                                .clipped()
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(isSelected ? TryZonTheme.primaryGold : Color.white.opacity(0.15), lineWidth: isSelected ? 2 : 1)
-                                )
-                                .onTapGesture {
-                                    selectedOutfitUrl = outfit.imageUrl
-                                    loadSampleGarmentImage(urlStr: outfit.imageUrl)
+                                } else {
+                                    ForEach(sampleOutfits) { outfit in
+                                        let isSelected = selectedOutfitUrl == outfit.imageUrl
+                                        AsyncImage(url: URL(string: outfit.imageUrl)) { phase in
+                                            if let img = phase.image {
+                                                img.resizable().scaledToFill()
+                                            } else {
+                                                TryZonTheme.darkSurface
+                                            }
+                                        }
+                                        .frame(width: 38, height: 38)
+                                        .cornerRadius(10)
+                                        .clipped()
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(isSelected ? TryZonTheme.primaryGold : Color.white.opacity(0.15), lineWidth: isSelected ? 2 : 1)
+                                        )
+                                        .onTapGesture {
+                                            selectedOutfitUrl = outfit.imageUrl
+                                            loadSampleGarmentImage(urlStr: outfit.imageUrl)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -479,19 +513,29 @@ public struct TryOnUploadView: View {
 
     // MARK: - Step Pill Helper
     private func stepPill(step: Int, label: String, isActive: Bool) -> some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 4) {
             Text("\(step).")
-                .font(.system(size: 10, weight: .black))
+                .font(.system(size: 10, weight: .bold))
                 .foregroundColor(isActive ? TryZonTheme.primaryGold : .white.opacity(0.5))
-
             Text(label)
-                .font(.system(size: 9.5, weight: .bold))
-                .foregroundColor(isActive ? TryZonTheme.primaryGold : .white.opacity(0.5))
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(isActive ? .white : .white.opacity(0.5))
         }
     }
 
-    // MARK: - Studio Drop Card Helper View
-    @ViewBuilder
+    // MARK: - Trust Badge Helper
+    private func trustBadge(icon: String, text: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10))
+                .foregroundColor(TryZonTheme.primaryGold)
+            Text(text)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.white.opacity(0.7))
+        }
+    }
+
+    // MARK: - Studio Drop Card Helper
     private func studioDropCard(
         title: String,
         iconName: String,
@@ -578,24 +622,9 @@ public struct TryOnUploadView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(8)
-        .background(TryZonTheme.surfaceVariant.opacity(0.3))
-        .cornerRadius(20)
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
 
-    // MARK: - Trust Badge
-    private func trustBadge(icon: String, text: String) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 13))
-                .foregroundColor(TryZonTheme.primaryGold)
-            Text(text)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundColor(.white.opacity(0.6))
-        }
-    }
-
-    // MARK: - Actions
+    // MARK: - Auto Prepare Defaults
     private func autoPrepareDefaultPhotos() {
         if viewModel.selectedGarmentImage == nil && !sampleOutfits.isEmpty {
             let firstOutfit = sampleOutfits[0]
@@ -604,6 +633,35 @@ public struct TryOnUploadView: View {
         }
         if viewModel.selectedPersonImage == nil {
             loadSamplePersonImage(urlStr: samplePersonModelUrl)
+        }
+    }
+
+    private func checkPreselectedGarment() {
+        if let garment = preselectedGarment {
+            loadGarmentFromCatalogItem(garment)
+        }
+    }
+
+    private func loadGarmentFromCatalogItem(_ item: CatalogItem) {
+        let urlStr = item.image_url.hasPrefix("http") ? item.image_url : "https://tryzonai.com\(item.image_url.hasPrefix("/") ? "" : "/")\(item.image_url)"
+        selectedOutfitUrl = urlStr
+        Task {
+            if let img = await downloadSampleImage(from: urlStr) {
+                DispatchQueue.main.async {
+                    self.viewModel.selectedGarmentImage = img
+                    self.preselectedGarment = nil
+                }
+            }
+        }
+    }
+
+    private func fetchRealCatalog() {
+        Task {
+            if let fetched = try? await apiClient.fetchCatalog(category: "All", gender: "All") {
+                DispatchQueue.main.async {
+                    self.realCatalogItems = fetched
+                }
+            }
         }
     }
 
@@ -685,6 +743,164 @@ public struct TryOnUploadView: View {
             if let img = await downloadSampleImage(from: urlStr) {
                 DispatchQueue.main.async {
                     self.viewModel.selectedPersonImage = img
+                }
+            }
+        }
+    }
+}
+
+// MARK: - CatalogPickerSheet (Full Real Catalog Picker for Try-On Studio)
+public struct CatalogPickerSheet: View {
+    @ObservedObject var apiClient: APIClient
+    let onSelectGarment: (CatalogItem) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var items: [CatalogItem] = []
+    @State private var isLoading: Bool = false
+    @State private var selectedCategory: String = "All AI Outfits"
+    @State private var selectedGender: String = "All"
+    @State private var searchText: String = ""
+
+    private let filterCategories = [
+        "All AI Outfits", "Suits & Formal", "Dresses & Gowns", "Streetwear & Cyber", "Ethnic & Festive", "Casual & Shirts"
+    ]
+
+    public var body: some View {
+        ZStack {
+            TryZonTheme.darkBackground.ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                // Header Bar
+                HStack {
+                    Text("SELECT OUTFIT FROM CATALOG 👗")
+                        .font(.system(size: 16, weight: .black, design: .rounded))
+                        .foregroundColor(TryZonTheme.primaryGold)
+
+                    Spacer()
+
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+
+                // Search Bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(TryZonTheme.primaryGold)
+                    TextField("Search 1,400+ AI outfits...", text: $searchText)
+                        .font(.system(size: 13))
+                        .foregroundColor(.white)
+                        .onSubmit { loadItems() }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(TryZonTheme.surfaceVariant.opacity(0.5))
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+
+                // Category Chips
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(filterCategories, id: \.self) { cat in
+                            let isSelected = selectedCategory == cat
+                            Button(action: {
+                                selectedCategory = cat
+                                loadItems()
+                            }) {
+                                Text(cat)
+                                    .font(.system(size: 11, weight: isSelected ? .bold : .medium))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(isSelected ? TryZonTheme.primaryGold : TryZonTheme.surfaceVariant.opacity(0.4))
+                                    .foregroundColor(isSelected ? .black : .white.opacity(0.75))
+                                    .cornerRadius(100)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+
+                if isLoading && items.isEmpty {
+                    ProgressView().tint(TryZonTheme.primaryGold)
+                        .frame(maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                            ForEach(items) { item in
+                                Button(action: { onSelectGarment(item) }) {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        ZStack(alignment: .topLeading) {
+                                            AsyncImage(url: item.fullImageURL) { phase in
+                                                if let img = phase.image {
+                                                    img.resizable().aspectRatio(contentMode: .fill)
+                                                } else {
+                                                    TryZonTheme.surfaceVariant
+                                                }
+                                            }
+                                            .frame(height: 180)
+                                            .frame(maxWidth: .infinity)
+                                            .cornerRadius(14)
+                                            .clipped()
+
+                                            if let badge = item.badge {
+                                                Text(badge)
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .foregroundColor(TryZonTheme.primaryGold)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.black.opacity(0.75))
+                                                    .cornerRadius(100)
+                                                    .padding(6)
+                                            }
+                                        }
+
+                                        Text(item.name)
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .lineLimit(1)
+
+                                        Text("SELECT OUTFIT ⚡")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(.black)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 6)
+                                            .background(TryZonTheme.primaryGold)
+                                            .cornerRadius(100)
+                                    }
+                                    .padding(8)
+                                    .background(TryZonTheme.surfaceVariant.opacity(0.4))
+                                    .cornerRadius(16)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+            }
+        }
+        .onAppear { loadItems() }
+    }
+
+    private func loadItems() {
+        isLoading = true
+        Task {
+            do {
+                let fetched = try await apiClient.fetchCatalog(
+                    category: selectedCategory == "All AI Outfits" ? "All" : selectedCategory,
+                    gender: selectedGender,
+                    search: searchText
+                )
+                DispatchQueue.main.async {
+                    self.items = fetched
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isLoading = false
                 }
             }
         }

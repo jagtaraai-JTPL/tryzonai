@@ -80,6 +80,7 @@ public struct MainTabView: View {
 
                     TryOnUploadView(
                         apiClient: apiClient,
+                        preselectedGarment: $preselectedGarmentForTryOn,
                         onNavigateToResult: { _ in }
                     )
                     .tabItem {
@@ -89,7 +90,8 @@ public struct MainTabView: View {
 
                     CatalogView(
                         apiClient: apiClient,
-                        onSelectGarmentForTryOn: { _ in
+                        onSelectGarmentForTryOn: { selectedItem in
+                            preselectedGarmentForTryOn = selectedItem
                             selectedTab = .tryon
                         }
                     )
