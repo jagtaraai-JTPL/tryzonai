@@ -503,14 +503,13 @@ def verify_apple_id_token(token: str) -> Optional[dict]:
 @router.post("/google", response_model=LoginResponse)
 async def google_login(req: GoogleLoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     token_str = req.id_token or req.idToken
+    if not token_str:
+        raise HTTPException(status_code=400, detail="Missing Google ID token")
+
     payload = verify_google_id_token(token_str)
     if not payload:
-        if "@" in token_str:
-            clean_em = token_str.strip().lower()
-            default_nm = clean_em.split("@")[0].capitalized() if hasattr(clean_em.split("@")[0], 'capitalized') else clean_em.split("@")[0].capitalize()
-            payload = {"email": clean_em, "name": default_nm}
-        else:
-            raise HTTPException(status_code=401, detail="Invalid Google ID token")
+        log.warning(f"Google authentication failed for token string: {token_str[:20]}...")
+        raise HTTPException(status_code=401, detail="Invalid or expired Google ID token. Cryptographic verification via Firebase Admin SDK failed.")
 
     email = payload.get("email")
     name = payload.get("name", "")
