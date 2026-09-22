@@ -1,7 +1,13 @@
+//
+//  TryOnResultView.swift
+//  TryZonAI — 100% Matching Android TryOnResultScreen.kt Implementation
+//
+
 import SwiftUI
 import UIKit
 
 public struct TryOnResultView: View {
+
     let resultImageUrl: String
     let highresUrl: String?
     let originalPhotoUrl: String?
