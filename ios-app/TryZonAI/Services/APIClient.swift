@@ -71,7 +71,8 @@ public class APIClient: ObservableObject {
             "Content-Type": "application/json",
             "X-Session-ID": sessionID,
             "X-Device-ID": deviceID,
-            "Accept": "application/json"
+            "Accept": "application/json",
+            "User-Agent": "TryZonAI/1.0 (iOS; AppStore)"
         ]
         if let token = authToken {
             headers["Authorization"] = "Bearer \(token)"
@@ -347,6 +348,7 @@ public class APIClient: ObservableObject {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue(sessionID, forHTTPHeaderField: "X-Session-ID")
         request.setValue(deviceID, forHTTPHeaderField: "X-Device-ID")
+        request.setValue("TryZonAI/1.0 (iOS; AppStore)", forHTTPHeaderField: "User-Agent")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         var body = Data()
@@ -441,6 +443,39 @@ public class APIClient: ObservableObject {
         let (data, _) = try await session.data(for: request)
         let decoder = JSONDecoder()
         return try decoder.decode([TryOnHistoryItem].self, from: data)
+    }
+
+    // MARK: - Wardrobe Closet API
+    public func fetchWardrobeItems() async throws -> [WardrobeItemModel] {
+        var request = URLRequest(url: baseURL.appendingPathComponent("wardrobe"))
+        request.httpMethod = "GET"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            return []
+        }
+        let decoder = JSONDecoder()
+        return try decoder.decode([WardrobeItemModel].self, from: data)
+    }
+
+    public func deleteWardrobeItem(id: Int) async throws {
+        var request = URLRequest(url: baseURL.appendingPathComponent("wardrobe/\(id)"))
+        request.httpMethod = "DELETE"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+        _ = try await session.data(for: request)
+    }
+
+    public func addToWardrobe(imageUrl: String) async throws -> WardrobeItemModel {
+        var components = URLComponents(url: baseURL.appendingPathComponent("wardrobe"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "image_url", value: imageUrl)]
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "POST"
+        makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+
+        let (data, _) = try await session.data(for: request)
+        let decoder = JSONDecoder()
+        return try decoder.decode(WardrobeItemModel.self, from: data)
     }
 
     // MARK: - Auth & Account Management

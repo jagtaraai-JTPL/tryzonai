@@ -239,6 +239,7 @@ public struct CatalogItem: Codable, Identifiable {
         case name
         case brand
         case price
+        case originalPrice
         case original_price
         case image_url = "image"
         case category
@@ -264,7 +265,13 @@ public struct CatalogItem: Codable, Identifiable {
         } else {
             self.price = 999
         }
-        self.original_price = try? container.decodeIfPresent(Int.self, forKey: .original_price)
+        if let origP = try? container.decodeIfPresent(Int.self, forKey: .originalPrice) {
+            self.original_price = origP
+        } else if let origPAlt = try? container.decodeIfPresent(Int.self, forKey: .original_price) {
+            self.original_price = origPAlt
+        } else {
+            self.original_price = nil
+        }
         self.image_url = try container.decodeIfPresent(String.self, forKey: .image_url) ?? ""
         self.category = try container.decodeIfPresent(String.self, forKey: .category) ?? "Outfits"
         self.store = try container.decodeIfPresent(String.self, forKey: .store)
@@ -281,7 +288,26 @@ public struct CatalogItem: Codable, Identifiable {
 // MARK: - Catalog Response Model
 public struct CatalogResponse: Codable {
     public var products: [CatalogItem]
-    public var total: Int
+    public var total: Int?
+}
+
+// MARK: - Wardrobe Item Model
+public struct WardrobeItemModel: Codable, Identifiable {
+    public var id: Int
+    public var image_url: String
+    public var created_at: String?
+    public var category: String?
+
+    public init(id: Int, image_url: String, created_at: String? = nil, category: String? = nil) {
+        self.id = id
+        self.image_url = image_url
+        self.created_at = created_at
+        self.category = category
+    }
+
+    public var fullImageURL: URL? {
+        return resolveURL(image_url)
+    }
 }
 
 // MARK: - Try-On History Item Model

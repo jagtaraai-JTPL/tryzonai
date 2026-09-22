@@ -295,6 +295,9 @@ public struct TryOnResultView: View {
                             Button(action: {
                                 withAnimation(.spring()) { isSavedToWardrobe.toggle() }
                                 showToast(isSavedToWardrobe ? "❤️ Saved to Wardrobe!" : "Removed from Wardrobe")
+                                if isSavedToWardrobe {
+                                    Task { try? await APIClient.shared.addToWardrobe(imageUrl: displayUrl) }
+                                }
                             }) {
                                 VStack(spacing: 4) {
                                     Image(systemName: isSavedToWardrobe ? "heart.fill" : "heart")
