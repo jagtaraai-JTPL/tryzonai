@@ -239,8 +239,7 @@ public struct CatalogItem: Codable, Identifiable {
         case name
         case brand
         case price
-        case originalPrice
-        case original_price
+        case original_price = "originalPrice"
         case image_url = "image"
         case category
         case store
@@ -265,13 +264,7 @@ public struct CatalogItem: Codable, Identifiable {
         } else {
             self.price = 999
         }
-        if let origP = try? container.decodeIfPresent(Int.self, forKey: .originalPrice) {
-            self.original_price = origP
-        } else if let origPAlt = try? container.decodeIfPresent(Int.self, forKey: .original_price) {
-            self.original_price = origPAlt
-        } else {
-            self.original_price = nil
-        }
+        self.original_price = try? container.decodeIfPresent(Int.self, forKey: .original_price)
         self.image_url = try container.decodeIfPresent(String.self, forKey: .image_url) ?? ""
         self.category = try container.decodeIfPresent(String.self, forKey: .category) ?? "Outfits"
         self.store = try container.decodeIfPresent(String.self, forKey: .store)
