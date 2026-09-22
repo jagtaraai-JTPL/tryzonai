@@ -1,5 +1,15 @@
 import SwiftUI
 
+// MARK: - Result Preview Wrapper for Identifiable Sheet Presentation
+public struct ResultPreviewItem: Identifiable {
+    public let id = UUID()
+    public let url: String
+
+    public init(url: String) {
+        self.url = url
+    }
+}
+
 // MARK: - WardrobeView — 100% 1:1 Replica of Android ClosetScreen.kt
 public struct WardrobeView: View {
     @ObservedObject var apiClient: APIClient
@@ -11,7 +21,7 @@ public struct WardrobeView: View {
     @State private var showFullHistorySheet: Bool = false
     @State private var showLoginSheet: Bool = false
     @State private var showPremiumSheet: Bool = false
-    @State private var selectedPreviewResult: String? = nil
+    @State private var selectedPreviewResultItem: ResultPreviewItem? = nil
 
     public init(apiClient: APIClient) {
         self.apiClient = apiClient
@@ -90,9 +100,9 @@ public struct WardrobeView: View {
         .sheet(isPresented: $showPremiumSheet) {
             PremiumView(apiClient: apiClient)
         }
-        .sheet(item: $selectedPreviewResult) { resultUrl in
-            TryOnResultView(resultImageUrl: resultUrl, onTryAnother: {
-                selectedPreviewResult = nil
+        .sheet(item: $selectedPreviewResultItem) { preview in
+            TryOnResultView(resultImageUrl: preview.url, onTryAnother: {
+                selectedPreviewResultItem = nil
             })
         }
     }
@@ -280,7 +290,11 @@ public struct WardrobeView: View {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     ForEach(savedItems) { item in
                         ZStack(alignment: .topTrailing) {
-                            Button(action: { selectedPreviewResult = item.fullImageURL?.absoluteString }) {
+                            Button(action: {
+                                if let urlStr = item.fullImageURL?.absoluteString {
+                                    selectedPreviewResultItem = ResultPreviewItem(url: urlStr)
+                                }
+                            }) {
                                 AsyncImage(url: item.fullImageURL) { phase in
                                     if let img = phase.image {
                                         img.resizable().aspectRatio(contentMode: .fill)
