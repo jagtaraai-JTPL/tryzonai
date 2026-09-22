@@ -9,12 +9,13 @@ import os
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, BackgroundTasks, Query
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 import hashlib
 
 from database.models import TryOnSession, User, Product
+from database.enhanced_models import AppAnalyticsEvent
 from database.postgres import get_db, AsyncSessionLocal
 from routers.auth import get_current_user, get_optional_user
 from services.comfy_service import run_flux_tryon
@@ -36,12 +37,95 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 
+async def refund_tryon_credit(
+    user_id: Optional[int],
+    deduction_action: Optional[str],
+    device_key: Optional[str],
+    real_ip: Optional[str],
+    dev_id_clean: Optional[str]
+):
+    """
+    Refunds/reverts credit or guest trial slot if try-on generation failed or was blocked by safety filters.
+    """
+    if not deduction_action or deduction_action in ("none", "unlimited", "daily_style_push"):
+        return
+
+    log.info(f"[CREDIT_REFUND] 🔄 Initiating credit refund for deduction_action='{deduction_action}', user_id={user_id}, device_key={device_key}")
+    try:
+        if deduction_action == "guest":
+            guest_tracker_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "guest_usage_tracker.json")
+            if os.path.exists(guest_tracker_file):
+                try:
+                    with open(guest_tracker_file, "r") as f:
+                        guest_data = json.load(f)
+                    key_to_refund = dev_id_clean if (dev_id_clean and ":" not in dev_id_clean and "." not in dev_id_clean) else None
+                    if key_to_refund and key_to_refund in guest_data:
+                        guest_data[key_to_refund] = max(0, guest_data[key_to_refund] - 1)
+                        if guest_data[key_to_refund] == 0:
+                            del guest_data[key_to_refund]
+                        with open(guest_tracker_file, "w") as f:
+                            json.dump(guest_data, f)
+                        log.info(f"[CREDIT_REFUND] ✅ Successfully restored guest 1st lifetime try for device key: '{key_to_refund}'")
+                except Exception as ge:
+                    log.error(f"[CREDIT_REFUND] Failed to update guest_usage_tracker.json: {ge}")
+
+        elif deduction_action == "daily_free" and user_id:
+            async with AsyncSessionLocal() as db:
+                stmt = select(User).where(User.id == user_id)
+                res = await db.execute(stmt)
+                usr = res.scalar_one_or_none()
+                if usr:
+                    new_cnt = max(0, (usr.current_slot_tryon_count or 0) - 1)
+                    usr.current_slot_tryon_count = new_cnt
+                    await db.commit()
+                    log.info(f"[CREDIT_REFUND] ✅ Restored daily free try (1/1) for User {user_id}. New count: {new_cnt}")
+
+            device_tracker_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "device_usage_tracker.json")
+            if os.path.exists(device_tracker_file) and device_key:
+                try:
+                    with open(device_tracker_file, "r") as f:
+                        device_data = json.load(f)
+                    if "devices" in device_data and device_key in device_data["devices"]:
+                        device_data["devices"][device_key]["count"] = max(0, device_data["devices"][device_key].get("count", 1) - 1)
+                        with open(device_tracker_file, "w") as f:
+                            json.dump(device_data, f)
+                except Exception as de:
+                    log.error(f"[CREDIT_REFUND] Failed to update device_usage_tracker.json: {de}")
+
+        elif deduction_action == "paid_credit" and user_id:
+            async with AsyncSessionLocal() as db:
+                stmt = select(User).where(User.id == user_id)
+                res = await db.execute(stmt)
+                usr = res.scalar_one_or_none()
+                if usr:
+                    usr.paid_credits = (usr.paid_credits or 0) + 1
+                    await db.commit()
+                    log.info(f"[CREDIT_REFUND] ✅ Refunded +1 Paid Credit to User {user_id}. New paid_credits: {usr.paid_credits}")
+
+        elif deduction_action == "bonus_credit" and user_id:
+            async with AsyncSessionLocal() as db:
+                stmt = select(User).where(User.id == user_id)
+                res = await db.execute(stmt)
+                usr = res.scalar_one_or_none()
+                if usr:
+                    usr.bonus_credits = (usr.bonus_credits or 0) + 1
+                    await db.commit()
+                    log.info(f"[CREDIT_REFUND] ✅ Refunded +1 Bonus Credit to User {user_id}. New bonus_credits: {usr.bonus_credits}")
+
+    except Exception as refund_err:
+        log.error(f"[CREDIT_REFUND] ❌ Exception during credit refund execution: {refund_err}")
+
+
 async def process_tryon_task(
     session_id_db: int,
     p_path: str,
     g_path: str,
     start_time: float,
-    is_premium: bool = False
+    is_premium: bool = False,
+    deduction_action: Optional[str] = None,
+    device_key: Optional[str] = None,
+    real_ip: Optional[str] = None,
+    dev_id_clean: Optional[str] = None
 ):
     try:
         result_path = await run_flux_tryon(
@@ -72,6 +156,11 @@ async def process_tryon_task(
                 if session:
                     session.status = "failed"
                     session.result_image_path = None
+                    db.add(AppAnalyticsEvent(
+                        user_id=session.user_id,
+                        event_name="tryon_failed",
+                        metadata_json=json.dumps({"session_id": session.id, "reason": "nsfw_blocked"})
+                    ))
                     await db.commit()
                     log.warning(f"Post-generation NSFW blocked and hard-deleted for session {session.id}")
                     
@@ -93,6 +182,15 @@ async def process_tryon_task(
                             image_url=None,
                             db=db
                         )
+
+                    # Revert deducted credit or guest try slot
+                    await refund_tryon_credit(
+                        user_id=session.user_id,
+                        deduction_action=deduction_action,
+                        device_key=device_key,
+                        real_ip=real_ip,
+                        dev_id_clean=dev_id_clean
+                    )
             return
 
         if not is_premium:
@@ -109,6 +207,11 @@ async def process_tryon_task(
                 session.result_image_path = result_path
                 session.status = "done"
                 session.processing_time_ms = elapsed_ms
+                db.add(AppAnalyticsEvent(
+                    user_id=session.user_id,
+                    event_name="tryon_completed",
+                    metadata_json=json.dumps({"session_id": session.id, "processing_time_ms": elapsed_ms})
+                ))
                 await db.commit()
                 log.info(f"FLUX Try-on background task complete for {session.session_id} in {elapsed_ms}ms")
                 
@@ -119,8 +222,8 @@ async def process_tryon_task(
                     await notify_user(
                         user_id=session.user_id,
                         title="Your Try-On is Ready! ✨",
-                        body="Tap to see your AI-generated fashion look.",
-                        data={"type": "tryon_complete", "session_id": str(session.id)},
+                        body="Tap to see your AI-generated fashion look now! 👗",
+                        data={"type": "tryon_complete", "session_id": session.session_id or str(session.id)},
                         image_url=res_url, # Note: This needs to be absolute for FCM image
                         db=db
                     )
@@ -130,7 +233,19 @@ async def process_tryon_task(
             session = await db.get(TryOnSession, session_id_db)
             if session:
                 session.status = "failed"
+                db.add(AppAnalyticsEvent(
+                    user_id=session.user_id,
+                    event_name="tryon_failed",
+                    metadata_json=json.dumps({"session_id": session.id, "reason": str(e)[:200]})
+                ))
                 await db.commit()
+                await refund_tryon_credit(
+                    user_id=session.user_id,
+                    deduction_action=deduction_action,
+                    device_key=device_key,
+                    real_ip=real_ip,
+                    dev_id_clean=dev_id_clean
+                )
 
 
 @router.post("/tryon")
@@ -139,8 +254,8 @@ async def virtual_tryon(
     background_tasks: BackgroundTasks,
     request: Request,
     person_image: UploadFile = File(..., description="Full-body photo of the person"),
-    garment_image: UploadFile = File(..., description="Flat-lay or product photo of garment"),
-    product_id: Optional[int] = Query(None, description="Product ID from catalog if applicable"),
+    garment_image: Optional[UploadFile] = File(None, description="Flat-lay or product photo of garment"),
+    product_id: Optional[int] = Form(None, description="Product ID from catalog if applicable"),
     current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -165,9 +280,9 @@ async def virtual_tryon(
         if len(parts) >= 4:
             real_ip = ":".join(parts[:4]) + "::/64"
 
-    # Hardware Device ID locking
-    device_id_hdr = request.headers.get("X-Device-ID")
+    device_id_hdr = request.headers.get("X-Device-ID") or request.headers.get("x-device-id")
     device_key = device_id_hdr.strip() if (device_id_hdr and len(device_id_hdr.strip()) > 3) else real_ip
+    log.info(f"[GUEST_DEBUG] X-Device-ID={device_id_hdr} | device_key={device_key} | real_ip={real_ip} | user={current_user.id if current_user else 'GUEST'}")
 
     # ── Concurrency Lock (Prevent Race Conditions) ──────────
     lock_id_str = str(current_user.id) if current_user else device_key
@@ -192,16 +307,16 @@ async def virtual_tryon(
             detail="You already have a Try-On currently processing! Please wait a few seconds for it to finish."
         )
 
-    # ── Global IP / Device Abuse Prevention (Max 25 Try-Ons per IP/Device per day) ────────
+    # ── Global Device Abuse Prevention (Max 25 Try-Ons per Device per day) ────────
     global_ip_stmt = select(TryOnSession).where(
-        TryOnSession.session_id == real_ip,
+        TryOnSession.session_id == device_key,
         TryOnSession.created_at >= today_start
     )
     global_ip_res = await db.execute(global_ip_stmt)
     if len(global_ip_res.scalars().all()) >= 25:
         raise HTTPException(
             status_code=429,
-            detail="Too many Try-On requests from this network today. Please try again tomorrow."
+            detail="Too many Try-On requests from this device today. Please try again tomorrow."
         )
 
     # ── Device & Guest Usage Helper Functions ──────────────────
@@ -232,42 +347,21 @@ async def virtual_tryon(
     dev_count = dev_info.get("count", 0)
     dev_ad_count = dev_info.get("reward_ad_count", 0)
 
-    # ── Unauthenticated Limit Check (3 tries LIFETIME) ────────
-    if not current_user:
-        guest_tracker_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "guest_usage_tracker.json")
-        guest_data = {}
-        if os.path.exists(guest_tracker_file):
-            try:
-                with open(guest_tracker_file, "r") as f:
-                    guest_data = json.load(f)
-            except Exception:
-                pass
-                
-        ip_tries_total = max(guest_data.get(device_key, 0), guest_data.get(real_ip, 0))
-        is_reward_bonus = (request.headers.get("X-Daily-Style") == "true") or (request.headers.get("X-Reward-Ad-Bonus") == "true")
+    # ── 1. Eligibility Check (NO credit deduction or tracker write yet!) ─────
+    deduction_action = "none"
 
-        if ip_tries_total >= 3 and not is_reward_bonus:
-            raise HTTPException(
-                status_code=403,
-                detail="Guest free limit reached (3 tries). Please register to get 3 daily free tries!"
-            )
-        else:
-            guest_data[device_key] = ip_tries_total + 1
-            guest_data[real_ip] = ip_tries_total + 1
-            with open(guest_tracker_file, "w") as f:
-                json.dump(guest_data, f)
-            log.info(f"Guest Device {device_key} / IP {real_ip} used a try. Used total: {ip_tries_total + 1}")
-    
-    # ── Credit & Subscription Enforcement (Authenticated) ──────────
-    if current_user:
+    if not current_user:
+        deduction_action = "guest"
+        log.info(f"[GUEST_TRY] Unauthenticated guest try-on request allowed (Device={device_key}, IP={real_ip}).")
+    else:
         tier = (current_user.subscription_tier or "free").lower()
         unlimited_tiers = ["pro", "premium", "vip", "monthly pro", "yearly legend", "elite"]
         
         is_unlimited = current_user.is_premium or any(t == tier for t in unlimited_tiers)
         
-        log.info(f"[CREDIT_CHECK] User {current_user.id} | Device={device_key} | tier={tier} | is_premium={current_user.is_premium} | credits={current_user.credits} | paid_credits={getattr(current_user, 'paid_credits', 0)} | is_unlimited={is_unlimited}")
-        
-        if not is_unlimited:
+        if is_unlimited:
+            deduction_action = "unlimited"
+        else:
             same_day = False
             if current_user.last_tryon_timestamp:
                 last_time = current_user.last_tryon_timestamp
@@ -276,139 +370,129 @@ async def virtual_tryon(
                 if last_time.date() == now_utc.date():
                     same_day = True
             
-            user_count = current_user.current_slot_tryon_count if same_day else 0
-            # Lock count to device: effective count is max of user count & device count today
-            current_count = max(user_count, dev_count)
+            user_count = (current_user.current_slot_tryon_count or 0) if same_day else 0
+            current_count = user_count
             
             x_daily = request.headers.get("X-Daily-Style")
+            is_daily_style_push = (x_daily == "true")
             x_reward = request.headers.get("X-Reward-Ad-Bonus")
-            log.info(f"[CREDIT_CHECK] same_day={same_day} | user_count={user_count} | dev_count={dev_count} | effective_count={current_count}")
-            
-            if current_count >= 1:
-                is_reward_bonus = (x_daily == "true") or (x_reward == "true")
-                user_paid_credits = getattr(current_user, 'paid_credits', 0) or 0
-                log.info(f"[CREDIT_CHECK] count>=1 | is_reward_bonus={is_reward_bonus} | credits={current_user.credits} | paid_credits={user_paid_credits}")
-                
-                if is_reward_bonus:
-                    daily_ads = getattr(current_user, 'daily_reward_ad_count', 0) or 0
-                    effective_ad_count = max(daily_ads, dev_ad_count)
-                    if effective_ad_count >= 2:
-                        log.warning(f"User {current_user.id} / Device {device_key} hit daily rewarded ad limit ({effective_ad_count}/2).")
-                        if current_user.credits <= 0 and user_paid_credits <= 0:
-                            raise HTTPException(
-                                status_code=429,
-                                detail="Daily free try-ons & bonus ad limit reached for this device (Max 3 tries/day). Top up credits or upgrade to Pro!"
-                            )
-                        else:
-                            is_reward_bonus = False
+            is_reward_ad = (x_reward == "true")
+            user_paid_credits = getattr(current_user, 'paid_credits', 0) or 0
+            user_bonus = getattr(current_user, 'bonus_credits', 0) or 0
+            user_legacy_credits = getattr(current_user, 'credits', 0) or 0
+            bonus_expiry = getattr(current_user, 'bonus_credits_expiry', None)
+            bonus_valid = False
+            if user_bonus > 0:
+                if bonus_expiry:
+                    if getattr(bonus_expiry, "tzinfo", None) is None:
+                        bonus_expiry = bonus_expiry.replace(tzinfo=timezone.utc)
+                    if bonus_expiry >= now_utc:
+                        bonus_valid = True
                     else:
-                        new_ad_count = effective_ad_count + 1
-                        await db.execute(
-                            update(User)
-                            .where(User.id == current_user.id)
-                            .values(daily_reward_ad_count=new_ad_count)
-                        )
-                        await db.commit()
-                        current_user.daily_reward_ad_count = new_ad_count
+                        # Option B: Midnight UTC has passed — expired bonus_credits reset to 0
+                        bonus_valid = False
+                        user_bonus = 0
+                        current_user.bonus_credits = 0
+                        await db.execute(update(User).where(User.id == current_user.id).values(bonus_credits=0))
+                else:
+                    bonus_valid = True
+            elif user_legacy_credits > 0:
+                bonus_valid = True
 
-                        # Update device tracker ad count
-                        if "devices" not in device_data:
-                            device_data["devices"] = {}
-                        if device_key not in device_data["devices"]:
-                            device_data["devices"][device_key] = {"count": 0, "reward_ad_count": 0}
-                        device_data["devices"][device_key]["reward_ad_count"] = new_ad_count
-                        save_device_data(device_data)
-
-                        log.info(f"User {current_user.id} / Device {device_key} used Rewarded Ad bonus {new_ad_count}/2 for extra try-on!")
-                
-                if not is_reward_bonus:
-                    if current_user.credits <= 0 and user_paid_credits <= 0:
-                        raise HTTPException(
-                            status_code=429, 
-                            detail="Daily 1 free try-on limit reached for this device! Top up credits or upgrade to Pro for unlimited try-ons."
-                        )
-                    
-                    if user_paid_credits > 0:
-                        new_paid = user_paid_credits - 1
-                        new_free = current_user.credits
-                    else:
-                        new_paid = 0
-                        new_free = max(0, current_user.credits - 1)
-                    
-                    await db.execute(
-                        update(User)
-                        .where(User.id == current_user.id)
-                        .values(
-                            credits=new_free,
-                            paid_credits=new_paid
-                        )
-                    )
-                    await db.commit()
-                    current_user.credits = new_free
-                    current_user.paid_credits = new_paid
-                    log.info(f"[CREDIT_CHECK] ✅ Deducted 1 credit from User {current_user.id}. Remaining credits: {current_user.credits}, paid_credits: {current_user.paid_credits}")
+            if current_count < 1:
+                deduction_action = "daily_free"
+            elif is_daily_style_push:
+                deduction_action = "daily_style_push"
+            elif user_paid_credits > 0 and not is_reward_ad:
+                # Rule 4: Option 1 (Use 1 Credit) — Deducts 1 paid credit
+                deduction_action = "paid_credit"
+            elif user_paid_credits > 0 and is_reward_ad:
+                # Rule 4: Option 2 (Watch Video Ad) watched by Paid Credit holder — 0 paid credits deducted
+                deduction_action = "reward_ad"
+            elif bonus_valid:
+                # Rule 5: Deducts 1 bonus credit (Welcome / Spin Wheel / Daily Ad)
+                deduction_action = "bonus_credit"
+            elif (getattr(current_user, 'daily_reward_ad_count', 0) or 0) % 2 == 1:
+                # User has 0.5 ad credit balance — grant try-on!
+                deduction_action = "reward_ad"
             else:
-                new_count = current_count + 1
-                await db.execute(
-                    update(User)
-                    .where(User.id == current_user.id)
-                    .values(
-                        current_slot_tryon_count=new_count,
-                        last_tryon_timestamp=now_utc
-                    )
+                raise HTTPException(
+                    status_code=429,
+                    detail="Daily 1 free try-on limit reached! Top up credits or upgrade to Pro for unlimited try-ons."
                 )
-                await db.commit()
-                current_user.current_slot_tryon_count = new_count
-                current_user.last_tryon_timestamp = now_utc
 
-                # Update device count in device_usage_tracker.json
-                if "devices" not in device_data:
-                    device_data["devices"] = {}
-                if device_key not in device_data["devices"]:
-                    device_data["devices"][device_key] = {"count": 0, "reward_ad_count": 0}
-                device_data["devices"][device_key]["count"] = max(dev_count + 1, new_count)
-                save_device_data(device_data)
-
-                log.info(f"[CREDIT_CHECK] User {current_user.id} (Device {device_key}) used daily free try {new_count}/3")
-        else:
-            log.info(f"[CREDIT_CHECK] User {current_user.id} has unlimited access (premium={current_user.is_premium}, tier={tier})")
-
-    # ── Read & validate uploads ───────────────────────────
+    # ── 2. Read & Validate Uploads & NSFW (0 credits deducted if anything fails here) ──
     person_bytes = await person_image.read()
-    garment_bytes = await garment_image.read()
+    garment_bytes = b""
+    if garment_image:
+        garment_bytes = await garment_image.read()
 
-    log.info(f"Upload received - Person: {len(person_bytes)} bytes, Garment: {len(garment_bytes)} bytes")
-    if len(person_bytes) > 50:
-        log.debug(f"Person bytes start: {person_bytes[:50].hex()}")
-    if len(garment_bytes) > 50:
-        log.debug(f"Garment bytes start: {garment_bytes[:50].hex()}")
+    log.info(f"Upload received - Person: {len(person_bytes)} bytes, Garment: {len(garment_bytes)} bytes, Product ID: {product_id}")
 
     try:
         validate_image_size(person_bytes)
-        validate_image_size(garment_bytes)
+        if garment_bytes:
+            validate_image_size(garment_bytes)
     except ValueError as e:
         raise HTTPException(status_code=413, detail=str(e))
 
-    # ── Save to disk ──────────────────────────────────────
     try:
         p_path = save_upload(person_bytes, prefix="person")
-        g_path = save_upload(garment_bytes, prefix="garment")
+        if garment_bytes:
+            g_path = save_upload(garment_bytes, prefix="garment")
+        elif product_id:
+            prod_res = await db.execute(select(Product).where(Product.id == product_id))
+            product_obj = prod_res.scalar_one_or_none()
+            if not product_obj or not product_obj.image_url:
+                raise HTTPException(status_code=400, detail=f"Catalog product ID {product_id} not found")
+            
+            prod_img_path = product_obj.image_url.strip()
+            if prod_img_path.startswith("/"):
+                prod_img_path = prod_img_path[1:]
+            
+            candidate_paths = [
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), prod_img_path),
+                os.path.join("/app", prod_img_path),
+                os.path.join("/app/web/public", prod_img_path),
+                os.path.join("/app/catalog_inbox", os.path.basename(prod_img_path))
+            ]
+            
+            resolved_g_path = None
+            for cand in candidate_paths:
+                if os.path.exists(cand) and os.path.getsize(cand) > 0:
+                    resolved_g_path = cand
+                    break
+            
+            if not resolved_g_path:
+                import httpx
+                target_url = product_obj.image_url.strip()
+                if not target_url.startswith("http"):
+                    target_url = f"http://localhost:8001/{prod_img_path}"
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=headers) as client:
+                    resp = await client.get(target_url)
+                    if resp.status_code == 200:
+                        resolved_g_path = save_upload(resp.content, prefix="garment")
+            
+            if not resolved_g_path or not os.path.exists(resolved_g_path):
+                raise HTTPException(status_code=400, detail=f"Could not load garment image for product ID {product_id}")
+            
+            g_path = resolved_g_path
+            log.info(f"Loaded catalog garment image for Product ID {product_id} from {g_path}")
+        else:
+            raise HTTPException(status_code=400, detail="Either garment_image file or product_id must be provided")
         
-        # ── NSFW & Garment Content Moderation ───────────────────────
+        # NSFW & Garment Content Moderation
         from services.clip_service import check_nsfw, check_garment_safety
         if await check_nsfw(p_path) or await check_garment_safety(g_path):
-            # Delete files immediately
             if os.path.exists(p_path): os.remove(p_path)
             if os.path.exists(g_path): os.remove(g_path)
             
-            # Write to legal audit log
             log_security_violation(
                 action="BLOCKED_PRE_GENERATION_UPLOAD_NSFW",
                 ip=real_ip,
                 user_id=str(current_user.id) if current_user else "guest"
             )
-            
-            log.warning(f"NSFW content blocked from IP: {real_ip}")
             raise HTTPException(
                 status_code=400,
                 detail="Inappropriate or NSFW content detected. Please upload an appropriate image."
@@ -423,41 +507,89 @@ async def virtual_tryon(
             detail=f"Invalid image format or corrupt file. Error: {str(e)}"
         )
 
-    # ── Create Session Record ────────────────────────────────
+    # ── 3. ATOMIC SESSION CREATION & CREDIT DEDUCTION ─────────────────────
+    # Reaching here guarantees that images are 100% valid and safe!
     try:
+        valid_product_id = None
+        if product_id:
+            try:
+                pid_int = int(str(product_id).strip())
+                prod_chk = await db.execute(select(Product.id).where(Product.id == pid_int))
+                if prod_chk.scalar_one_or_none():
+                    valid_product_id = pid_int
+            except (ValueError, TypeError):
+                pass
+
         session_record = TryOnSession(
             user_id=current_user.id if current_user else None,
-            session_id=real_ip,  # Save IP to track Global Limits and Guest Limits accurately
+            session_id=device_key,
             person_image_path=p_path,
             garment_image_path=g_path,
-            product_id=product_id,
+            product_id=valid_product_id,
             status="processing"
         )
         db.add(session_record)
-        
-        # Tier-based daily limits are already checked above. 
-        # Credits are reserved for special 'pay-per-use' features in the future.
-        pass
 
+        # Apply credit deduction / guest tracking ONLY NOW upon confirmed session creation
+        if deduction_action == "guest":
+            log.info(f"Guest Device {device_key} / IP {real_ip} initiated try-on (Zero server-side blocking).")
+        elif deduction_action == "daily_free":
+            new_count = current_count + 1
+            await db.execute(
+                update(User)
+                .where(User.id == current_user.id)
+                .values(current_slot_tryon_count=new_count, last_tryon_timestamp=now_utc)
+            )
+            current_user.current_slot_tryon_count = new_count
+            current_user.last_tryon_timestamp = now_utc
+
+            log.info(f"[CREDIT_CHECK] User {current_user.id} (Device {device_key}) used daily free try 1/1")
+        elif deduction_action == "reward_ad":
+            dev_ad_count = dev_info.get("reward_ad_count", 0)
+            dev_info["reward_ad_count"] = dev_ad_count + 1
+            device_data["devices"][device_key] = dev_info
+            save_device_data(device_data)
+            if current_user and (getattr(current_user, 'daily_reward_ad_count', 0) or 0) % 2 == 1:
+                new_ad_cnt = current_user.daily_reward_ad_count + 1
+                await db.execute(update(User).where(User.id == current_user.id).values(daily_reward_ad_count=new_ad_cnt))
+                current_user.daily_reward_ad_count = new_ad_cnt
+            log.info(f"[CREDIT_CHECK] 📺 User {current_user.id} used Rewarded Video Ad try-on (0 paid credits deducted)")
+        elif deduction_action == "paid_credit":
+            new_paid = user_paid_credits - 1
+            await db.execute(update(User).where(User.id == current_user.id).values(paid_credits=new_paid))
+            current_user.paid_credits = new_paid
+            log.info(f"[CREDIT_CHECK] ✅ Deducted 1 paid credit from User {current_user.id}. Remaining paid_credits: {new_paid}")
+        elif deduction_action == "bonus_credit":
+            new_bonus = max(0, user_bonus - 1)
+            new_leg = max(0, user_legacy_credits - 1)
+            await db.execute(update(User).where(User.id == current_user.id).values(bonus_credits=new_bonus, credits=new_leg))
+            current_user.bonus_credits = new_bonus
+            current_user.credits = new_leg
+            log.info(f"[CREDIT_CHECK] ✅ Used 1 bonus credit for User {current_user.id}. Remaining bonus_credits: {new_bonus}, credits: {new_leg}")
+
+        db.add(AppAnalyticsEvent(
+            user_id=current_user.id if current_user else None,
+            event_name="tryon_started",
+            metadata_json=json.dumps({"session_id": session_record.id, "deduction_action": deduction_action})
+        ))
         await db.commit()
         await db.refresh(session_record)
-        
-        # Dispatch background task
+
+        # Dispatch background task with credit refund metadata
         background_tasks.add_task(
             process_tryon_task,
             session_record.id,
             p_path,
             g_path,
             time.time(),
-            is_unlimited if current_user else False
+            is_unlimited if current_user else False,
+            deduction_action,
+            device_key,
+            real_ip,
+            dev_id_clean if ('dev_id_clean' in locals() and has_hardware_device_id) else None
         )
 
-        # Calculate display credits
-        if current_user:
-            final_credits = current_user.credits
-        else:
-            final_credits = 99 # Limits are disabled
-        
+        final_credits = current_user.credits if current_user else 99
         return {
             "session_id": session_record.id,
             "status": "processing",
@@ -466,6 +598,13 @@ async def virtual_tryon(
 
     except Exception as e:
         log.error(f"Failed to initiate try-on session: {e}")
+        await refund_tryon_credit(
+            user_id=current_user.id if current_user else None,
+            deduction_action=deduction_action if 'deduction_action' in locals() else None,
+            device_key=device_key if 'device_key' in locals() else None,
+            real_ip=real_ip if 'real_ip' in locals() else None,
+            dev_id_clean=dev_id_clean if ('dev_id_clean' in locals() and 'has_hardware_device_id' in locals() and has_hardware_device_id) else None
+        )
         raise HTTPException(status_code=500, detail="Internal server error while starting try-on.")
 
 
@@ -475,63 +614,59 @@ async def get_tryon_status(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(TryOnSession).where(TryOnSession.id == session_id)
-    result = await db.execute(stmt)
-    session = result.scalar_one_or_none()
-    
-    if not session:
-        raise HTTPException(404, "Session not found")
+    try:
+        stmt = select(TryOnSession).where(TryOnSession.id == session_id)
+        result = await db.execute(stmt)
+        session = result.scalar_one_or_none()
         
-    highres_url = None
-    if session.status == "done" and session.result_image_path:
-        base_name = os.path.basename(session.result_image_path)
-        if "_result.webp" in base_name:
-            highres_name = base_name.replace("_result.webp", "_highres.png")
-        else:
-            highres_name = base_name.replace(".webp", "_highres.png")
-        highres_url = f"/outputs/{highres_name}"
+        if not session:
+            raise HTTPException(404, "Session not found")
+            
+        highres_url = None
+        if session.status == "done" and session.result_image_path:
+            base_name = os.path.basename(session.result_image_path)
+            if "_result.webp" in base_name:
+                highres_name = base_name.replace("_result.webp", "_highres.png")
+            else:
+                highres_name = base_name.replace(".webp", "_highres.png")
+            highres_url = f"/outputs/{highres_name}"
 
-    response = {
-        "session_id": session.id,
-        "status": session.status,
-        "original_url": f"/inputs/{os.path.basename(session.person_image_path)}" if session.person_image_path else None,
-        "result_url": f"/outputs/{os.path.basename(session.result_image_path)}" if session.status == "done" and session.result_image_path else None,
-        "highres_url": highres_url,
-        "processing_time_ms": session.processing_time_ms,
-    }
+        response = {
+            "session_id": session.id,
+            "status": session.status,
+            "original_url": f"/api/v1/inputs/{os.path.basename(session.person_image_path)}" if session.person_image_path else None,
+            "result_url": f"/outputs/{os.path.basename(session.result_image_path)}" if session.status == "done" and session.result_image_path else None,
+            "highres_url": highres_url,
+            "processing_time_ms": session.processing_time_ms,
+        }
 
-    if session.status == "done":
-        # 1. Fetch Recommendations (Complements)
-        from routers.feed import get_similar_products
-        recs = await get_similar_products(product_id=session.product_id, q=None, gender=None, limit=4, db=db)
-        response["complements"] = [
-            {
-                "id": str(p["id"]),
-                "name": p["name"],
-                "category": p["category"],
-                "price": int(p["price"] or 0),
-                "imageUrl": p["image"],
-                "url": p.get("url"),
-                "matchScore": 95 + (i % 5) # Varied match score
-            } for i, p in enumerate(recs.get("products", []))
-        ]
+        if session.status == "done":
+            try:
+                from routers.feed import get_similar_products
+                recs = await get_similar_products(product_id=session.product_id, q=None, gender=None, limit=4, db=db)
+                response["complements"] = [
+                    {
+                        "id": str(p["id"]),
+                        "name": p["name"],
+                        "category": p["category"],
+                        "price": int(p["price"] or 0),
+                        "imageUrl": p["image"],
+                        "url": p.get("url"),
+                        "matchScore": 95 + (i % 5)
+                    } for i, p in enumerate(recs.get("products", []))
+                ]
+            except Exception as rec_err:
+                log.error(f"Error fetching complements for status: {rec_err}")
+                response["complements"] = []
 
-        # 2. Fetch Best Deals (Price Comparison)
-        from services.price_tracker import compare_prices
-        from utils.geo_utils import get_country_from_request
-        
-        # Try to get product name for search
-        query = "Fashionable Garment"
-        if session.product_id:
-            prod_res = await db.execute(select(Product).where(Product.id == session.product_id))
-            product = prod_res.scalar_one_or_none()
-            if product:
-                query = product.name
-        
-        # Disable fake price options generation per affiliate compliance rules
-        response["price_options"] = []
+            response["price_options"] = []
 
-    return response
+        return response
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.error(f"Error in get_tryon_status for session {session_id}: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error fetching try-on status.")
 
 
 @router.get("/tryon/result/{session_id}")
@@ -656,83 +791,48 @@ async def claim_reward_credit(
     current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Grant +1 Try-On Credit in PostgreSQL DB upon watching a Rewarded Ad (Max 2 per day)."""
-    MAX_DAILY_BONUS_ADS = 2
-    if current_user:
-        now_utc = datetime.now(timezone.utc)
-        same_day = False
-        if getattr(current_user, "last_reward_ad_timestamp", None):
-            last_time = current_user.last_reward_ad_timestamp
-            if getattr(last_time, "tzinfo", None) is None:
-                last_time = last_time.replace(tzinfo=timezone.utc)
-            if last_time.date() == now_utc.date():
-                same_day = True
-        
-        current_ad_count = getattr(current_user, "daily_reward_ad_count", 0) if same_day else 0
-        
-        if current_ad_count >= MAX_DAILY_BONUS_ADS:
-            log.warning(f"User {current_user.id} reached daily 2 bonus ad credits limit!")
-            raise HTTPException(
-                status_code=429,
-                detail=f"Daily ad bonus limit reached ({MAX_DAILY_BONUS_ADS}/{MAX_DAILY_BONUS_ADS})! Upgrade to Pro or buy top-up credits for unlimited try-ons 👑"
-            )
-
-        new_count = current_ad_count + 1
-        await db.execute(
-            update(User)
-            .where(User.id == current_user.id)
-            .values(
-                credits=User.credits + 1,
-                daily_reward_ad_count=new_count,
-                last_reward_ad_timestamp=now_utc
-            )
+    """
+    Grant +1 Bonus Try-On Credit (Spin Wheel / Rewarded reward).
+    Credits are saved in bonus_credits and expire within 24h (midnight UTC).
+    Rule 5: Free bonus credits NEVER grant paid/ad-free status.
+    """
+    if not current_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Mandatory Login Required. Please sign in to earn bonus try-on credits!"
         )
-        await db.commit()
-        await db.refresh(current_user)
-        log.info(f"🎉 Granted +1 Rewarded Ad Credit ({new_count}/{MAX_DAILY_BONUS_ADS} today) to User {current_user.id}. Total credits: {current_user.credits}")
-        return {
-            "status": "success",
-            "credits": current_user.credits,
-            "bonus_ads_claimed_today": new_count,
-            "max_daily_bonus_ads": MAX_DAILY_BONUS_ADS,
-            "message": f"🎉 Bonus +1 Try-On Credit Added ({new_count}/{MAX_DAILY_BONUS_ADS} today)!"
-        }
-    else:
-        cf_connecting_ip = request.headers.get("CF-Connecting-IP")
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if cf_connecting_ip:
-            real_ip = cf_connecting_ip.strip()
-        elif forwarded_for:
-            real_ip = forwarded_for.split(",")[0].strip()
-        else:
-            real_ip = request.headers.get("X-Real-IP", request.client.host if request.client else "unknown_ip")
 
-        if ":" in real_ip:
-            parts = real_ip.split(":")
-            if len(parts) >= 4:
-                real_ip = ":".join(parts[:4]) + "::/64"
+    now_utc = datetime.now(timezone.utc)
+    expiry_utc = now_utc.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-        guest_tracker_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "guest_usage_tracker.json")
-        guest_data = {}
-        if os.path.exists(guest_tracker_file):
-            try:
-                with open(guest_tracker_file, "r") as f:
-                    guest_data = json.load(f)
-            except Exception:
-                pass
-        
-        current_tries = guest_data.get(real_ip, 0)
-        new_tries = max(0, current_tries - 1)
-        guest_data[real_ip] = new_tries
-        try:
-            with open(guest_tracker_file, "w") as f:
-                json.dump(guest_data, f)
-        except Exception as e:
-            log.error(f"Failed to update guest_usage_tracker: {e}")
+    # Add +1 to bonus_credits, update expiry to end of today UTC
+    current_bonus = getattr(current_user, 'bonus_credits', 0) or 0
+    
+    # If existing bonus_credits are already expired, reset to 0 before adding
+    existing_expiry = getattr(current_user, 'bonus_credits_expiry', None)
+    if existing_expiry:
+        if getattr(existing_expiry, 'tzinfo', None) is None:
+            existing_expiry = existing_expiry.replace(tzinfo=timezone.utc)
+        if existing_expiry < now_utc:
+            current_bonus = 0  # expired — start fresh
 
-        log.info(f"🎉 Guest Rewarded Ad Bonus registered for IP {real_ip}. Decremented used count to {new_tries}.")
-        return {
-            "status": "success",
-            "credits": 1,
-            "message": "🎉 Guest Bonus +1 Free Try-On Unlocked!"
-        }
+    new_bonus = current_bonus + 1
+    await db.execute(
+        update(User)
+        .where(User.id == current_user.id)
+        .values(
+            bonus_credits=new_bonus,
+            bonus_credits_expiry=expiry_utc,
+            last_reward_ad_timestamp=now_utc
+        )
+    )
+    await db.commit()
+    await db.refresh(current_user)
+
+    log.info(f"🎉 Granted +1 Spin/Reward Bonus Credit to User {current_user.id}. Total bonus_credits: {new_bonus} (expires: {expiry_utc})")
+    return {
+        "status": "success",
+        "bonus_credits": new_bonus,
+        "bonus_credits_expiry": expiry_utc.isoformat(),
+        "message": f"🎉 +1 Bonus Try-On Credit Added! Valid until midnight UTC today."
+    }

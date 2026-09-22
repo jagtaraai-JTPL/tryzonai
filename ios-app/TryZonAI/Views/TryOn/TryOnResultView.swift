@@ -118,8 +118,9 @@ public struct TryOnResultView: View {
 
                         // ── 3. INTERACTIVE BEFORE/AFTER SLIDER VIEWPORT (Exact Android Spec) ──
                         GeometryReader { geo in
-                            let validOrigUrl = (originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty) ? originalPhotoUrl! : displayUrl
-                            let isSplitMode = originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty
+                            let resolvedOrigUrlString = resolveURL(originalPhotoUrl)?.absoluteString
+                            let validOrigUrl = resolvedOrigUrlString ?? displayUrl
+                            let isSplitMode = resolvedOrigUrlString != nil && !resolvedOrigUrlString!.isEmpty
 
                             ZStack(alignment: .leading) {
                                 // Base Layer: AI Result Image
@@ -156,11 +157,15 @@ public struct TryOnResultView: View {
                                         case .success(let img):
                                             img.resizable().aspectRatio(contentMode: .fill)
                                         case .failure:
-                                            AsyncImage(url: URL(string: displayUrl)) { fallbackPhase in
-                                                if let fImg = fallbackPhase.image {
-                                                    fImg.resizable().aspectRatio(contentMode: .fill)
-                                                } else {
-                                                    TryZonTheme.darkSurface
+                                            ZStack {
+                                                TryZonTheme.darkSurface
+                                                VStack(spacing: 6) {
+                                                    Image(systemName: "photo")
+                                                        .font(.system(size: 24))
+                                                        .foregroundColor(.white.opacity(0.4))
+                                                    Text("Original Photo Unavailable")
+                                                        .font(.caption2)
+                                                        .foregroundColor(.white.opacity(0.5))
                                                 }
                                             }
                                         case .empty:
