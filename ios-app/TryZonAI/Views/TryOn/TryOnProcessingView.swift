@@ -48,11 +48,11 @@ public struct TryOnProcessingView: View {
     }
 
     private let timelineSteps = [
-        TimelineStepData(id: 1, title: "Analyzing photo fidelity", subtitle: "Checking image quality and pose..."),
-        TimelineStepData(id: 2, title: "Extracting garment mesh", subtitle: "Understanding fabric and texture..."),
-        TimelineStepData(id: 3, title: "AI virtual draping", subtitle: "Fitting outfit to your body shape..."),
-        TimelineStepData(id: 4, title: "Lighting adjustment", subtitle: "Adding realistic shadows and lights..."),
-        TimelineStepData(id: 5, title: "Final render generation", subtitle: "Putting the final touches...")
+        TimelineStepData(id: 1, title: "Photo & Pose Geometry", subtitle: "Analyzing body contours, pose & lighting..."),
+        TimelineStepData(id: 2, title: "Target Garment Mapping", subtitle: "Extracting fabric textures, drape lines & edges..."),
+        TimelineStepData(id: 3, title: "Neural Fabric Draping", subtitle: "Fitting garment naturally to body shape..."),
+        TimelineStepData(id: 4, title: "Lighting & Shadow Fusion", subtitle: "Harmonizing ambient light, folds & skin tone..."),
+        TimelineStepData(id: 5, title: "High-Resolution Master Render", subtitle: "Synthesizing final photorealistic virtual fitting...")
     ]
 
     public var body: some View {
@@ -183,7 +183,7 @@ public struct TryOnProcessingView: View {
                                 Image(systemName: "bolt.fill")
                                     .font(.system(size: 11))
                                     .foregroundColor(TryZonTheme.primaryGold)
-                                Text("⚡ High-Speed GPU Virtual Fitting • Est. ~30–35s")
+                                Text("⚡ High-Speed GPU Virtual Fitting • Step \(currentStep)/5")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(TryZonTheme.primaryGold)
                             }
@@ -195,7 +195,7 @@ public struct TryOnProcessingView: View {
 
                             // ── 4. DUAL PHOTO CARDS & AI CENTRAL RING ──
                             VStack(spacing: 12) {
-                                HStack(spacing: 16) {
+                                HStack(spacing: 14) {
                                     // Left Card: YOUR PHOTO
                                     PhotoPreviewCardView(
                                         title: "YOUR PHOTO",
@@ -205,19 +205,28 @@ public struct TryOnProcessingView: View {
                                         scanY: scanY
                                     )
 
-                                    // Chevrons Connection Indicator
-                                    HStack(spacing: -3) {
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .foregroundColor(TryZonTheme.primaryGold.opacity(0.5))
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 13, weight: .bold))
+                                    // Central AI Fusion Match Indicator
+                                    VStack(spacing: 3) {
+                                        HStack(spacing: 2) {
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(TryZonTheme.primaryGold.opacity(0.6))
+                                            Image(systemName: "sparkles")
+                                                .font(.system(size: 15, weight: .bold))
+                                                .foregroundColor(TryZonTheme.primaryGold)
+                                            Image(systemName: "chevron.left")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(TryZonTheme.primaryGold.opacity(0.6))
+                                        }
+                                        Text("AI FUSION")
+                                            .font(.system(size: 7.5, weight: .black))
                                             .foregroundColor(TryZonTheme.primaryGold)
+                                            .tracking(0.8)
                                     }
 
-                                    // Right Card: AI TRY-ON
+                                    // Right Card: TARGET OUTFIT (Input garment to be transferred onto model)
                                     PhotoPreviewCardView(
-                                        title: "AI TRY-ON",
+                                        title: "TARGET OUTFIT",
                                         imageUrl: garmentPhotoUrl,
                                         uiImage: garmentImage,
                                         isDraping: true,
@@ -283,13 +292,13 @@ public struct TryOnProcessingView: View {
                                     .foregroundColor(TryZonTheme.primaryGold)
 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("AI Fashion Processing")
+                                    Text("Step \(currentStep) of 5: \(timelineSteps[min(max(currentStep - 1, 0), timelineSteps.count - 1)].title)")
                                         .font(.system(size: 12.5, weight: .black))
-                                        .foregroundColor(.white)
+                                        .foregroundColor(TryZonTheme.primaryGold)
 
-                                    Text("Realistic fit • Natural lighting • Personalized try-on")
+                                    Text(timelineSteps[min(max(currentStep - 1, 0), timelineSteps.count - 1)].subtitle)
                                         .font(.system(size: 10.5))
-                                        .foregroundColor(.white.opacity(0.65))
+                                        .foregroundColor(.white.opacity(0.75))
                                 }
                                 Spacer()
                             }

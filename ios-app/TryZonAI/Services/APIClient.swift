@@ -17,6 +17,11 @@ public class APIClient: ObservableObject {
     private let baseURL = URL(string: "https://tryzonai.com/api/v1")!
     private let session: URLSession
 
+    public func endpoint(_ path: String) -> URL {
+        let clean = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return URL(string: "\(baseURL.absoluteString)/\(clean)")!
+    }
+
     public var sessionID: String {
         if let existing = UserDefaults.standard.string(forKey: "tryzon_session_id") {
             return existing
@@ -110,7 +115,7 @@ public class APIClient: ObservableObject {
             return
         }
 
-        var request = URLRequest(url: baseURL.appendingPathComponent("auth/me"))
+        var request = URLRequest(url: endpoint("auth/me"))
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -136,7 +141,7 @@ public class APIClient: ObservableObject {
 
     public func fetchUserCredits() {
         guard authToken != nil else { return }
-        var request = URLRequest(url: baseURL.appendingPathComponent("auth/me"))
+        var request = URLRequest(url: endpoint("auth/me"))
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -155,7 +160,7 @@ public class APIClient: ObservableObject {
     public func claimRewardCredit(amount: Int = 1) async throws {
         let count = max(1, amount)
         for _ in 0..<count {
-            var request = URLRequest(url: baseURL.appendingPathComponent("tryon/claim-reward-credit"))
+            var request = URLRequest(url: endpoint("tryon/claim-reward-credit"))
             request.httpMethod = "POST"
             makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -176,8 +181,8 @@ public class APIClient: ObservableObject {
 
     // MARK: - In-App AI Content Reporting (Apple Guideline 1.2 Compliance)
     public func submitContentReport(imageUrl: String, reason: String, details: String? = nil) async throws -> Bool {
-        let endpoint = baseURL.appendingPathComponent("report")
-        var request = URLRequest(url: endpoint)
+        let reportEndpoint = endpoint("report")
+        var request = URLRequest(url: reportEndpoint)
         request.httpMethod = "POST"
         for (k, v) in makeHeaders() {
             request.setValue(v, forHTTPHeaderField: k)
@@ -199,7 +204,7 @@ public class APIClient: ObservableObject {
     // MARK: - Auth API
     public func loginWithGoogle(idToken: String) async throws -> AuthResponse {
         let cleanInput = idToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        var request = URLRequest(url: baseURL.appendingPathComponent("auth/google"))
+        var request = URLRequest(url: endpoint("auth/google"))
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -242,7 +247,7 @@ public class APIClient: ObservableObject {
             cleanEmail = savedEmail
         }
 
-        var request = URLRequest(url: baseURL.appendingPathComponent("auth/apple"))
+        var request = URLRequest(url: endpoint("auth/apple"))
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -287,7 +292,7 @@ public class APIClient: ObservableObject {
     }
 
     public func login(email: String, password: String) async throws -> AuthResponse {
-        var request = URLRequest(url: baseURL.appendingPathComponent("auth/login"))
+        var request = URLRequest(url: endpoint("auth/login"))
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -322,7 +327,7 @@ public class APIClient: ObservableObject {
     }
 
     public func register(name: String, email: String, password: String) async throws -> AuthResponse {
-        var request = URLRequest(url: baseURL.appendingPathComponent("auth/register"))
+        var request = URLRequest(url: endpoint("auth/register"))
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -359,7 +364,7 @@ public class APIClient: ObservableObject {
     public func generateTryOn(personImage: UIImage, garmentImage: UIImage, category: String, productId: String? = nil) async throws -> TryOnSubmissionResponse {
         let token = try await ensureSessionAuthToken()
 
-        var tryonURL = baseURL.appendingPathComponent("tryon")
+        var tryonURL = endpoint("tryon")
         if let pid = productId, !pid.isEmpty {
             var components = URLComponents(url: tryonURL, resolvingAgainstBaseURL: false)!
             components.queryItems = [URLQueryItem(name: "product_id", value: pid)]
@@ -436,7 +441,7 @@ public class APIClient: ObservableObject {
 
     // MARK: - Task Status Polling
     public func pollTaskStatus(sessionId: Int) async throws -> TryOnStatusResponse {
-        var request = URLRequest(url: baseURL.appendingPathComponent("tryon/status/\(sessionId)"))
+        var request = URLRequest(url: endpoint("tryon/status/\(sessionId)"))
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -451,7 +456,7 @@ public class APIClient: ObservableObject {
 
     // MARK: - Catalog API
     public func fetchCatalog(category: String? = nil, gender: String? = nil, search: String? = nil, limit: Int = 100) async throws -> [CatalogItem] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("catalog"), resolvingAgainstBaseURL: false)!
+        var components = URLComponents(url: endpoint("catalog"), resolvingAgainstBaseURL: false)!
         var queryItems: [URLQueryItem] = [URLQueryItem(name: "limit", value: "\(limit)")]
         if let cat = category, cat != "All" && cat != "All AI Outfits" {
             queryItems.append(URLQueryItem(name: "category", value: cat))
@@ -476,7 +481,7 @@ public class APIClient: ObservableObject {
 
     // MARK: - History API
     public func fetchHistory() async throws -> [TryOnHistoryItem] {
-        var request = URLRequest(url: baseURL.appendingPathComponent("tryon/history"))
+        var request = URLRequest(url: endpoint("tryon/history"))
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -490,7 +495,7 @@ public class APIClient: ObservableObject {
 
     // MARK: - Wardrobe Closet API
     public func fetchWardrobeItems() async throws -> [WardrobeItemModel] {
-        var request = URLRequest(url: baseURL.appendingPathComponent("wardrobe"))
+        var request = URLRequest(url: endpoint("wardrobe"))
         request.httpMethod = "GET"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
 
@@ -503,14 +508,14 @@ public class APIClient: ObservableObject {
     }
 
     public func deleteWardrobeItem(id: Int) async throws {
-        var request = URLRequest(url: baseURL.appendingPathComponent("wardrobe/\(id)"))
+        var request = URLRequest(url: endpoint("wardrobe/\(id)"))
         request.httpMethod = "DELETE"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
         _ = try await session.data(for: request)
     }
 
     public func addToWardrobe(imageUrl: String) async throws -> WardrobeItemModel {
-        var components = URLComponents(url: baseURL.appendingPathComponent("wardrobe"), resolvingAgainstBaseURL: false)!
+        var components = URLComponents(url: endpoint("wardrobe"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "image_url", value: imageUrl)]
         var request = URLRequest(url: components.url!)
         request.httpMethod = "POST"
@@ -524,7 +529,7 @@ public class APIClient: ObservableObject {
     // MARK: - Apple StoreKit Verification API
     public func verifyApplePurchase(transactionId: String, productId: String) async throws -> Bool {
         _ = try await ensureSessionAuthToken()
-        let url = baseURL.appendingPathComponent("payments/apple/verify")
+        let url = endpoint("payments/apple/verify")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
@@ -562,7 +567,7 @@ public class APIClient: ObservableObject {
     public func deleteAccount() {
         Task {
             if self.authToken != nil {
-                var request = URLRequest(url: self.baseURL.appendingPathComponent("auth/me"))
+                var request = URLRequest(url: self.endpoint("auth/me"))
                 request.httpMethod = "DELETE"
                 self.makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
                 _ = try? await self.session.data(for: request)

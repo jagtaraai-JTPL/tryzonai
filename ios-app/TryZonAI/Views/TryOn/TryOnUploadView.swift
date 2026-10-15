@@ -39,6 +39,7 @@ public struct TryOnUploadView: View {
     @State private var selectedGarmentItem: PhotosPickerItem? = nil
     @State private var selectedOutfitUrl: String = ""
     @State private var selectedProductId: String? = nil
+    @State private var isGarmentLoading: Bool = false
 
     @State private var showingCameraForPerson = false
     @State private var showingCameraForGarment = false
@@ -146,6 +147,39 @@ public struct TryOnUploadView: View {
                 loadGarmentFromCatalogItem(garment)
             }
         }
+        .overlay(
+            Group {
+                if isSubmitting {
+                    ZStack {
+                        Color.black.opacity(0.85).ignoresSafeArea()
+                        VStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .stroke(TryZonTheme.primaryGold.opacity(0.2), lineWidth: 3)
+                                    .frame(width: 64, height: 64)
+                                ProgressView()
+                                    .tint(TryZonTheme.primaryGold)
+                                    .scaleEffect(1.4)
+                            }
+                            VStack(spacing: 6) {
+                                Text(submissionStatusText.isEmpty ? "Preparing AI Fitting Studio..." : submissionStatusText)
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                Text("Connecting to GPU Virtual Fitting Studio...")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                        }
+                        .padding(24)
+                        .background(TryZonTheme.darkSurface)
+                        .cornerRadius(24)
+                        .overlay(RoundedRectangle(cornerRadius: 24).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1.5))
+                        .padding(24)
+                    }
+                    .transition(.opacity)
+                }
+            }
+        )
         .overlay(
             Group {
                 if showLoginRequiredModal {
@@ -315,11 +349,13 @@ public struct TryOnUploadView: View {
                             title: "CHOOSE OUTFIT",
                             iconName: "tshirt.fill",
                             image: viewModel.selectedGarmentImage,
+                            isLoading: isGarmentLoading,
                             hint: "Upload Outfit",
                             onClear: {
                                 viewModel.selectedGarmentImage = nil
                                 selectedProductId = nil
                                 selectedOutfitUrl = ""
+                                isGarmentLoading = false
                             },
                             pickerItem: $selectedGarmentItem,
                             onCamera: { showingCameraForGarment = true },
@@ -507,7 +543,16 @@ public struct TryOnUploadView: View {
 
                     Button(action: executeTryOnFlow) {
                         HStack(spacing: 8) {
-                            if isSubmitting || viewModel.isProcessing {
+                            if isGarmentLoading {
+                                ProgressView()
+                                    .tint(.black)
+                                    .scaleEffect(0.9)
+
+                                Text("LOADING OUTFIT...")
+                                    .font(.system(size: 13, weight: .black, design: .rounded))
+                                    .foregroundColor(.black)
+                                    .tracking(0.5)
+                            } else if isSubmitting || viewModel.isProcessing {
                                 ProgressView()
                                     .tint(.black)
                                     .scaleEffect(0.9)
@@ -533,11 +578,11 @@ public struct TryOnUploadView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 54)
-                        .background(isSubmitting || viewModel.isProcessing ? TryZonTheme.primaryGold.opacity(0.85) : TryZonTheme.primaryGold)
+                        .background((isSubmitting || viewModel.isProcessing || isGarmentLoading) ? TryZonTheme.primaryGold.opacity(0.85) : TryZonTheme.primaryGold)
                         .cornerRadius(27)
                         .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 8, y: 4)
                     }
-                    .disabled(isSubmitting || viewModel.isProcessing)
+                    .disabled(isSubmitting || viewModel.isProcessing || isGarmentLoading)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 6)
@@ -646,6 +691,7 @@ public struct TryOnUploadView: View {
         title: String,
         iconName: String,
         image: UIImage?,
+        isLoading: Bool = false,
         hint: String,
         onClear: @escaping () -> Void,
         pickerItem: Binding<PhotosPickerItem?>,
@@ -663,7 +709,29 @@ public struct TryOnUploadView: View {
             }
 
             ZStack(alignment: .bottom) {
-                if let img = image {
+                if isLoading {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(TryZonTheme.surfaceVariant)
+                        .frame(height: 180)
+                        .frame(maxWidth: .infinity)
+                        .overlay(
+                            VStack(spacing: 8) {
+                                ProgressView()
+                                    .tint(TryZonTheme.primaryGold)
+                                    .scaleEffect(1.2)
+                                Text("Loading Outfit...")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+                                Text("Fetching from catalog")
+                                    .font(.system(size: 9.5))
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(TryZonTheme.primaryGold.opacity(0.6), lineWidth: 1.5)
+                        )
+                } else if let img = image {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFill()
@@ -753,7 +821,7 @@ public struct TryOnUploadView: View {
 
     // MARK: - Auto Prepare Defaults
     private func autoPrepareDefaultPhotos() {
-        if viewModel.selectedGarmentImage == nil && !sampleOutfits.isEmpty {
+        if preselectedGarment == nil && viewModel.selectedGarmentImage == nil && selectedOutfitUrl.isEmpty && !sampleOutfits.isEmpty {
             let firstOutfit = sampleOutfits[0]
             selectedOutfitUrl = firstOutfit.imageUrl
             loadSampleGarmentImage(urlStr: firstOutfit.imageUrl)
@@ -771,16 +839,21 @@ public struct TryOnUploadView: View {
 
     private func loadGarmentFromCatalogItem(_ item: CatalogItem) {
         selectedProductId = item.id
-        var urlStr = item.image_url.hasPrefix("http") ? item.image_url : "https://tryzonai.com\(item.image_url.hasPrefix("/") ? "" : "/")\(item.image_url)"
-        if urlStr.contains("amazon.com") || urlStr.contains("media-amazon.com") {
-            urlStr = urlStr.replacingOccurrences(of: #"\._[A-Za-z0-9_,]+_\."#, with: ".", options: .regularExpression)
-        }
+        let urlStr = item.fullImageURL?.absoluteString ?? (item.image_url.hasPrefix("http") ? item.image_url : "https://tryzonai.com\(item.image_url.hasPrefix("/") ? "" : "/")\(item.image_url)")
         selectedOutfitUrl = urlStr
+        isGarmentLoading = true
+        viewModel.selectedGarmentImage = nil
+
         Task {
             if let img = await downloadSampleImage(from: urlStr) {
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.viewModel.selectedGarmentImage = img
+                    self.isGarmentLoading = false
                     self.preselectedGarment = nil
+                }
+            } else {
+                await MainActor.run {
+                    self.isGarmentLoading = false
                 }
             }
         }
@@ -858,11 +931,24 @@ public struct TryOnUploadView: View {
             }
         }
 
-        if garmentImg == nil && !sampleOutfits.isEmpty {
-            let outfitUrl = selectedOutfitUrl.isEmpty ? sampleOutfits[0].imageUrl : selectedOutfitUrl
-            garmentImg = await downloadSampleImage(from: outfitUrl)
-            if let img = garmentImg {
-                DispatchQueue.main.async { self.viewModel.selectedGarmentImage = img }
+        if garmentImg == nil {
+            let outfitUrl: String
+            if !selectedOutfitUrl.isEmpty {
+                outfitUrl = selectedOutfitUrl
+            } else if !sampleOutfits.isEmpty {
+                outfitUrl = sampleOutfits[0].imageUrl
+                selectedOutfitUrl = outfitUrl
+            } else {
+                outfitUrl = ""
+            }
+            if !outfitUrl.isEmpty {
+                garmentImg = await downloadSampleImage(from: outfitUrl)
+                if let img = garmentImg {
+                    await MainActor.run {
+                        self.viewModel.selectedGarmentImage = img
+                        self.isGarmentLoading = false
+                    }
+                }
             }
         }
 
@@ -886,11 +972,20 @@ public struct TryOnUploadView: View {
     }
 
     private func loadSampleGarmentImage(urlStr: String) {
-        guard let url = URL(string: urlStr) else { return }
+        guard let _ = URL(string: urlStr) else { return }
+        selectedOutfitUrl = urlStr
+        isGarmentLoading = true
+        viewModel.selectedGarmentImage = nil
+
         Task {
             if let img = await downloadSampleImage(from: urlStr) {
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.viewModel.selectedGarmentImage = img
+                    self.isGarmentLoading = false
+                }
+            } else {
+                await MainActor.run {
+                    self.isGarmentLoading = false
                 }
             }
         }

@@ -703,6 +703,9 @@ async def virtual_tryon(
                     hd_url = get_highres_catalog_url(raw_url)
                     log.info(f"[CATALOG_HD] Product ID {pid_int}: Raw URL '{raw_url}' -> HD URL '{hd_url}'")
                     
+                    if not hd_url.startswith("http") and raw_url.startswith("/"):
+                        hd_url = f"https://tryzonai.com{raw_url}"
+
                     if hd_url.startswith("http"):
                         try:
                             import httpx
@@ -717,11 +720,18 @@ async def virtual_tryon(
 
                     if not g_path or not os.path.exists(g_path):
                         prod_img_path = raw_url.lstrip("/")
+                        clean_rel = raw_url.replace("/api/v1/", "").replace("api/v1/", "").lstrip("/")
                         candidate_paths = [
+                            os.path.join("/app/web/public", clean_rel),
+                            os.path.join("/app/web/public/outfits/premium_catalog", os.path.basename(clean_rel)),
+                            os.path.join("/app/web/public/outfits", os.path.basename(clean_rel)),
+                            os.path.join("/home/hemendramehra/tryzonai_server/web/public", clean_rel),
+                            os.path.join(os.path.dirname(os.path.dirname(__file__)), clean_rel),
+                            os.path.join("/app", clean_rel),
+                            os.path.join("/app/web/public", prod_img_path),
                             os.path.join(os.path.dirname(os.path.dirname(__file__)), prod_img_path),
                             os.path.join("/app", prod_img_path),
-                            os.path.join("/app/web/public", prod_img_path),
-                            os.path.join("/app/catalog_inbox", os.path.basename(prod_img_path))
+                            os.path.join("/app/catalog_inbox", os.path.basename(clean_rel))
                         ]
                         for cand in candidate_paths:
                             if os.path.exists(cand) and os.path.getsize(cand) > 0:
