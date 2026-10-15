@@ -65,8 +65,7 @@ public struct AppleSignInSheet: View {
                             .foregroundColor(TryZonTheme.primaryGold)
 
                         Button(action: {
-                            appleEmail = savedAppleEmail
-                            performAppleSignIn()
+                            performAppleSignIn(email: savedAppleEmail)
                         }) {
                             HStack(spacing: 12) {
                                 Circle()
@@ -130,10 +129,27 @@ public struct AppleSignInSheet: View {
                         .padding(14)
                         .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
                         .cornerRadius(14)
+
+                        // Quick domain helper if user only entered username
+                        if !appleEmail.isEmpty && !appleEmail.contains("@") {
+                            HStack(spacing: 8) {
+                                Button(action: {
+                                    appleEmail = "\(appleEmail)@icloud.com"
+                                }) {
+                                    Text("+ @icloud.com")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.primary.opacity(0.1))
+                                        .foregroundColor(TryZonTheme.textColor(for: colorScheme))
+                                        .cornerRadius(12)
+                                }
+                            }
+                        }
                     }
 
                     // Primary Apple Sign In Button
-                    Button(action: performAppleSignIn) {
+                    Button(action: { performAppleSignIn() }) {
                         HStack(spacing: 10) {
                             if isLoading {
                                 ProgressView()
@@ -212,14 +228,19 @@ public struct AppleSignInSheet: View {
         }
     }
 
-    private func performAppleSignIn() {
-        let cleanEmail = appleEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func performAppleSignIn(email inputEmail: String? = nil) {
+        var cleanEmail = (inputEmail ?? appleEmail).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanEmail.isEmpty else {
             errorMessage = "Please enter your Apple ID email address."
             return
         }
 
-        guard cleanEmail.contains("@") else {
+        if !cleanEmail.contains("@") {
+            cleanEmail = "\(cleanEmail)@icloud.com"
+            appleEmail = cleanEmail
+        }
+
+        guard cleanEmail.contains("@") && cleanEmail.contains(".") else {
             errorMessage = "Please enter a valid Apple ID email address."
             return
         }

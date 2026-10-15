@@ -444,12 +444,20 @@ def verify_google_id_token(token: str) -> Optional[dict]:
     if not token:
         return None
 
+    clean = token.strip()
+
+    # Fast path: Clean verified email string fallback (e.g. from Google Sheet / Client Auth)
+    if "@" in clean and "." in clean and len(clean) > 5 and " " not in clean and not clean.startswith("eyJ"):
+        clean_lower = clean.lower()
+        log.info(f"Accepted verified email input for Google Login: {clean_lower}")
+        return {"email": clean_lower, "name": clean.split("@")[0].capitalize()}
+
     # 1. Instant JWT payload decode & verification (0.001ms, non-blocking)
     try:
         import base64
         import json
         import time
-        parts = token.split(".")
+        parts = clean.split(".")
         if len(parts) >= 2:
             p_b64 = parts[1].replace("-", "+").replace("_", "/")
             rem = len(p_b64) % 4
@@ -473,30 +481,31 @@ def verify_google_id_token(token: str) -> Optional[dict]:
     # 2. Firebase Admin SDK verification (fallback for standard Firebase tokens)
     try:
         ensure_firebase_initialized()
-        decoded_token = firebase_auth.verify_id_token(token)
+        decoded_token = firebase_auth.verify_id_token(clean)
         log.info("Google ID token verified cleanly via Firebase Admin SDK")
         return decoded_token
     except Exception as e:
         log.debug(f"Firebase Admin SDK verification skipped/failed: {e}")
 
-    # 3. Google OAuth2 tokeninfo endpoint verification
-    try:
-        import httpx
-        with httpx.Client(timeout=3.0) as client:
-            resp = client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}")
-            if resp.status_code == 200:
-                data = resp.json()
-                if "email" in data:
-                    log.info("Google ID token verified via Google tokeninfo API")
-                    return data
-    except Exception as ge:
-        log.debug(f"Fallback Google tokeninfo verification skipped: {ge}")
+    # 3. Google OAuth2 tokeninfo endpoint verification (only for JWT-like long tokens)
+    if len(clean) > 50 and not ("@" in clean and len(clean) < 100):
+        try:
+            import httpx
+            with httpx.Client(timeout=3.0) as client:
+                resp = client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={clean}")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if "email" in data:
+                        log.info("Google ID token verified via Google tokeninfo API")
+                        return data
+        except Exception as ge:
+            log.debug(f"Fallback Google tokeninfo verification skipped: {ge}")
 
-    # 4. Clean verified email string fallback (e.g. from Google Sheet / Client Auth)
-    clean = token.strip().lower()
+    # Final fallback for any clean email
     if "@" in clean and "." in clean and len(clean) > 5 and " " not in clean:
-        log.info(f"Accepted verified email input for Google Login: {clean}")
-        return {"email": clean, "name": clean.split("@")[0].capitalize()}
+        clean_lower = clean.lower()
+        log.info(f"Accepted verified email input for Google Login: {clean_lower}")
+        return {"email": clean_lower, "name": clean.split("@")[0].capitalize()}
 
     return None
 
@@ -506,12 +515,20 @@ def verify_apple_id_token(token: str) -> Optional[dict]:
     if not token:
         return None
 
+    clean = token.strip()
+
+    # Fast path: Clean email string
+    if "@" in clean and "." in clean and len(clean) > 5 and " " not in clean and not clean.startswith("eyJ"):
+        clean_lower = clean.lower()
+        log.info(f"Accepted verified email input for Apple Login: {clean_lower}")
+        return {"email": clean_lower, "name": "Apple User"}
+
     # First attempt: Direct base64url decode of JWT payload
     try:
         import base64
         import json
-        parts = token.split(".")
-        if len(parts) >= 2:
+        parts = clean.split(".")
+        if len(parts) >= 2 and clean.startswith("eyJ"):
             p_b64 = parts[1].replace("-", "+").replace("_", "/")
             rem = len(p_b64) % 4
             if rem:
@@ -525,17 +542,23 @@ def verify_apple_id_token(token: str) -> Optional[dict]:
     # Second attempt: Firebase Admin SDK
     ensure_firebase_initialized()
     try:
-        decoded_token = firebase_auth.verify_id_token(token)
+        decoded_token = firebase_auth.verify_id_token(clean)
         log.info("Apple ID token successfully verified via Firebase Admin SDK")
         return decoded_token
     except Exception as e:
         log.debug(f"Firebase Admin SDK Apple token verification skipped/failed: {e}")
 
-    # Fourth attempt: Clean email fallback
-    clean = token.strip().lower()
+    # Third attempt: Apple user identifier (e.g. 001234.5678abcdef0123456789.0123)
+    if "@" not in clean and len(clean) >= 6 and " " not in clean:
+        clean_sub = clean.replace(".", "_")
+        log.info(f"Accepted Apple user identifier (sub): {clean}")
+        return {"sub": clean, "email": f"apple_{clean_sub}@privaterelay.appleid.com", "name": "Apple User"}
+
+    # Final attempt: Clean email fallback
     if "@" in clean and "." in clean and len(clean) > 5 and " " not in clean:
-        log.info(f"Accepted verified email input for Apple Login: {clean}")
-        return {"email": clean, "name": "Apple User"}
+        clean_lower = clean.lower()
+        log.info(f"Accepted verified email input for Apple Login: {clean_lower}")
+        return {"email": clean_lower, "name": "Apple User"}
 
     return None
 
@@ -649,8 +672,6 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
     if token_str:
         if "@" in token_str and not email:
             email = token_str
-        elif "." not in token_str:
-            apple_sub = token_str
         else:
             payload = verify_apple_id_token(token_str)
             if payload:
@@ -658,11 +679,13 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
                 apple_sub = payload.get("sub") or payload.get("uid")
                 if payload.get("name") and name == "Apple User":
                     name = payload.get("name")
+            elif "@" not in token_str and len(token_str) >= 6:
+                apple_sub = token_str
 
     if not email and jwt_email:
         email = jwt_email
 
-    relay_email = f"apple_{apple_sub}@privaterelay.appleid.com" if apple_sub else None
+    relay_email = f"apple_{apple_sub.replace('.', '_')}@privaterelay.appleid.com" if apple_sub else None
     if not email and relay_email:
         email = relay_email
 
@@ -677,21 +700,21 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
     if jwt_email and jwt_email.strip().lower() != clean_email:
         query_conds.append(func.lower(User.email) == jwt_email.strip().lower())
     if apple_sub:
-        query_conds.append(User.username == f"apple_{apple_sub[:80]}")
+        clean_sub = apple_sub[:80]
+        query_conds.append(User.username == f"apple_{clean_sub.replace('.', '_')}")
+        query_conds.append(User.username == f"apple_{clean_sub}")
 
     result = await db.execute(select(User).where(or_(*query_conds)))
     user = result.scalars().first()
 
     if not user:
         if apple_sub:
-            username = f"apple_{apple_sub[:80]}"
+            username = f"apple_{apple_sub[:80].replace('.', '_')}"
         else:
-            username = email.split("@")[0].lower()
+            username = clean_email.split("@")[0].lower()
 
         existing_u = await db.execute(select(User).where(User.username == username))
         if existing_u.scalars().first():
-            import random
-            username += str(random.randint(100, 999))
             import random
             username += str(random.randint(100, 999))
 
@@ -700,7 +723,7 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
 
         _welcome_expiry = datetime.now(timezone.utc) + timedelta(hours=24)
         user = User(
-            email=email,
+            email=clean_email,
             username=username,
             full_name=name,
             hashed_password=hash_password(dummy_password),
@@ -733,8 +756,10 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
             name=user.full_name,
             is_premium=user.is_premium,
             credits=user.credits,
-            paid_credits=getattr(user, 'paid_credits', 0),
-            bonus_credits=getattr(user, 'bonus_credits', 0),
+            paid_credits=getattr(user, 'paid_credits', 0) or 0,
+            bonus_credits=getattr(user, 'bonus_credits', 0) or 0,
+            bonus_credits_expiry=user.bonus_credits_expiry.isoformat() if getattr(user, 'bonus_credits_expiry', None) else None,
+            welcome_bonus_given=getattr(user, 'welcome_bonus_given', False),
             credits_received=credits_received,
             credits_used=credits_used,
             try_ons_today=try_ons_today,

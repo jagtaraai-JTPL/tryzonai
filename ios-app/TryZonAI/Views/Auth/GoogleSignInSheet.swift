@@ -8,7 +8,6 @@ public struct GoogleSignInSheet: View {
 
     @AppStorage("saved_google_email") private var savedGoogleEmail: String = ""
     @State private var googleEmail: String = ""
-    @State private var googlePassword: String = ""
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
     @State private var showSafariWebLogin: Bool = false
@@ -65,8 +64,7 @@ public struct GoogleSignInSheet: View {
                             .foregroundColor(TryZonTheme.primaryGold)
 
                         Button(action: {
-                            googleEmail = savedGoogleEmail
-                            performGoogleSignIn()
+                            performGoogleSignIn(email: savedGoogleEmail)
                         }) {
                             HStack(spacing: 12) {
                                 Circle()
@@ -106,7 +104,7 @@ public struct GoogleSignInSheet: View {
                 // ── 3. ACCOUNT SELECTOR & INPUT ──
                 VStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(savedGoogleEmail.isEmpty ? "ENTER GOOGLE ACCOUNT DETAILS" : "OR USE ANOTHER GOOGLE ACCOUNT")
+                        Text(savedGoogleEmail.isEmpty ? "ENTER GOOGLE ACCOUNT EMAIL" : "OR USE ANOTHER GOOGLE ACCOUNT")
                             .font(.system(size: 10, weight: .black))
                             .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
 
@@ -131,26 +129,31 @@ public struct GoogleSignInSheet: View {
                         .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
                         .cornerRadius(14)
 
-                        HStack {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
-
-                            SecureField("Google Account Password", text: $googlePassword)
-                                .font(.system(size: 14, weight: .medium))
+                        // Quick domain helper if user only entered username
+                        if !googleEmail.isEmpty && !googleEmail.contains("@") {
+                            HStack(spacing: 8) {
+                                Button(action: {
+                                    googleEmail = "\(googleEmail)@gmail.com"
+                                }) {
+                                    Text("+ @gmail.com")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color(red: 66/255, green: 133/255, blue: 244/255).opacity(0.12))
+                                        .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
+                                        .cornerRadius(12)
+                                }
+                            }
                         }
-                        .padding(14)
-                        .background(TryZonTheme.surfaceVariantColor(for: colorScheme))
-                        .cornerRadius(14)
                     }
 
                     // Primary Google Sign In Button
-                    Button(action: performGoogleSignIn) {
+                    Button(action: { performGoogleSignIn() }) {
                         HStack(spacing: 10) {
                             if isLoading {
                                 ProgressView()
                                     .tint(.black)
-                                Text("Authenticating with Google...")
+                                Text("Connecting to Google...")
                                     .font(.system(size: 15, weight: .bold))
                                     .foregroundColor(.black)
                             } else {
@@ -158,7 +161,7 @@ public struct GoogleSignInSheet: View {
                                     .font(.system(size: 20, weight: .black))
                                     .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
 
-                                Text("Sign In with Google")
+                                Text("Continue with Google")
                                     .font(.system(size: 15, weight: .bold))
                                     .foregroundColor(.black)
                             }
@@ -172,12 +175,12 @@ public struct GoogleSignInSheet: View {
                     .disabled(isLoading)
                     .buttonStyle(BounceButtonStyle())
 
-                    // Or Web Browser Login Option
+                    // Web Browser Login Option
                     Button(action: { showSafariWebLogin = true }) {
                         HStack(spacing: 8) {
                             Image(systemName: "safari")
                                 .font(.system(size: 14))
-                            Text("Authenticate via Official Google Safari Web Consent Sheet 🌐")
+                            Text("Sign In on Google Web Portal 🌐")
                                 .font(.system(size: 12.5, weight: .semibold))
                         }
                         .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
@@ -199,7 +202,7 @@ public struct GoogleSignInSheet: View {
                             .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                     }
 
-                    Text("Google will securely share your email & profile to authenticate with TryZon AI.")
+                    Text("Google will securely authenticate your account with TryZon AI.")
                         .font(.system(size: 10, weight: .regular))
                         .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
                         .multilineTextAlignment(.center)
@@ -224,21 +227,20 @@ public struct GoogleSignInSheet: View {
         }
     }
 
-    private func performGoogleSignIn() {
-        let cleanEmail = googleEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func performGoogleSignIn(email inputEmail: String? = nil) {
+        var cleanEmail = (inputEmail ?? googleEmail).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanEmail.isEmpty else {
-            errorMessage = "Please enter your Google Email address."
+            errorMessage = "Please enter your Google email address."
             return
         }
 
-        guard cleanEmail.contains("@") else {
+        if !cleanEmail.contains("@") {
+            cleanEmail = "\(cleanEmail)@gmail.com"
+            googleEmail = cleanEmail
+        }
+
+        guard cleanEmail.contains("@") && cleanEmail.contains(".") else {
             errorMessage = "Please enter a valid Google email address."
-            return
-        }
-
-        // If saved Google account is selected or user typed password, authenticate properly
-        if savedGoogleEmail.isEmpty && googlePassword.isEmpty {
-            errorMessage = "Please enter your Google Account password to authenticate."
             return
         }
 

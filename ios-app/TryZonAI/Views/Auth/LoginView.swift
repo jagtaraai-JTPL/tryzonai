@@ -182,7 +182,7 @@ public struct LoginView: View {
                             Text("G")
                                 .font(.system(size: 20, weight: .black, design: .rounded))
                                 .foregroundColor(Color(red: 66/255, green: 133/255, blue: 244/255))
-                            Text("Continue with Google OAuth")
+                            Text("Continue with Google")
                                 .font(.system(size: 14.5, weight: .bold))
                                 .foregroundColor(colorScheme == .dark ? .black : .primary)
                         }
