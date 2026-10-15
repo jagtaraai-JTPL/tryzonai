@@ -27,6 +27,7 @@ public struct TryOnResultView: View {
     let resultImageUrl: String
     let highresUrl: String?
     let originalPhotoUrl: String?
+    let originalImage: UIImage?
     let complements: [ComplementProduct]
     let onTryAnother: () -> Void
     let onTryComplement: ((ComplementProduct) -> Void)?
@@ -51,6 +52,7 @@ public struct TryOnResultView: View {
         resultImageUrl: String,
         highresUrl: String? = nil,
         originalPhotoUrl: String? = nil,
+        originalImage: UIImage? = nil,
         complements: [ComplementProduct] = [],
         onTryAnother: @escaping () -> Void,
         onTryComplement: ((ComplementProduct) -> Void)? = nil
@@ -58,9 +60,14 @@ public struct TryOnResultView: View {
         self.resultImageUrl = resultImageUrl
         self.highresUrl = highresUrl
         self.originalPhotoUrl = originalPhotoUrl
+        self.originalImage = originalImage
         self.complements = complements
         self.onTryAnother = onTryAnother
         self.onTryComplement = onTryComplement
+    }
+
+    public var hasOriginalPhoto: Bool {
+        return originalImage != nil || (originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty)
     }
 
     private var displayUrl: String {
@@ -82,7 +89,7 @@ public struct TryOnResultView: View {
     private var captionText: String {
         switch displayMode {
         case .result:
-            return (originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty)
+            return hasOriginalPhoto
                 ? "✨ Full AI Result shown • Tap 'Compare' for Before/After • Double-tap to ❤️"
                 : "❤️ Double-tap to heart your AI Try-On Result • Tap Zoom to inspect"
         case .compare:
@@ -161,7 +168,7 @@ public struct TryOnResultView: View {
                         )
 
                         // ── 2.1 MODE SELECTOR PILLS (AI Result / Compare / Original) ──
-                        if let orig = originalPhotoUrl, !orig.isEmpty {
+                        if hasOriginalPhoto {
                             HStack(spacing: 8) {
                                 ForEach(ResultDisplayMode.allCases, id: \.self) { mode in
                                     Button(action: {
@@ -190,6 +197,7 @@ public struct TryOnResultView: View {
                         ResultComparisonViewport(
                             resultImageUrl: resolvedDisplayUrl,
                             originalPhotoUrl: resolvedOrigUrl,
+                            originalImage: originalImage,
                             displayMode: displayMode,
                             onOpenFullscreen: {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -396,6 +404,7 @@ public struct TryOnResultView: View {
             FullscreenResultViewer(
                 imageUrl: resolvedDisplayUrl,
                 originalUrl: resolvedOrigUrl,
+                originalImage: originalImage,
                 onDismiss: { showFullscreenViewer = false },
                 onDownload: downloadHDImage,
                 onShare: shareResultImage
@@ -634,6 +643,7 @@ public struct TryOnResultView: View {
 private struct ResultComparisonViewport: View {
     let resultImageUrl: URL?
     let originalPhotoUrl: URL?
+    let originalImage: UIImage?
     let displayMode: ResultDisplayMode
     let onOpenFullscreen: () -> Void
 
@@ -664,100 +674,125 @@ private struct ResultComparisonViewport: View {
                         }
 
                     case .original:
-                        CachedAsyncImage(url: originalPhotoUrl) { img in
-                            img.resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } placeholder: {
-                            VStack(spacing: 6) {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.white.opacity(0.4))
-                                Text("Original Photo Unavailable")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.5))
+                        Group {
+                            if let origImg = originalImage {
+                                Image(uiImage: origImg)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else if let origUrl = originalPhotoUrl {
+                                CachedAsyncImage(url: origUrl) { img in
+                                    img.resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                } placeholder: {
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 24))
+                                            .foregroundColor(.white.opacity(0.4))
+                                        Text("Loading Original Photo...")
+                                            .font(.caption2)
+                                            .foregroundColor(.white.opacity(0.5))
+                                    }
+                                }
+                            } else {
+                                VStack(spacing: 6) {
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white.opacity(0.4))
+                                    Text("Original Photo Unavailable")
+                                        .font(.caption2)
+                                        .foregroundColor(.white.opacity(0.5))
+                                }
                             }
                         }
 
                     case .compare:
                         ZStack(alignment: .leading) {
-                            // Base Layer: AI Result
+                            // Base Layer: AI Result (Always Full Frame)
                             CachedAsyncImage(url: resultImageUrl) { img in
                                 img.resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                             } placeholder: {
                                 TryZonTheme.darkSurface
+                                    .overlay(ProgressView().tint(TryZonTheme.primaryGold))
                             }
+                            .frame(width: geo.size.width, height: geo.size.height)
 
                             // Overlay Layer: Original Photo Masked
-                            if let origUrl = originalPhotoUrl {
-                                CachedAsyncImage(url: origUrl) { img in
-                                    img.resizable()
+                            Group {
+                                if let origImg = originalImage {
+                                    Image(uiImage: origImg)
+                                        .resizable()
                                         .aspectRatio(contentMode: .fit)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                } placeholder: {
-                                    EmptyView()
-                                }
-                                .mask(
-                                    HStack(spacing: 0) {
-                                        Rectangle()
-                                            .frame(width: max(0, geo.size.width * sliderOffset))
-                                        Spacer(minLength: 0)
+                                } else if let origUrl = originalPhotoUrl {
+                                    CachedAsyncImage(url: origUrl) { img in
+                                        img.resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                    } placeholder: {
+                                        Color.clear
                                     }
-                                )
-
-                                // Vertical Comparison Divider Line
-                                Rectangle()
-                                    .fill(TryZonTheme.primaryGold)
-                                    .frame(width: 3, height: geo.size.height)
-                                    .offset(x: geo.size.width * sliderOffset - 1.5)
-
-                                // Centered Compare Arrow Handle
-                                ZStack {
-                                    Circle()
-                                        .fill(TryZonTheme.primaryGold)
-                                        .frame(width: 38, height: 38)
-                                        .shadow(color: Color.black.opacity(0.6), radius: 6, x: 0, y: 2)
-                                        .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
-                                        .overlay(
-                                            Image(systemName: "arrow.left.and.right")
-                                                .font(.system(size: 15, weight: .black))
-                                                .foregroundColor(.black)
-                                        )
                                 }
+                            }
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .mask(
+                                Rectangle()
+                                    .frame(width: max(0, geo.size.width * sliderOffset), height: geo.size.height)
+                                    .position(x: (geo.size.width * sliderOffset) / 2, y: geo.size.height / 2)
+                            )
+
+                            // Vertical Comparison Divider Line
+                            Rectangle()
+                                .fill(TryZonTheme.primaryGold)
+                                .frame(width: 3, height: geo.size.height)
                                 .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
 
-                                // Bottom Badges
-                                HStack {
-                                    Text("ORIGINAL")
-                                        .font(.system(size: 9.5, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.black.opacity(0.75))
-                                        .cornerRadius(6)
-                                        .padding(10)
-                                        .opacity(sliderOffset > 0.1 ? 1 : 0)
-
-                                    Spacer()
-
-                                    Text("AI RESULT")
-                                        .font(.system(size: 9.5, weight: .heavy))
-                                        .foregroundColor(.black)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(TryZonTheme.primaryGold)
-                                        .cornerRadius(6)
-                                        .padding(10)
-                                        .opacity(sliderOffset < 0.9 ? 1 : 0)
-                                }
-                                .frame(maxHeight: .infinity, alignment: .bottom)
+                            // Centered Compare Arrow Handle
+                            ZStack {
+                                Circle()
+                                    .fill(TryZonTheme.primaryGold)
+                                    .frame(width: 40, height: 40)
+                                    .shadow(color: Color.black.opacity(0.6), radius: 6, x: 0, y: 2)
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                                    .overlay(
+                                        Image(systemName: "arrow.left.and.right")
+                                            .font(.system(size: 15, weight: .black))
+                                            .foregroundColor(.black)
+                                    )
                             }
+                            .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
+
+                            // Bottom Badges
+                            HStack {
+                                Text("ORIGINAL")
+                                    .font(.system(size: 9.5, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.black.opacity(0.75))
+                                    .cornerRadius(6)
+                                    .padding(10)
+                                    .opacity(sliderOffset > 0.1 ? 1 : 0)
+
+                                Spacer()
+
+                                Text("AI RESULT")
+                                    .font(.system(size: 9.5, weight: .heavy))
+                                    .foregroundColor(.black)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(TryZonTheme.primaryGold)
+                                    .cornerRadius(6)
+                                    .padding(10)
+                                    .opacity(sliderOffset < 0.9 ? 1 : 0)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                         }
+                        .frame(width: geo.size.width, height: geo.size.height)
                         .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
+                        .highPriorityGesture(
+                            DragGesture(minimumDistance: 1, coordinateSpace: .local)
                                 .onChanged { val in
                                     let newRatio = val.location.x / geo.size.width
                                     sliderOffset = min(max(newRatio, 0.0), 1.0)
@@ -858,6 +893,7 @@ private struct ResultComparisonViewport: View {
 public struct FullscreenResultViewer: View {
     let imageUrl: URL?
     let originalUrl: URL?
+    let originalImage: UIImage?
     let onDismiss: () -> Void
     let onDownload: () -> Void
     let onShare: () -> Void
@@ -868,6 +904,22 @@ public struct FullscreenResultViewer: View {
     @State private var lastOffset: CGSize = .zero
     @State private var activeMode: ResultDisplayMode = .result
     @State private var sliderOffset: CGFloat = 0.5
+
+    public init(
+        imageUrl: URL?,
+        originalUrl: URL?,
+        originalImage: UIImage? = nil,
+        onDismiss: @escaping () -> Void,
+        onDownload: @escaping () -> Void,
+        onShare: @escaping () -> Void
+    ) {
+        self.imageUrl = imageUrl
+        self.originalUrl = originalUrl
+        self.originalImage = originalImage
+        self.onDismiss = onDismiss
+        self.onDownload = onDownload
+        self.onShare = onShare
+    }
 
     public var body: some View {
         ZStack {
@@ -887,12 +939,18 @@ public struct FullscreenResultViewer: View {
                             }
                         }
                     case .original:
-                        if let url = originalUrl {
-                            CachedAsyncImage(url: url) { img in
-                                img.resizable()
+                        Group {
+                            if let origImg = originalImage {
+                                Image(uiImage: origImg)
+                                    .resizable()
                                     .aspectRatio(contentMode: .fit)
-                            } placeholder: {
-                                ProgressView().tint(TryZonTheme.primaryGold)
+                            } else if let url = originalUrl {
+                                CachedAsyncImage(url: url) { img in
+                                    img.resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                } placeholder: {
+                                    ProgressView().tint(TryZonTheme.primaryGold)
+                                }
                             }
                         }
                     case .compare:
@@ -903,27 +961,49 @@ public struct FullscreenResultViewer: View {
                                 } placeholder: {
                                     EmptyView()
                                 }
+                                .frame(width: geo.size.width, height: geo.size.height)
                             }
-                            if let origUrl = originalUrl {
-                                CachedAsyncImage(url: origUrl) { img in
-                                    img.resizable().aspectRatio(contentMode: .fit)
-                                } placeholder: {
-                                    EmptyView()
-                                }
-                                .mask(
-                                    HStack(spacing: 0) {
-                                        Rectangle().frame(width: max(0, geo.size.width * sliderOffset))
-                                        Spacer(minLength: 0)
+                            Group {
+                                if let origImg = originalImage {
+                                    Image(uiImage: origImg)
+                                        .resizable().aspectRatio(contentMode: .fit)
+                                } else if let origUrl = originalUrl {
+                                    CachedAsyncImage(url: origUrl) { img in
+                                        img.resizable().aspectRatio(contentMode: .fit)
+                                    } placeholder: {
+                                        EmptyView()
                                     }
-                                )
-                                Rectangle()
-                                    .fill(TryZonTheme.primaryGold)
-                                    .frame(width: 3, height: geo.size.height)
-                                    .offset(x: geo.size.width * sliderOffset - 1.5)
+                                }
                             }
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .mask(
+                                Rectangle()
+                                    .frame(width: max(0, geo.size.width * sliderOffset), height: geo.size.height)
+                                    .position(x: (geo.size.width * sliderOffset) / 2, y: geo.size.height / 2)
+                            )
+
+                            Rectangle()
+                                .fill(TryZonTheme.primaryGold)
+                                .frame(width: 3, height: geo.size.height)
+                                .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
+
+                            ZStack {
+                                Circle()
+                                    .fill(TryZonTheme.primaryGold)
+                                    .frame(width: 40, height: 40)
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                                    .overlay(
+                                        Image(systemName: "arrow.left.and.right")
+                                            .font(.system(size: 15, weight: .black))
+                                            .foregroundColor(.black)
+                                    )
+                            }
+                            .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
                         }
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .contentShape(Rectangle())
+                        .highPriorityGesture(
+                            DragGesture(minimumDistance: 1, coordinateSpace: .local)
                                 .onChanged { val in
                                     if scale <= 1.0 {
                                         let ratio = val.location.x / geo.size.width
@@ -992,7 +1072,7 @@ public struct FullscreenResultViewer: View {
                     Spacer()
 
                     // Mode switcher in fullscreen
-                    if originalUrl != nil {
+                    if originalImage != nil || originalUrl != nil {
                         HStack(spacing: 6) {
                             ForEach(ResultDisplayMode.allCases, id: \.self) { mode in
                                 Button(action: {

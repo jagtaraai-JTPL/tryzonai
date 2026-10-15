@@ -116,20 +116,22 @@ public struct CachedAsyncImage<Content: View, Placeholder: View>: View {
                     phaseContent(.failure(URLError(.cannotDecodeContentData)))
                 } else {
                     phaseContent(.empty)
-                        .task(id: url?.absoluteString) {
-                            await fetchImage()
-                        }
                 }
             } else {
                 if let img = loadedImage, let content = content {
                     content(Image(uiImage: img))
                 } else if let placeholder = placeholder {
                     placeholder()
-                        .task(id: url?.absoluteString) {
-                            await fetchImage()
-                        }
                 }
             }
+        }
+        .onAppear {
+            if let url = url, let cached = ImageCacheManager.shared.image(for: url.absoluteString) {
+                self.loadedImage = cached
+            }
+        }
+        .task(id: url?.absoluteString) {
+            await fetchImage()
         }
     }
 

@@ -128,6 +128,7 @@ public struct TryOnUploadView: View {
                             resultImageUrl: statusRes.fullResultURL?.absoluteString ?? "",
                             highresUrl: statusRes.fullHighresURL?.absoluteString,
                             originalPhotoUrl: statusRes.fullOriginalURL?.absoluteString,
+                            originalImage: viewModel.selectedPersonImage,
                             onTryAnother: {
                                 navPath = []
                                 viewModel.reset()
