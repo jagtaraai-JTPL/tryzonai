@@ -180,10 +180,10 @@ public struct TryOnProcessingView: View {
 
                             // ── 3. TIME CONFIDENCE PILL ──
                             HStack(spacing: 6) {
-                                Image(systemName: "clock.fill")
+                                Image(systemName: "bolt.fill")
                                     .font(.system(size: 11))
                                     .foregroundColor(TryZonTheme.primaryGold)
-                                Text("Usually takes 15–20 seconds • Please wait")
+                                Text("⚡ High-Speed GPU Virtual Fitting • Est. ~30–35s")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(TryZonTheme.primaryGold)
                             }
@@ -402,18 +402,45 @@ public struct TryOnProcessingView: View {
             var consecutiveErrors = 0
             while isPolling {
                 do {
-                    try await Task.sleep(nanoseconds: 150_000_000) // 150ms smooth ticker update
+                    // Smooth ticker step every 200ms
+                    try await Task.sleep(nanoseconds: 200_000_000)
                     stepCounter += 1
 
                     await MainActor.run {
-                        if self.percentage < 95 {
-                            self.percentage += 1
-                            self.currentStep = min(5, (self.percentage / 20) + 1)
+                        if self.percentage < 98 {
+                            // Paced advancement matching ~34s FLUX 2 GPU render
+                            let incrementInterval: Int
+                            if self.percentage < 25 {
+                                incrementInterval = 1 // ~200ms per % (0-25% in ~5s)
+                            } else if self.percentage < 50 {
+                                incrementInterval = 2 // ~400ms per % (25-50% in ~10s)
+                            } else if self.percentage < 75 {
+                                incrementInterval = 2 // ~400ms per % (50-75% in ~10s)
+                            } else if self.percentage < 92 {
+                                incrementInterval = 3 // ~600ms per % (75-92% in ~10s)
+                            } else {
+                                incrementInterval = 6 // ~1200ms per % (92-98% in ~7s)
+                            }
+
+                            if stepCounter % incrementInterval == 0 {
+                                self.percentage += 1
+                                if self.percentage <= 25 {
+                                    self.currentStep = 1
+                                } else if self.percentage <= 50 {
+                                    self.currentStep = 2
+                                } else if self.percentage <= 75 {
+                                    self.currentStep = 3
+                                } else if self.percentage <= 92 {
+                                    self.currentStep = 4
+                                } else {
+                                    self.currentStep = 5
+                                }
+                            }
                         }
                     }
 
-                    // Poll status every 2 seconds (~13 cycles of 150ms)
-                    if stepCounter % 13 == 0 {
+                    // Poll status every 2 seconds (10 cycles of 200ms)
+                    if stepCounter % 10 == 0 {
                         let status = try await apiClient.pollTaskStatus(sessionId: sessionId)
                         consecutiveErrors = 0
 
@@ -440,8 +467,8 @@ public struct TryOnProcessingView: View {
                 } catch {
                     consecutiveErrors += 1
                     // Only abort if consecutive errors exceed 15 cycles (~30s continuous network failure)
-                    // or if total wait time exceeds ~180 seconds (1200 cycles of 150ms)
-                    if consecutiveErrors > 15 || stepCounter > 1200 {
+                    // or if total wait time exceeds ~180 seconds (900 cycles of 200ms)
+                    if consecutiveErrors > 15 || stepCounter > 900 {
                         await MainActor.run {
                             self.isPolling = false
                             self.errorMessage = "Processing timed out. Please check your internet and try again."

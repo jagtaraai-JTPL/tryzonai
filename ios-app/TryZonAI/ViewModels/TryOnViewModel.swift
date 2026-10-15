@@ -25,15 +25,26 @@ public class TryOnViewModel: ObservableObject {
         errorMessage = nil
     }
 
-    public func startTryOn(productId: String? = nil, onSessionCreated: @escaping (Int) -> Void) async {
-        guard let person = selectedPersonImage, let garment = selectedGarmentImage else {
+    public func startTryOn(
+        personImage: UIImage? = nil,
+        garmentImage: UIImage? = nil,
+        productId: String? = nil,
+        onSessionCreated: @escaping (Int) -> Void
+    ) async {
+        let person = personImage ?? selectedPersonImage
+        let garment = garmentImage ?? selectedGarmentImage
+
+        guard let person = person, let garment = garment else {
             DispatchQueue.main.async {
+                self.isProcessing = false
                 self.errorMessage = "Please upload both your photo and garment image."
             }
             return
         }
 
         DispatchQueue.main.async {
+            self.selectedPersonImage = person
+            self.selectedGarmentImage = garment
             self.isProcessing = true
             self.errorMessage = nil
         }

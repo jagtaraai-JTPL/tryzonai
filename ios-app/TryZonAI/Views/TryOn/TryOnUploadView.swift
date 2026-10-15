@@ -58,6 +58,11 @@ public struct TryOnUploadView: View {
     @State private var realCatalogItems: [CatalogItem] = []
     @State private var showCatalogPickerSheet = false
 
+    @State private var isSubmitting: Bool = false
+    @State private var submissionStatusText: String = ""
+    @State private var showErrorAlert: Bool = false
+    @State private var alertErrorMessage: String = ""
+
     private let sampleOutfits = [
         SampleOutfit(name: "Riviera Linen", badge: "👑 OLD MONEY", category: "Suits", color: Color.blue,
                      imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp"),
@@ -212,6 +217,11 @@ public struct TryOnUploadView: View {
         }
         .photosPicker(isPresented: $showGalleryForPerson, selection: $selectedPersonItem, matching: .images)
         .photosPicker(isPresented: $showGalleryForGarment, selection: $selectedGarmentItem, matching: .images)
+        .alert("Virtual Try-On", isPresented: $showErrorAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(alertErrorMessage)
+        }
     }
 
     // MARK: - Upload Screen Content (Matching Android TryOnUploadScreen)
@@ -478,28 +488,57 @@ public struct TryOnUploadView: View {
                 .padding(.horizontal, 16)
 
                 // ── 4. PRIMARY CTA BUTTON (GENERATE VIRTUAL TRY-ON ⚡) ──
-                Button(action: executeTryOnFlow) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.black)
-
-                        Text("GENERATE VIRTUAL TRY-ON")
-                            .font(.system(size: 14, weight: .black, design: .rounded))
-                            .foregroundColor(.black)
-                            .tracking(0.6)
-
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.black)
+                VStack(spacing: 8) {
+                    if isSubmitting || viewModel.isProcessing {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(TryZonTheme.primaryGold)
+                                .frame(width: 7, height: 7)
+                            Text(submissionStatusText.isEmpty ? "Preparing AI Fitting Studio..." : submissionStatusText)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(TryZonTheme.primaryGold.opacity(0.12))
+                        .cornerRadius(12)
+                        .transition(.opacity)
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .background(TryZonTheme.primaryGold)
-                    .cornerRadius(27)
-                    .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 8, y: 4)
+
+                    Button(action: executeTryOnFlow) {
+                        HStack(spacing: 8) {
+                            if isSubmitting || viewModel.isProcessing {
+                                ProgressView()
+                                    .tint(.black)
+                                    .scaleEffect(0.9)
+
+                                Text(submissionStatusText.isEmpty ? "PREPARING AI STUDIO..." : submissionStatusText.uppercased())
+                                    .font(.system(size: 13, weight: .black, design: .rounded))
+                                    .foregroundColor(.black)
+                                    .tracking(0.5)
+                            } else {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.black)
+
+                                Text("GENERATE VIRTUAL TRY-ON")
+                                    .font(.system(size: 14, weight: .black, design: .rounded))
+                                    .foregroundColor(.black)
+                                    .tracking(0.6)
+
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.black)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(isSubmitting || viewModel.isProcessing ? TryZonTheme.primaryGold.opacity(0.85) : TryZonTheme.primaryGold)
+                        .cornerRadius(27)
+                        .shadow(color: TryZonTheme.primaryGold.opacity(0.4), radius: 8, y: 4)
+                    }
+                    .disabled(isSubmitting || viewModel.isProcessing)
                 }
-                .disabled(viewModel.isProcessing)
                 .padding(.horizontal, 16)
                 .padding(.top, 6)
 
@@ -772,17 +811,38 @@ public struct TryOnUploadView: View {
     }
 
     private func startSubmissionTask() {
+        isSubmitting = true
+        submissionStatusText = "Preparing Photo & Outfit..."
+
         Task {
             let (person, garment) = await ensureImagesPrepared()
-            guard person != nil, garment != nil else {
-                DispatchQueue.main.async {
-                    self.viewModel.errorMessage = "Please upload both your photo and garment image."
+            guard let person = person, let garment = garment else {
+                await MainActor.run {
+                    self.isSubmitting = false
+                    self.submissionStatusText = ""
+                    self.alertErrorMessage = "Please select or upload both your photo and outfit to start."
+                    self.showErrorAlert = true
                 }
                 return
             }
 
-            await self.viewModel.startTryOn(productId: selectedProductId) { sessionId in
+            await MainActor.run {
+                self.submissionStatusText = "Connecting to GPU Studio..."
+            }
+
+            await self.viewModel.startTryOn(personImage: person, garmentImage: garment, productId: selectedProductId) { sessionId in
+                self.isSubmitting = false
+                self.submissionStatusText = ""
                 self.navPath = [.processing(sessionId)]
+            }
+
+            await MainActor.run {
+                if let err = self.viewModel.errorMessage, !err.isEmpty {
+                    self.isSubmitting = false
+                    self.submissionStatusText = ""
+                    self.alertErrorMessage = err
+                    self.showErrorAlert = true
+                }
             }
         }
     }
