@@ -406,7 +406,7 @@ public struct TryOnUploadView: View {
                         HStack(spacing: 6) {
                             ForEach(0..<sampleModels.count, id: \.self) { idx in
                                 let m = sampleModels[idx]
-                                AsyncImage(url: URL(string: m.1)) { phase in
+                                CachedAsyncImage(url: URL(string: m.1)) { phase in
                                     if let img = phase.image {
                                         img.resizable().scaledToFill()
                                     } else {
@@ -472,7 +472,7 @@ public struct TryOnUploadView: View {
                                 if !realCatalogItems.isEmpty {
                                     ForEach(realCatalogItems) { item in
                                         let isSelected = selectedOutfitUrl == item.image_url || selectedOutfitUrl.contains(item.id)
-                                        AsyncImage(url: item.fullImageURL) { phase in
+                                        CachedAsyncImage(url: item.fullImageURL) { phase in
                                             if let img = phase.image {
                                                 img.resizable().scaledToFill()
                                             } else {
@@ -493,7 +493,7 @@ public struct TryOnUploadView: View {
                                 } else {
                                     ForEach(sampleOutfits) { outfit in
                                         let isSelected = selectedOutfitUrl == outfit.imageUrl
-                                        AsyncImage(url: URL(string: outfit.imageUrl)) { phase in
+                                        CachedAsyncImage(url: URL(string: outfit.imageUrl)) { phase in
                                             if let img = phase.image {
                                                 img.resizable().scaledToFill()
                                             } else {
@@ -1094,7 +1094,7 @@ public struct CatalogPickerSheet: View {
                                         ZStack(alignment: .topLeading) {
                                             ZStack {
                                                 TryZonTheme.darkSurface
-                                                AsyncImage(url: item.fullImageURL) { phase in
+                                                CachedAsyncImage(url: item.fullImageURL) { phase in
                                                     if let img = phase.image {
                                                         img.resizable()
                                                             .aspectRatio(contentMode: .fit)

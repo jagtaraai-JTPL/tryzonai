@@ -297,7 +297,7 @@ public struct WardrobeView: View {
                             }) {
                                 ZStack {
                                     TryZonTheme.darkSurface
-                                    AsyncImage(url: item.fullImageURL) { phase in
+                                    CachedAsyncImage(url: item.fullImageURL) { phase in
                                         if let img = phase.image {
                                             img.resizable()
                                                 .aspectRatio(contentMode: .fit)
@@ -471,7 +471,7 @@ public struct CompareOutfitsModal: View {
                             ZStack(alignment: .topLeading) {
                                 ZStack {
                                     TryZonTheme.darkSurface
-                                    AsyncImage(url: itemA.fullImageURL) { phase in
+                                    CachedAsyncImage(url: itemA.fullImageURL) { phase in
                                         if let img = phase.image {
                                             img.resizable()
                                                 .aspectRatio(contentMode: .fit)
@@ -520,7 +520,7 @@ public struct CompareOutfitsModal: View {
                             ZStack(alignment: .topLeading) {
                                 ZStack {
                                     TryZonTheme.darkSurface
-                                    AsyncImage(url: itemB.fullImageURL) { phase in
+                                    CachedAsyncImage(url: itemB.fullImageURL) { phase in
                                         if let img = phase.image {
                                             img.resizable()
                                                 .aspectRatio(contentMode: .fit)
@@ -612,7 +612,7 @@ public struct FullHistorySheet: View {
                                     VStack(alignment: .leading, spacing: 6) {
                                         ZStack {
                                             TryZonTheme.darkSurface
-                                            AsyncImage(url: item.fullResultURL) { img in
+                                            CachedAsyncImage(url: item.fullResultURL) { img in
                                                 img.resizable()
                                                     .aspectRatio(contentMode: .fit)
                                                     .frame(maxWidth: .infinity, maxHeight: .infinity)

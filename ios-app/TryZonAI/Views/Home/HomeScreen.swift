@@ -88,7 +88,7 @@ public struct HomeScreen: View {
                 ForEach(Array(heroOutfits.enumerated()), id: \.offset) { i, outfit in
                     ZStack {
                         TryZonTheme.darkSurface
-                        AsyncImage(url: URL(string: outfit.2)) { phase in
+                        CachedAsyncImage(url: URL(string: outfit.2)) { phase in
                             if let image = phase.image {
                                 image
                                     .resizable()
@@ -333,7 +333,7 @@ public struct HomeScreen: View {
             ZStack(alignment: .topLeading) {
                 ZStack {
                     TryZonTheme.darkSurface
-                    AsyncImage(url: product.fullImageURL) { phase in
+                    CachedAsyncImage(url: product.fullImageURL) { phase in
                         if let image = phase.image {
                             image.resizable()
                                 .aspectRatio(contentMode: .fit)
@@ -399,7 +399,7 @@ public struct HomeScreen: View {
             ZStack(alignment: .topLeading) {
                 ZStack {
                     TryZonTheme.darkSurface
-                    AsyncImage(url: URL(string: outfit.2)) { phase in
+                    CachedAsyncImage(url: URL(string: outfit.2)) { phase in
                         if let image = phase.image {
                             image.resizable()
                                 .aspectRatio(contentMode: .fit)

@@ -231,7 +231,7 @@ public struct CatalogView: View {
                 ZStack {
                     TryZonTheme.darkSurface
 
-                    AsyncImage(url: item.fullImageURL) { phase in
+                    CachedAsyncImage(url: item.fullImageURL) { phase in
                         if let img = phase.image {
                             img.resizable()
                                 .aspectRatio(contentMode: .fit)
@@ -292,7 +292,7 @@ public struct CatalogView: View {
                     ZStack {
                         TryZonTheme.darkSurface
 
-                        AsyncImage(url: product.fullImageURL) { phase in
+                        CachedAsyncImage(url: product.fullImageURL) { phase in
                             if let image = phase.image {
                                 image.resizable()
                                     .aspectRatio(contentMode: .fit)

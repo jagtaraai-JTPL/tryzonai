@@ -53,7 +53,7 @@ public struct ProductDetailView: View {
                             ZStack {
                                 TryZonTheme.darkSurface
 
-                                AsyncImage(url: item.fullImageURL) { phase in
+                                CachedAsyncImage(url: item.fullImageURL) { phase in
                                     if let img = phase.image {
                                         img.resizable()
                                             .aspectRatio(contentMode: .fit)

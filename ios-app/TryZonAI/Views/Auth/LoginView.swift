@@ -40,7 +40,7 @@ public struct LoginView: View {
                 ZStack(alignment: .bottomLeading) {
                     ZStack {
                         TryZonTheme.darkSurface
-                        AsyncImage(url: URL(string: heroOutfits[currentHeroIndex].0)) { phase in
+                        CachedAsyncImage(url: URL(string: heroOutfits[currentHeroIndex].0)) { phase in
                             if let img = phase.image {
                                 img.resizable()
                                     .aspectRatio(contentMode: .fit)

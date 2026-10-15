@@ -238,7 +238,7 @@ struct FunnelStep1_AttentionDesire: View {
                 ZStack {
                     ZStack {
                         TryZonTheme.darkSurface
-                        AsyncImage(url: URL(string: outfits[currentIndex].0)) { img in
+                        CachedAsyncImage(url: URL(string: outfits[currentIndex].0)) { img in
                             img.resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)

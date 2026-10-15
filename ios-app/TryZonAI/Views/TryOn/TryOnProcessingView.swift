@@ -509,7 +509,7 @@ private struct PhotoPreviewCardView: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let urlStr = imageUrl, let url = URL(string: urlStr) {
-                    AsyncImage(url: url) { phase in
+                    CachedAsyncImage(url: url) { phase in
                         if let img = phase.image {
                             img.resizable()
                                 .aspectRatio(contentMode: .fit)
