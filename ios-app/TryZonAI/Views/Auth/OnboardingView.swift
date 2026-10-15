@@ -51,7 +51,7 @@ public struct OnboardingView: View {
         switch currentPage {
         case 0: return "🔒 100% Private · Preserves your face & identity"
         case 1: return "✨ Tailoring neural engine to your fashion preferences"
-        case 2: return "⚡ Takes less than 5 seconds · Powered by TryZon AI Neural Engine"
+        case 2: return "⚡ High-Speed GPU Virtual Fitting · Powered by TryZon AI Neural Engine"
         default:
             switch selectedPlanIndex {
             case 1: return "⚡ 15 Paid Credits added instantly · 100% Ad-Free Pass"

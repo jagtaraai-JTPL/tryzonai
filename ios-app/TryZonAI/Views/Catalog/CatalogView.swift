@@ -262,7 +262,7 @@ public struct CatalogView: View {
                         .foregroundColor(.white)
                         .lineLimit(1)
 
-                    Text("Photorealistic AI Try-On ready in 2s")
+                    Text("Photorealistic AI Virtual Fitting Studio")
                         .font(.system(size: 12))
                         .foregroundColor(.white.opacity(0.8))
                 }

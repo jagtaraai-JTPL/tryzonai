@@ -58,7 +58,7 @@ public class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private func sendShoppingAlertNotification(urlText: String) {
         let content = UNMutableNotificationContent()
         content.title = "🛍️ Saw a cool outfit while shopping?"
-        content.body = "Copied clothing link detected! Tap to see how it looks on YOU in 5 seconds! 👗✨"
+        content.body = "Copied clothing link detected! Tap to try on this outfit in your Virtual Fitting Room! 👗✨"
         content.sound = .default
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)

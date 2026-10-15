@@ -560,6 +560,16 @@ public class APIClient: ObservableObject {
     }
 
     public func deleteAccount() {
-        logout()
+        Task {
+            if self.authToken != nil {
+                var request = URLRequest(url: self.baseURL.appendingPathComponent("auth/me"))
+                request.httpMethod = "DELETE"
+                self.makeHeaders().forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+                _ = try? await self.session.data(for: request)
+            }
+            await MainActor.run {
+                self.logout()
+            }
+        }
     }
 }

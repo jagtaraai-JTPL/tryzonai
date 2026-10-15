@@ -122,7 +122,7 @@ public struct ProductDetailView: View {
                                 .tracking(1)
 
                             featureRow(icon: "sparkles", text: "100% Photorealistic Neural Fabric Mapping")
-                            featureRow(icon: "bolt.fill", text: "Fast GPU Render Queue (< 2s)")
+                            featureRow(icon: "bolt.fill", text: "Dedicated Cloud GPU Virtual Fitting Studio")
                             featureRow(icon: "shield.fill", text: "Private & Secure Fitting Guarantee")
                         }
 
