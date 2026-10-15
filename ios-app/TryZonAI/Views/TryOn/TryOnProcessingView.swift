@@ -506,11 +506,14 @@ private struct PhotoPreviewCardView: View {
                 if let uiImg = uiImage {
                     Image(uiImage: uiImg)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let urlStr = imageUrl, let url = URL(string: urlStr) {
                     AsyncImage(url: url) { phase in
                         if let img = phase.image {
-                            img.resizable().aspectRatio(contentMode: .fill)
+                            img.resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
                             TryZonTheme.darkSurface
                         }

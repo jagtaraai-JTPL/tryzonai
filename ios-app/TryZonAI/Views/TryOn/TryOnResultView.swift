@@ -661,11 +661,16 @@ public struct TryOnResultView: View {
         }) {
             VStack(alignment: .leading, spacing: 4) {
                 ZStack(alignment: .bottomTrailing) {
-                    AsyncImage(url: item.fullImageURL) { phase in
-                        if let img = phase.image {
-                            img.resizable().aspectRatio(contentMode: .fill)
-                        } else {
-                            TryZonTheme.surfaceVariant
+                    ZStack {
+                        TryZonTheme.darkSurface
+                        AsyncImage(url: item.fullImageURL) { phase in
+                            if let img = phase.image {
+                                img.resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                TryZonTheme.surfaceVariant
+                            }
                         }
                     }
                     .frame(width: 115, height: 110)

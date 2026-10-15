@@ -295,14 +295,19 @@ public struct WardrobeView: View {
                                     selectedPreviewResultItem = ResultPreviewItem(url: urlStr)
                                 }
                             }) {
-                                AsyncImage(url: item.fullImageURL) { phase in
-                                    if let img = phase.image {
-                                        img.resizable().aspectRatio(contentMode: .fill)
-                                    } else {
-                                        TryZonTheme.surfaceVariant
+                                ZStack {
+                                    TryZonTheme.darkSurface
+                                    AsyncImage(url: item.fullImageURL) { phase in
+                                        if let img = phase.image {
+                                            img.resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        } else {
+                                            TryZonTheme.surfaceVariant
+                                        }
                                     }
                                 }
-                                .frame(height: 190)
+                                .frame(height: 220)
                                 .frame(maxWidth: .infinity)
                                 .cornerRadius(16)
                                 .clipped()
@@ -464,11 +469,16 @@ public struct CompareOutfitsModal: View {
                         // Style A Card
                         VStack(spacing: 6) {
                             ZStack(alignment: .topLeading) {
-                                AsyncImage(url: itemA.fullImageURL) { phase in
-                                    if let img = phase.image {
-                                        img.resizable().aspectRatio(contentMode: .fill)
-                                    } else {
-                                        TryZonTheme.surfaceVariant
+                                ZStack {
+                                    TryZonTheme.darkSurface
+                                    AsyncImage(url: itemA.fullImageURL) { phase in
+                                        if let img = phase.image {
+                                            img.resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        } else {
+                                            TryZonTheme.surfaceVariant
+                                        }
                                     }
                                 }
                                 .frame(height: 240)
@@ -508,11 +518,16 @@ public struct CompareOutfitsModal: View {
                         // Style B Card
                         VStack(spacing: 6) {
                             ZStack(alignment: .topLeading) {
-                                AsyncImage(url: itemB.fullImageURL) { phase in
-                                    if let img = phase.image {
-                                        img.resizable().aspectRatio(contentMode: .fill)
-                                    } else {
-                                        TryZonTheme.surfaceVariant
+                                ZStack {
+                                    TryZonTheme.darkSurface
+                                    AsyncImage(url: itemB.fullImageURL) { phase in
+                                        if let img = phase.image {
+                                            img.resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        } else {
+                                            TryZonTheme.surfaceVariant
+                                        }
                                     }
                                 }
                                 .frame(height: 240)
@@ -595,12 +610,17 @@ public struct FullHistorySheet: View {
                             ForEach(historyItems) { item in
                                 Button(action: { selectedHistoryItem = item }) {
                                     VStack(alignment: .leading, spacing: 6) {
-                                        AsyncImage(url: item.fullResultURL) { img in
-                                            img.resizable().aspectRatio(contentMode: .fill)
-                                        } placeholder: {
-                                            TryZonTheme.surfaceVariant
+                                        ZStack {
+                                            TryZonTheme.darkSurface
+                                            AsyncImage(url: item.fullResultURL) { img in
+                                                img.resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                            } placeholder: {
+                                                TryZonTheme.surfaceVariant
+                                            }
                                         }
-                                        .frame(height: 190)
+                                        .frame(height: 220)
                                         .cornerRadius(14)
                                         .clipped()
 

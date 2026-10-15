@@ -38,14 +38,19 @@ public struct LoginView: View {
 
                 // ── 1. DOMINANT HERO FASHION CANVAS ──
                 ZStack(alignment: .bottomLeading) {
-                    AsyncImage(url: URL(string: heroOutfits[currentHeroIndex].0)) { phase in
-                        if let img = phase.image {
-                            img.resizable().aspectRatio(contentMode: .fill)
-                        } else {
-                            TryZonTheme.surfaceVariantColor(for: colorScheme)
+                    ZStack {
+                        TryZonTheme.darkSurface
+                        AsyncImage(url: URL(string: heroOutfits[currentHeroIndex].0)) { phase in
+                            if let img = phase.image {
+                                img.resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                TryZonTheme.surfaceVariantColor(for: colorScheme)
+                            }
                         }
                     }
-                    .frame(height: 200)
+                    .frame(height: 240)
                     .frame(maxWidth: .infinity)
                     .clipped()
 

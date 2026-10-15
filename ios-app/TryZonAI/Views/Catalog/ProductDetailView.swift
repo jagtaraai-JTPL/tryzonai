@@ -50,15 +50,21 @@ public struct ProductDetailView: View {
                     VStack(alignment: .leading, spacing: 18) {
                         // Product Main Image
                         ZStack(alignment: .topTrailing) {
-                            AsyncImage(url: item.fullImageURL) { phase in
-                                if let img = phase.image {
-                                    img.resizable().aspectRatio(contentMode: .fill)
-                                } else {
-                                    TryZonTheme.surfaceVariant
-                                        .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                            ZStack {
+                                TryZonTheme.darkSurface
+
+                                AsyncImage(url: item.fullImageURL) { phase in
+                                    if let img = phase.image {
+                                        img.resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    } else {
+                                        TryZonTheme.surfaceVariant
+                                            .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                                    }
                                 }
                             }
-                            .frame(height: 380)
+                            .frame(height: 440)
                             .frame(maxWidth: .infinity)
                             .cornerRadius(24)
                             .clipped()

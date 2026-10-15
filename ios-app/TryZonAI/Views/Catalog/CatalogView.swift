@@ -228,14 +228,20 @@ public struct CatalogView: View {
     private func featuredHeroBanner(_ item: CatalogItem) -> some View {
         Button(action: { selectedProductDetail = item }) {
             ZStack(alignment: .bottomLeading) {
-                AsyncImage(url: item.fullImageURL) { phase in
-                    if let img = phase.image {
-                        img.resizable().aspectRatio(contentMode: .fill)
-                    } else {
-                        TryZonTheme.surfaceVariant
+                ZStack {
+                    TryZonTheme.darkSurface
+
+                    AsyncImage(url: item.fullImageURL) { phase in
+                        if let img = phase.image {
+                            img.resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            TryZonTheme.surfaceVariant
+                        }
                     }
                 }
-                .frame(height: 180)
+                .frame(height: 220)
                 .frame(maxWidth: .infinity)
                 .clipped()
 
@@ -245,7 +251,7 @@ public struct CatalogView: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .frame(height: 180)
+                .frame(height: 220)
 
                 // Content
                 VStack(alignment: .leading, spacing: 6) {
@@ -268,7 +274,7 @@ public struct CatalogView: View {
                 }
                 .padding(16)
             }
-            .frame(height: 180)
+            .frame(height: 220)
             .cornerRadius(24)
             .clipped()
             .overlay(RoundedRectangle(cornerRadius: 24).stroke(TryZonTheme.primaryGold.opacity(0.4), lineWidth: 1))
@@ -283,15 +289,21 @@ public struct CatalogView: View {
         Button(action: { selectedProductDetail = product }) {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack(alignment: .topLeading) {
-                    AsyncImage(url: product.fullImageURL) { phase in
-                        if let image = phase.image {
-                            image.resizable().aspectRatio(contentMode: .fill)
-                        } else {
-                            TryZonTheme.surfaceVariant
-                                .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                    ZStack {
+                        TryZonTheme.darkSurface
+
+                        AsyncImage(url: product.fullImageURL) { phase in
+                            if let image = phase.image {
+                                image.resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                TryZonTheme.surfaceVariant
+                                    .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                            }
                         }
                     }
-                    .frame(height: 210)
+                    .frame(height: 220)
                     .frame(maxWidth: .infinity)
                     .clipped()
 

@@ -732,13 +732,17 @@ public struct TryOnUploadView: View {
                                 .stroke(TryZonTheme.primaryGold.opacity(0.6), lineWidth: 1.5)
                         )
                 } else if let img = image {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 180)
-                        .frame(maxWidth: .infinity)
-                        .cornerRadius(16)
-                        .clipped()
+                    ZStack {
+                        TryZonTheme.darkSurface
+                        Image(uiImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .frame(height: 180)
+                    .frame(maxWidth: .infinity)
+                    .cornerRadius(16)
+                    .clipped()
                         .overlay(
                             Button(action: onClear) {
                                 Image(systemName: "xmark.circle.fill")
@@ -1088,14 +1092,19 @@ public struct CatalogPickerSheet: View {
                                 Button(action: { onSelectGarment(item) }) {
                                     VStack(alignment: .leading, spacing: 6) {
                                         ZStack(alignment: .topLeading) {
-                                            AsyncImage(url: item.fullImageURL) { phase in
-                                                if let img = phase.image {
-                                                    img.resizable().aspectRatio(contentMode: .fill)
-                                                } else {
-                                                    TryZonTheme.surfaceVariant
+                                            ZStack {
+                                                TryZonTheme.darkSurface
+                                                AsyncImage(url: item.fullImageURL) { phase in
+                                                    if let img = phase.image {
+                                                        img.resizable()
+                                                            .aspectRatio(contentMode: .fit)
+                                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                    } else {
+                                                        TryZonTheme.surfaceVariant
+                                                    }
                                                 }
                                             }
-                                            .frame(height: 180)
+                                            .frame(height: 190)
                                             .frame(maxWidth: .infinity)
                                             .cornerRadius(14)
                                             .clipped()

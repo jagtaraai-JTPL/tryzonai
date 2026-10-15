@@ -86,24 +86,28 @@ public struct HomeScreen: View {
             // Crossfade outfit images with proper aspectRatio contentMode fill
             ZStack {
                 ForEach(Array(heroOutfits.enumerated()), id: \.offset) { i, outfit in
-                    AsyncImage(url: URL(string: outfit.2)) { phase in
-                        if let image = phase.image {
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } else {
-                            TryZonTheme.surfaceVariant
-                                .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                    ZStack {
+                        TryZonTheme.darkSurface
+                        AsyncImage(url: URL(string: outfit.2)) { phase in
+                            if let image = phase.image {
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                TryZonTheme.surfaceVariant
+                                    .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                            }
                         }
                     }
-                    .frame(height: 380)
+                    .frame(height: 400)
                     .frame(maxWidth: .infinity)
                     .clipped()
                     .opacity(i == heroIndex ? 1 : 0)
                     .animation(.easeInOut(duration: 0.8), value: heroIndex)
                 }
             }
-            .frame(height: 380)
+            .frame(height: 400)
             .clipped()
 
             // Gradient overlay
@@ -327,15 +331,20 @@ public struct HomeScreen: View {
     private func productCard(_ product: CatalogItem) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
-                AsyncImage(url: product.fullImageURL) { phase in
-                    if let image = phase.image {
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } else {
-                        TryZonTheme.surfaceVariant
-                            .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                ZStack {
+                    TryZonTheme.darkSurface
+                    AsyncImage(url: product.fullImageURL) { phase in
+                        if let image = phase.image {
+                            image.resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            TryZonTheme.surfaceVariant
+                                .overlay(ProgressView().tint(TryZonTheme.primaryGold))
+                        }
                     }
                 }
-                .frame(width: 180, height: 210)
+                .frame(width: 180, height: 220)
                 .clipped()
 
                 if let badge = product.badge {
@@ -388,14 +397,19 @@ public struct HomeScreen: View {
     private func presetProductCard(_ outfit: (String, String, String)) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
-                AsyncImage(url: URL(string: outfit.2)) { phase in
-                    if let image = phase.image {
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } else {
-                        TryZonTheme.surfaceVariant
+                ZStack {
+                    TryZonTheme.darkSurface
+                    AsyncImage(url: URL(string: outfit.2)) { phase in
+                        if let image = phase.image {
+                            image.resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            TryZonTheme.surfaceVariant
+                        }
                     }
                 }
-                .frame(width: 180, height: 210)
+                .frame(width: 180, height: 220)
                 .clipped()
 
                 Text(outfit.1)

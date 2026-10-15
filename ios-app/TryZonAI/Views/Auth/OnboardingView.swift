@@ -236,11 +236,15 @@ struct FunnelStep1_AttentionDesire: View {
             // Animated Outfit Comparison Showcase
             GeometryReader { geo in
                 ZStack {
-                    // Base: AI Result
-                    AsyncImage(url: URL(string: outfits[currentIndex].0)) { img in
-                        img.resizable().scaledToFill()
-                    } placeholder: {
-                        TryZonTheme.surfaceVariant
+                    ZStack {
+                        TryZonTheme.darkSurface
+                        AsyncImage(url: URL(string: outfits[currentIndex].0)) { img in
+                            img.resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } placeholder: {
+                            TryZonTheme.surfaceVariant
+                        }
                     }
                     .frame(width: geo.size.width, height: geo.size.height)
                     .clipped()
