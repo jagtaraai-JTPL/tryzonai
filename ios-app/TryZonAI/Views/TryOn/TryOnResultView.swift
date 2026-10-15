@@ -7,6 +7,21 @@ import SwiftUI
 import UIKit
 import StoreKit
 
+// MARK: - Result Display Mode Enum
+public enum ResultDisplayMode: String, CaseIterable {
+    case result
+    case compare
+    case original
+
+    public var title: String {
+        switch self {
+        case .result: return "✨ AI Result"
+        case .compare: return "↔️ Compare"
+        case .original: return "👤 Original"
+        }
+    }
+}
+
 public struct TryOnResultView: View {
 
     let resultImageUrl: String
@@ -16,6 +31,7 @@ public struct TryOnResultView: View {
     let onTryAnother: () -> Void
     let onTryComplement: ((ComplementProduct) -> Void)?
 
+    @State private var displayMode: ResultDisplayMode = .result
     @State private var sliderOffset: CGFloat = 0.5
     @State private var showHeartAnimation = false
     @State private var heartPosition: CGPoint = .zero
@@ -25,8 +41,8 @@ public struct TryOnResultView: View {
     @State private var showShareSheet = false
     @State private var sharedItems: [Any] = []
     @State private var showReviewBanner = true
-    @State private var hasRunDemoAnimation = false
     @State private var showReportConfirmation = false
+    @State private var showFullscreenViewer = false
 
     private let sampleComplements: [ComplementProduct] = [
         ComplementProduct(id: "comp_1", name: "Italian Leather Loafers", category: "Shoes", price: 2999, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp", url: "https://myntra.com", matchScore: 98),
@@ -54,8 +70,25 @@ public struct TryOnResultView: View {
         highresUrl ?? resultImageUrl
     }
 
+    private var resolvedDisplayUrl: URL? {
+        resolveURL(displayUrl)
+    }
+
     private var displayComplements: [ComplementProduct] {
         complements.isEmpty ? sampleComplements : complements
+    }
+
+    private var captionText: String {
+        switch displayMode {
+        case .result:
+            return (originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty)
+                ? "✨ Full AI Result shown • Tap 'Compare' for Before/After • Double-tap to ❤️"
+                : "❤️ Double-tap to heart your AI Try-On Result • Tap Zoom to inspect"
+        case .compare:
+            return "↔️ Drag handle left & right to compare • Double-tap to ❤️"
+        case .original:
+            return "👤 Viewing original photo • Tap 'AI Result' to see virtual fitting"
+        }
     }
 
     public var body: some View {
@@ -106,14 +139,14 @@ public struct TryOnResultView: View {
                 .padding(.bottom, 10)
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 16) {
+                    VStack(spacing: 14) {
 
                         // ── 2. STATUS BANNER CHIP ──
                         HStack(spacing: 6) {
                             Image(systemName: "checkmark.seal.fill")
                                 .foregroundColor(.green)
                                 .font(.system(size: 13))
-                            Text("AI Generation Complete • Swipe to Compare")
+                            Text("AI Generation Complete • 100% Ultra HD Result")
                                 .font(.system(size: 11.5, weight: .semibold))
                                 .foregroundColor(.white.opacity(0.9))
                         }
@@ -126,140 +159,261 @@ public struct TryOnResultView: View {
                                 .stroke(Color.green.opacity(0.4), lineWidth: 1)
                         )
 
-                        // ── 3. INTERACTIVE BEFORE/AFTER SLIDER VIEWPORT (Exact Android Spec) ──
-                        GeometryReader { geo in
-                            let resolvedOrigUrlString = resolveURL(originalPhotoUrl)?.absoluteString
-                            let validOrigUrl = resolvedOrigUrlString ?? displayUrl
-                            let isSplitMode = resolvedOrigUrlString != nil && !resolvedOrigUrlString!.isEmpty
-
-                            ZStack(alignment: .leading) {
-                                // Base Layer: AI Result Image
-                                AsyncImage(url: URL(string: displayUrl)) { phase in
-                                    switch phase {
-                                    case .success(let img):
-                                        img.resizable().aspectRatio(contentMode: .fill)
-                                    case .failure:
-                                        VStack(spacing: 8) {
-                                            Image(systemName: "exclamationmark.triangle")
-                                                .foregroundColor(.red)
-                                            Text("Failed to load result")
-                                                .font(.caption)
-                                                .foregroundColor(.white.opacity(0.5))
+                        // ── 2.1 MODE SELECTOR PILLS (AI Result / Compare / Original) ──
+                        if let orig = originalPhotoUrl, !orig.isEmpty {
+                            HStack(spacing: 8) {
+                                ForEach(ResultDisplayMode.allCases, id: \.self) { mode in
+                                    Button(action: {
+                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            displayMode = mode
+                                            if mode == .compare && sliderOffset <= 0.05 {
+                                                sliderOffset = 0.5
+                                            }
                                         }
-                                    case .empty:
-                                        VStack(spacing: 12) {
-                                            ProgressView().tint(TryZonTheme.primaryGold)
-                                            Text("Loading HD Result...")
-                                                .font(.caption)
-                                                .foregroundColor(.white.opacity(0.7))
+                                    }) {
+                                        HStack(spacing: 5) {
+                                            Text(mode.title)
+                                                .font(.system(size: 12.5, weight: displayMode == mode ? .black : .semibold))
                                         }
-                                    @unknown default:
-                                        EmptyView()
+                                        .foregroundColor(displayMode == mode ? .black : .white.opacity(0.85))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 8)
+                                        .background(displayMode == mode ? TryZonTheme.primaryGold : TryZonTheme.surfaceVariant)
+                                        .cornerRadius(20)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 20)
+                                                .stroke(displayMode == mode ? TryZonTheme.primaryGold : Color.white.opacity(0.12), lineWidth: 1)
+                                        )
                                     }
                                 }
-                                .frame(width: geo.size.width, height: geo.size.height)
-                                .clipped()
+                            }
+                        }
 
-                                // Overlay Layer: Original Photo (Clipped by sliderOffset)
-                                if isSplitMode {
-                                    AsyncImage(url: URL(string: validOrigUrl)) { phase in
-                                        switch phase {
-                                        case .success(let img):
-                                            img.resizable().aspectRatio(contentMode: .fill)
-                                        case .failure:
-                                            ZStack {
-                                                TryZonTheme.darkSurface
-                                                VStack(spacing: 6) {
-                                                    Image(systemName: "photo")
-                                                        .font(.system(size: 24))
-                                                        .foregroundColor(.white.opacity(0.4))
-                                                    Text("Original Photo Unavailable")
-                                                        .font(.caption2)
+                        // ── 3. FULL HIGH-RES VIEWPORT (Uncropped 9:16 Portrait Canvas) ──
+                        GeometryReader { geo in
+                            let resolvedOrigUrl = resolveURL(originalPhotoUrl)
+
+                            ZStack(alignment: .top) {
+                                // Base Image Layer
+                                ZStack {
+                                    TryZonTheme.darkSurface
+
+                                    switch displayMode {
+                                    case .result:
+                                        // 100% Full AI Result Image — Complete, Uncut, Head-to-Toe
+                                        AsyncImage(url: resolvedDisplayUrl) { phase in
+                                            switch phase {
+                                            case .success(let img):
+                                                img.resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                            case .failure:
+                                                VStack(spacing: 8) {
+                                                    Image(systemName: "exclamationmark.triangle")
+                                                        .foregroundColor(.red)
+                                                    Text("Failed to load result")
+                                                        .font(.caption)
                                                         .foregroundColor(.white.opacity(0.5))
                                                 }
+                                            case .empty:
+                                                VStack(spacing: 12) {
+                                                    ProgressView().tint(TryZonTheme.primaryGold)
+                                                    Text("Loading HD Result...")
+                                                        .font(.caption)
+                                                        .foregroundColor(.white.opacity(0.7))
+                                                }
+                                            @unknown default:
+                                                EmptyView()
                                             }
-                                        case .empty:
-                                            ZStack {
-                                                TryZonTheme.darkSurface
-                                                ProgressView().tint(TryZonTheme.primaryGold)
+                                        }
+
+                                    case .original:
+                                        // 100% Original Photo
+                                        if let origUrl = resolvedOrigUrl {
+                                            AsyncImage(url: origUrl) { phase in
+                                                switch phase {
+                                                case .success(let img):
+                                                    img.resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                case .failure:
+                                                    VStack(spacing: 6) {
+                                                        Image(systemName: "photo")
+                                                            .font(.system(size: 24))
+                                                            .foregroundColor(.white.opacity(0.4))
+                                                        Text("Original Photo Unavailable")
+                                                            .font(.caption2)
+                                                            .foregroundColor(.white.opacity(0.5))
+                                                    }
+                                                case .empty:
+                                                    ProgressView().tint(TryZonTheme.primaryGold)
+                                                @unknown default:
+                                                    EmptyView()
+                                                }
                                             }
-                                        @unknown default:
-                                            EmptyView()
                                         }
-                                    }
-                                    .frame(width: geo.size.width, height: geo.size.height)
 
-                                    .mask(
-                                        HStack(spacing: 0) {
-                                            Rectangle()
-                                                .frame(width: max(0, geo.size.width * sliderOffset))
-                                            Spacer(minLength: 0)
+                                    case .compare:
+                                        // Interactive Before/After Split Mode
+                                        ZStack(alignment: .leading) {
+                                            // Base: AI Result Image
+                                            AsyncImage(url: resolvedDisplayUrl) { phase in
+                                                switch phase {
+                                                case .success(let img):
+                                                    img.resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                default:
+                                                    EmptyView()
+                                                }
+                                            }
+
+                                            // Overlay: Original Photo Masked
+                                            if let origUrl = resolvedOrigUrl {
+                                                AsyncImage(url: origUrl) { phase in
+                                                    switch phase {
+                                                    case .success(let img):
+                                                        img.resizable()
+                                                            .aspectRatio(contentMode: .fit)
+                                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                    default:
+                                                        EmptyView()
+                                                    }
+                                                }
+                                                .mask(
+                                                    HStack(spacing: 0) {
+                                                        Rectangle()
+                                                            .frame(width: max(0, geo.size.width * sliderOffset))
+                                                        Spacer(minLength: 0)
+                                                    }
+                                                )
+
+                                                // Vertical Comparison Divider Line (3dp PrimaryGold)
+                                                Rectangle()
+                                                    .fill(TryZonTheme.primaryGold)
+                                                    .frame(width: 3, height: geo.size.height)
+                                                    .offset(x: geo.size.width * sliderOffset - 1.5)
+
+                                                // Centered Compare Arrow Handle Badge
+                                                ZStack {
+                                                    Circle()
+                                                        .fill(TryZonTheme.primaryGold)
+                                                        .frame(width: 36, height: 36)
+                                                        .shadow(color: Color.black.opacity(0.5), radius: 6, x: 0, y: 2)
+                                                        .overlay(
+                                                            Circle().stroke(Color.white, lineWidth: 1.5)
+                                                        )
+                                                        .overlay(
+                                                            Image(systemName: "arrow.left.and.right")
+                                                                .font(.system(size: 15, weight: .black))
+                                                                .foregroundColor(.black)
+                                                        )
+                                                }
+                                                .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
+
+                                                // Bottom Badges ("ORIGINAL" & "RESULT")
+                                                HStack {
+                                                    Text("ORIGINAL")
+                                                        .font(.system(size: 9.5, weight: .bold))
+                                                        .foregroundColor(.white)
+                                                        .padding(.horizontal, 8)
+                                                        .padding(.vertical, 4)
+                                                        .background(Color.black.opacity(0.75))
+                                                        .cornerRadius(6)
+                                                        .padding(10)
+                                                        .opacity(sliderOffset > 0.1 ? 1 : 0)
+
+                                                    Spacer()
+
+                                                    Text("AI RESULT")
+                                                        .font(.system(size: 9.5, weight: .heavy))
+                                                        .foregroundColor(.black)
+                                                        .padding(.horizontal, 8)
+                                                        .padding(.vertical, 4)
+                                                        .background(TryZonTheme.primaryGold)
+                                                        .cornerRadius(6)
+                                                        .padding(10)
+                                                        .opacity(sliderOffset < 0.9 ? 1 : 0)
+                                                }
+                                                .frame(maxHeight: .infinity, alignment: .bottom)
+                                            }
                                         }
-                                    )
-                                    .clipped()
-
-                                    // Floating Badges ("ORIGINAL" & "RESULT")
-                                    HStack {
-                                        Text("ORIGINAL")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color.black.opacity(0.65))
-                                            .cornerRadius(8)
-                                            .padding(12)
-                                            .opacity(sliderOffset > 0.1 ? 1 : 0)
-
-                                        Spacer()
-
-                                        Text("RESULT")
-                                            .font(.system(size: 10, weight: .heavy))
-                                            .foregroundColor(.black)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(TryZonTheme.primaryGold.opacity(0.9))
-                                            .cornerRadius(8)
-                                            .padding(12)
-                                            .opacity(sliderOffset < 0.9 ? 1 : 0)
-                                    }
-                                    .frame(maxHeight: .infinity, alignment: .bottom)
-
-                                    // Vertical Comparison Divider Line (3dp PrimaryGold)
-                                    Rectangle()
-                                        .fill(TryZonTheme.primaryGold)
-                                        .frame(width: 3, height: geo.size.height)
-                                        .offset(x: geo.size.width * sliderOffset - 1.5)
-
-                                    // Centered Compare Arrow Handle Badge (Circle 36dp, PrimaryGold, 1.5dp White border, Shadow)
-                                    ZStack {
-                                        Circle()
-                                            .fill(TryZonTheme.primaryGold)
-                                            .frame(width: 36, height: 36)
-                                            .shadow(color: Color.black.opacity(0.5), radius: 6, x: 0, y: 2)
-                                            .overlay(
-                                                Circle().stroke(Color.white, lineWidth: 1.5)
-                                            )
-                                            .overlay(
-                                                Image(systemName: "arrow.left.and.right")
-                                                    .font(.system(size: 15, weight: .black))
-                                                    .foregroundColor(.black)
-                                            )
-                                    }
-                                    .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
-                                }
-
-                                // Full Viewport Drag Gesture (Smooth Swipe)
-                                Color.clear
-                                    .contentShape(Rectangle())
-                                    .gesture(
-                                        DragGesture(minimumDistance: 0)
-                                            .onChanged { val in
-                                                if isSplitMode {
+                                        .contentShape(Rectangle())
+                                        .gesture(
+                                            DragGesture(minimumDistance: 0)
+                                                .onChanged { val in
                                                     let newRatio = val.location.x / geo.size.width
                                                     sliderOffset = min(max(newRatio, 0.0), 1.0)
                                                 }
-                                            }
-                                    )
+                                        )
+                                    }
+                                }
+
+                                // Floating Top Badges & Fullscreen Zoom Button
+                                HStack {
+                                    switch displayMode {
+                                    case .result:
+                                        HStack(spacing: 5) {
+                                            Image(systemName: "sparkles")
+                                                .font(.system(size: 10, weight: .black))
+                                            Text("100% AI RESULT")
+                                                .font(.system(size: 10, weight: .heavy))
+                                        }
+                                        .foregroundColor(.black)
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 5)
+                                        .background(TryZonTheme.primaryGold)
+                                        .cornerRadius(8)
+                                        .padding(10)
+
+                                    case .original:
+                                        Text("ORIGINAL PHOTO")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 9)
+                                            .padding(.vertical, 5)
+                                            .background(Color.black.opacity(0.75))
+                                            .cornerRadius(8)
+                                            .padding(10)
+
+                                    case .compare:
+                                        HStack(spacing: 5) {
+                                            Image(systemName: "arrow.left.and.right")
+                                                .font(.system(size: 10, weight: .bold))
+                                            Text("BEFORE & AFTER")
+                                                .font(.system(size: 10, weight: .bold))
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 5)
+                                        .background(Color.black.opacity(0.75))
+                                        .cornerRadius(8)
+                                        .padding(10)
+                                    }
+
+                                    Spacer()
+
+                                    // Expand Fullscreen Button
+                                    Button(action: {
+                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                        showFullscreenViewer = true
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                                .font(.system(size: 11, weight: .bold))
+                                            Text("Zoom")
+                                                .font(.system(size: 10, weight: .bold))
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 5)
+                                        .background(Color.black.opacity(0.7))
+                                        .cornerRadius(8)
+                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.2), lineWidth: 0.8))
+                                    }
+                                    .padding(10)
+                                }
 
                                 // Double-tap Heart Animation Overlay
                                 if showHeartAnimation {
@@ -271,6 +425,8 @@ public struct TryOnResultView: View {
                                         .transition(.scale.combined(with: .opacity))
                                 }
                             }
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
                             .contentShape(Rectangle())
                             .onTapGesture(count: 2) { location in
                                 heartPosition = location
@@ -282,19 +438,13 @@ public struct TryOnResultView: View {
                                 }
                             }
                         }
-                        .frame(height: 380)
+                        .frame(height: 500)
                         .background(TryZonTheme.surfaceVariant)
                         .cornerRadius(24)
                         .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
-                        .onAppear {
-                            if originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty && !hasRunDemoAnimation {
-                                hasRunDemoAnimation = true
-                                runDemoSliderAnimation()
-                            }
-                        }
 
                         // Caption below slider
-                        Text((originalPhotoUrl != nil && !originalPhotoUrl!.isEmpty) ? "👆 Swipe handle to compare • Double-tap to heart" : "❤️ Double-tap to heart your AI Try-On Result")
+                        Text(captionText)
                             .font(.system(size: 11.5, weight: .medium))
                             .foregroundColor(.white.opacity(0.7))
                             .multilineTextAlignment(.center)
@@ -475,6 +625,15 @@ public struct TryOnResultView: View {
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: sharedItems)
         }
+        .fullScreenCover(isPresented: $showFullscreenViewer) {
+            FullscreenResultViewer(
+                imageUrl: resolvedDisplayUrl,
+                originalUrl: resolveURL(originalPhotoUrl),
+                onDismiss: { showFullscreenViewer = false },
+                onDownload: downloadHDImage,
+                onShare: shareResultImage
+            )
+        }
         .confirmationDialog("Report Inappropriate Image", isPresented: $showReportConfirmation, titleVisibility: .visible) {
             Button("Offensive or Inappropriate Image", role: .destructive) {
                 reportImage(reason: "offensive")
@@ -488,25 +647,6 @@ public struct TryOnResultView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Help us keep TryZon AI safe. Flag any content that violates community standards or produces objectionable output.")
-        }
-    }
-
-    // MARK: - Auto-Demo Slider Animation (Matching Android easing & timing)
-    private func runDemoSliderAnimation() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            withAnimation(.easeOut(duration: 0.65)) {
-                sliderOffset = 0.15
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
-                withAnimation(.easeInOut(duration: 0.9)) {
-                    sliderOffset = 0.85
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-                    withAnimation(.easeInOut(duration: 0.65)) {
-                        sliderOffset = 0.5
-                    }
-                }
-            }
         }
     }
 
@@ -638,7 +778,7 @@ public struct TryOnResultView: View {
 
     // MARK: - Download HD Image
     private func downloadHDImage() {
-        guard let url = URL(string: displayUrl) else {
+        guard let url = resolveURL(displayUrl) else {
             showToast("Invalid image URL")
             return
         }
@@ -666,7 +806,7 @@ public struct TryOnResultView: View {
 
     // MARK: - Share Image
     private func shareResultImage() {
-        guard let url = URL(string: displayUrl) else { return }
+        guard let url = resolveURL(displayUrl) else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         Task {
             if let (data, _) = try? await URLSession.shared.data(from: url),
@@ -696,6 +836,195 @@ public struct TryOnResultView: View {
         withAnimation { showToastMessage = msg }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             withAnimation { showToastMessage = nil }
+        }
+    }
+}
+
+// MARK: - Fullscreen Result Viewer with Pinch-to-Zoom & Pan
+public struct FullscreenResultViewer: View {
+    let imageUrl: URL?
+    let originalUrl: URL?
+    let onDismiss: () -> Void
+    let onDownload: () -> Void
+    let onShare: () -> Void
+
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    @State private var activeMode: ResultDisplayMode = .result
+    @State private var sliderOffset: CGFloat = 0.5
+
+    public var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            // Image Area
+            GeometryReader { geo in
+                ZStack {
+                    switch activeMode {
+                    case .result:
+                        if let url = imageUrl {
+                            AsyncImage(url: url) { phase in
+                                if let img = phase.image {
+                                    img.resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                } else {
+                                    ProgressView().tint(TryZonTheme.primaryGold)
+                                }
+                            }
+                        }
+                    case .original:
+                        if let url = originalUrl {
+                            AsyncImage(url: url) { phase in
+                                if let img = phase.image {
+                                    img.resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                } else {
+                                    ProgressView().tint(TryZonTheme.primaryGold)
+                                }
+                            }
+                        }
+                    case .compare:
+                        ZStack(alignment: .leading) {
+                            if let url = imageUrl {
+                                AsyncImage(url: url) { phase in
+                                    if let img = phase.image {
+                                        img.resizable().aspectRatio(contentMode: .fit)
+                                    }
+                                }
+                            }
+                            if let origUrl = originalUrl {
+                                AsyncImage(url: origUrl) { phase in
+                                    if let img = phase.image {
+                                        img.resizable().aspectRatio(contentMode: .fit)
+                                    }
+                                }
+                                .mask(
+                                    HStack(spacing: 0) {
+                                        Rectangle().frame(width: max(0, geo.size.width * sliderOffset))
+                                        Spacer(minLength: 0)
+                                    }
+                                )
+                                Rectangle()
+                                    .fill(TryZonTheme.primaryGold)
+                                    .frame(width: 3, height: geo.size.height)
+                                    .offset(x: geo.size.width * sliderOffset - 1.5)
+                            }
+                        }
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { val in
+                                    if scale <= 1.0 {
+                                        let ratio = val.location.x / geo.size.width
+                                        sliderOffset = min(max(ratio, 0.0), 1.0)
+                                    }
+                                }
+                        )
+                    }
+                }
+                .frame(width: geo.size.width, height: geo.size.height)
+                .scaleEffect(scale)
+                .offset(offset)
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { val in
+                            scale = max(1.0, min(lastScale * val, 4.0))
+                        }
+                        .onEnded { _ in
+                            lastScale = scale
+                            if scale <= 1.0 {
+                                withAnimation(.spring()) {
+                                    offset = .zero
+                                    lastOffset = .zero
+                                }
+                            }
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture()
+                        .onChanged { val in
+                            if scale > 1.0 {
+                                offset = CGSize(
+                                    width: lastOffset.width + val.translation.width,
+                                    height: lastOffset.height + val.translation.height
+                                )
+                            }
+                        }
+                        .onEnded { _ in
+                            lastOffset = offset
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring()) {
+                        if scale > 1.0 {
+                            scale = 1.0
+                            lastScale = 1.0
+                            offset = .zero
+                            lastOffset = .zero
+                        } else {
+                            scale = 2.5
+                            lastScale = 2.5
+                        }
+                    }
+                }
+            }
+
+            // Top Bar
+            VStack {
+                HStack {
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(.white.opacity(0.85))
+                    }
+
+                    Spacer()
+
+                    // Mode switcher in fullscreen
+                    if originalUrl != nil {
+                        HStack(spacing: 6) {
+                            ForEach(ResultDisplayMode.allCases, id: \.self) { mode in
+                                Button(action: {
+                                    withAnimation { activeMode = mode }
+                                }) {
+                                    Text(mode.title)
+                                        .font(.system(size: 11, weight: activeMode == mode ? .bold : .medium))
+                                        .foregroundColor(activeMode == mode ? .black : .white.opacity(0.8))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(activeMode == mode ? TryZonTheme.primaryGold : Color.white.opacity(0.15))
+                                        .cornerRadius(14)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: 14) {
+                        Button(action: onShare) {
+                            Image(systemName: "square.and.arrow.up.circle.fill")
+                                .font(.system(size: 30))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                        }
+                        Button(action: onDownload) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 30))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 46)
+
+                Spacer()
+
+                Text("Pinch to zoom (up to 4x) • Double-tap to reset")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.5))
+                    .padding(.bottom, 24)
+            }
         }
     }
 }

@@ -141,19 +141,16 @@ def strip_model_head_from_garment(garment_path: str, category: str = "clothing",
                 return dest
             return garment_path
 
-        is_full_outfit = (exact_item in ["saree", "lehenga", "gown", "dress", "anarkali", "jumpsuit", "kurta", "outfit", "set", "frock", "co-ord", "onepiece", "one-piece"] or sub_type == "full_body_outfit")
+        is_full_outfit = (exact_item in ["saree", "lehenga", "gown", "dress", "anarkali", "jumpsuit", "kurta", "outfit", "set", "frock", "co-ord", "onepiece", "one-piece", "suit", "tuxedo", "skirt suit", "sherwani", "outfit set"] or sub_type == "full_body_outfit")
         is_upper_wear = (exact_item in ["jacket", "shirt", "t-shirt", "top", "blouse", "crop top", "sweater", "hoodie", "cardigan", "coat"] or sub_type == "upper_body")
 
         # 2. Check if lower trousers/skirts/bags should be cropped for upper-body wear (Rule 14)
         crop_bottom_y = h
         if not is_full_outfit and is_upper_wear and has_real_face and h >= int(w * 1.25):
             crop_bottom_y = int(h * 0.78)
-        elif framing in ["headshot_portrait", "selfie_portrait"] and is_upper_wear and h >= int(w * 1.15):
+        elif framing in ["headshot_portrait", "selfie_portrait"] and not is_full_outfit and is_upper_wear and h >= int(w * 1.15):
             crop_bottom_y = int(h * 0.65)
             log.info(f"✂️ Framing Guard: Headshot selfie detected. Cropping garment to upper-body (y={crop_bottom_y}px) to match portrait framing.")
-        elif framing in ["headshot_portrait", "selfie_portrait"] and is_full_outfit and has_real_face and h >= int(w * 1.25):
-            crop_bottom_y = int(h * 0.65)
-            log.info(f"✂️ Framing Guard: Headshot selfie tried on full outfit. Cropping garment to upper bodice (y={crop_bottom_y}px) to prevent body hallucination.")
 
         if chin_y > 15 or crop_bottom_y < h:
             crop_top_y = chin_y if chin_y > 15 else 0
@@ -306,25 +303,25 @@ async def run_flux_tryon(person_image_path: str, garment_image_path: str, is_pre
             COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the feet of the {gender_target} in Image 1"
     elif is_full_outfit or item_lower in ["dress", "gown", "saree", "lehenga", "anarkali", "jumpsuit", "onepiece", "one-piece", "frock", "co-ord", "kurta", "outfit set", "outfit", "set", "suit", "tuxedo", "skirt suit", "sherwani"]:
         if is_headshot:
-            COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the {gender_target} in Image 1, full length standing view"
+            COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the {gender_target} in Image 1, fully replacing the outfit, full length standing view"
         elif person_outfit in ["saree", "lehenga"] and item_lower not in ["saree", "lehenga"]:
             COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto Image 1, fully replacing the {person_outfit}"
         else:
             COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the {gender_target} in Image 1, fully replacing the outfit"
     elif item_lower in ["top", "shirt", "t-shirt", "sweatshirt", "blouse", "crop top", "sweater", "hoodie", "cardigan", "jacket", "coat"] or sub_type == "upper_body":
         if is_headshot:
-            COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the upper body of the {gender_target} in Image 1, close-up portrait"
+            COLOR_PROMPT = f"transfer only the {target_item} from Image 2 onto the upper body of the {gender_target} in Image 1, fully replacing the upper clothing, close-up portrait"
         elif person_outfit in ["saree", "dress", "lehenga"]:
             COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto Image 1, replacing the {person_outfit} with the {target_item}"
         else:
             COLOR_PROMPT = f"transfer only the {target_item} from Image 2 onto the upper body of the {gender_target} in Image 1, fully replacing the upper clothing"
     elif item_lower in ["pants", "jeans", "trousers", "joggers", "leggings", "skirt", "shorts", "boxers", "bermudas"] or sub_type == "bottom_body":
         if is_headshot:
-            COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the lower body of the {gender_target} in Image 1, full length standing view"
+            COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the lower body of the {gender_target} in Image 1, fully replacing the lower clothing, full length standing view"
         elif person_outfit in ["saree", "dress", "lehenga"]:
             COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto Image 1, replacing the {person_outfit} with the {target_item}"
         else:
-            COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the lower body of the {gender_target} in Image 1"
+            COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the lower body of the {gender_target} in Image 1, fully replacing the lower clothing"
     elif is_headshot:
         COLOR_PROMPT = f"transfer the {target_item} from Image 2 onto the {gender_target} in Image 1, close-up portrait"
     elif item_lower in ["swimsuit", "monokini", "bikini", "bodysuit", "swimwear", "lingerie set", "lingerie"]:
