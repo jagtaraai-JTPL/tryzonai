@@ -72,7 +72,9 @@ public class APIClient: ObservableObject {
             "X-Session-ID": sessionID,
             "X-Device-ID": deviceID,
             "Accept": "application/json",
-            "User-Agent": "TryZonAI/1.0 (iOS; AppStore)"
+            "User-Agent": "TryZonAI/1.0 (iOS; AppStore)",
+            "X-Platform": "ios",
+            "X-Reward-Ad-Bonus": "true"
         ]
         if let token = authToken {
             headers["Authorization"] = "Bearer \(token)"
@@ -371,9 +373,25 @@ public class APIClient: ObservableObject {
         request.setValue(sessionID, forHTTPHeaderField: "X-Session-ID")
         request.setValue(deviceID, forHTTPHeaderField: "X-Device-ID")
         request.setValue("TryZonAI/1.0 (iOS; AppStore)", forHTTPHeaderField: "User-Agent")
+        request.setValue("ios", forHTTPHeaderField: "X-Platform")
+        request.setValue("true", forHTTPHeaderField: "X-Reward-Ad-Bonus")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         var body = Data()
+
+        // Append Product ID if provided
+        if let pid = productId, !pid.isEmpty {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"product_id\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(pid)\r\n".data(using: .utf8)!)
+        }
+
+        // Append Category if provided
+        if !category.isEmpty {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"category\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(category)\r\n".data(using: .utf8)!)
+        }
 
         // Append Person Image
         if let personData = personImage.jpegData(compressionQuality: 0.85) {

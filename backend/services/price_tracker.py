@@ -302,78 +302,45 @@ async def search_cuelinks_db(query: str) -> list:
 
 async def compare_prices(query: str, region: str = "IN") -> dict:
     """
-    Return price comparison using official APIs only.
-    Regional stores are prioritized based on user location.
+    Return price comparison strictly for our monetized platforms ONLY:
+    1. Amazon (with direct tryzonai tag)
+    2. AJIO (with apiKey & subid)
+    3. Meesho (with affid & subid)
+    All other un-monetized platforms are strictly excluded.
     """
     import asyncio
+    from services.affiliate_engine import generate_affiliate_url
 
-    results = []
-    
-    if region == "IN":
-        # India Stack
-        amazon_result, flipkart_result, cuelinks_results = await asyncio.gather(
-            search_amazon_paapi(query),
-            search_flipkart_api(query),
-            search_cuelinks_db(query)
-        )
-        results = [amazon_result, flipkart_result] + cuelinks_results
-    elif region == "US":
-        # USA Stack
-        results = [
-            {"platform": "Amazon US", "price": None, "url": f"https://www.amazon.com/s?k={query.replace(' ', '+')}", "source": "link_only"},
-            _link_only("nordstrom", query, "US"),
-            _link_only("asos", query, "US"),
-            _link_only("zara", query, "US"),
-            _link_only("macys", query, "US"),
-            _link_only("bloomingdales", query, "US"),
-        ]
-    elif region == "CA":
-        # Canada Stack
-        results = [
-            {"platform": "Amazon CA", "price": None, "url": f"https://www.amazon.ca/s?k={query.replace(' ', '+')}", "source": "link_only"},
-            _link_only("ssense", query, "CA"),
-            _link_only("h&m", query, "CA"),
-            _link_only("zara", query, "CA"),
-            _link_only("farfetch", query, "CA"),
-        ]
-    elif region == "AU":
-        # Australia Stack
-        results = [
-            {"platform": "Amazon AU", "price": None, "url": f"https://www.amazon.com.au/s?k={query.replace(' ', '+')}", "source": "link_only"},
-            {"platform": "THE ICONIC", "price": None, "url": f"https://www.theiconic.com.au/catalog/?q={query.replace(' ', '+')}", "source": "link_only"},
-            _link_only("davidjones", query, "AU"),
-            _link_only("zara", query, "AU"),
-            _link_only("h&m", query, "AU"),
-        ]
-    elif region in ["GB", "UK"]:
-        # UK Stack
-        results = [
-            {"platform": "Amazon UK", "price": None, "url": f"https://www.amazon.co.uk/s?k={query.replace(' ', '+')}", "source": "link_only"},
-            _link_only("asos", query, "GB"),
-            _link_only("next", query, "GB"),
-            _link_only("zalando", query, "GB"),
-            _link_only("zara", query, "GB"),
-        ]
-    elif region in ["DE", "FR", "IT", "ES", "EU"]:
-        # Europe Stack
-        results = [
-            {"platform": "Amazon EU", "price": None, "url": f"https://www.amazon.de/s?k={query.replace(' ', '+')}", "source": "link_only"},
-            _link_only("zalando", query, region),
-            _link_only("zara", query, region),
-            _link_only("h&m", query, region),
-            _link_only("farfetch", query, region),
-        ]
-    else:
-        # Global Default
-        results = [
-            {"platform": "Amazon Global", "price": None, "url": f"https://www.amazon.com/s?k={query.replace(' ', '+')}", "source": "link_only"},
-            _link_only("asos", query, "GLOBAL"),
-            _link_only("shein", query, "GLOBAL"),
-            _link_only("zara", query, "GLOBAL"),
-            _link_only("farfetch", query, "GLOBAL"),
-        ]
+    q_plus = query.replace(" ", "+")
+    q_enc = query.replace(" ", "%20")
 
-    # Best price only from platforms with live API data
+    # 1. Amazon PA-API or direct search link
+    amazon_res = await search_amazon_paapi(query)
+    if not amazon_res.get("url"):
+        amazon_res["url"] = f"https://www.amazon.in/s?k={q_plus}"
+    amazon_res["url"] = generate_affiliate_url(amazon_res["url"], "amazon", region)
+    amazon_res["platform"] = "Amazon"
+
+    # 2. AJIO Direct Affiliate Search Link
+    ajio_url = generate_affiliate_url(f"https://www.ajio.com/search/?text={q_enc}", "ajio", region)
+    ajio_res = {
+        "platform": "AJIO",
+        "price": None,
+        "url": ajio_url,
+        "source": "link_only"
+    }
+
+    # 3. Meesho Direct Affiliate Search Link
+    meesho_url = generate_affiliate_url(f"https://www.meesho.com/search?q={q_plus}", "meesho", region)
+    meesho_res = {
+        "platform": "Meesho",
+        "price": None,
+        "url": meesho_url,
+        "source": "link_only"
+    }
+
+    results = [amazon_res, ajio_res, meesho_res]
+
     priced = [(r["price"], r["platform"]) for r in results if r.get("price")]
     priced.sort(key=lambda x: x[0])
     best = priced[0] if priced else (None, None)

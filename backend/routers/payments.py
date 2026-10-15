@@ -449,7 +449,9 @@ async def razorpay_webhook(
                             user.is_premium = True
                             user.subscription_tier = plan_name
                         elif plan_name in CREDIT_PACKS:
-                            user.credits += CREDIT_PACKS[plan_name]
+                            credits_to_add = CREDIT_PACKS[plan_name]
+                            user.credits += credits_to_add
+                            user.paid_credits = (user.paid_credits or 0) + credits_to_add
                         
                         await db.commit()
                         log.info(f"Webhook async upgrade successful for user {user_id} (Order: {order_id})")

@@ -53,6 +53,9 @@ async def lifespan(app: FastAPI):
     await init_db()
     log.info("✅ PostgreSQL connected and tables ready")
 
+    # Instantly resolve any interrupted zombie sessions from previous server restarts
+    await cleanup_zombie_sessions(on_startup=True)
+
     # Initialize Firebase
     init_firebase()
 
@@ -100,13 +103,36 @@ async def lifespan(app: FastAPI):
     # 7. Midnight Credit Reset
     scheduler.add_job(reset_daily_credits, "cron", hour=0, minute=0, misfire_grace_time=3600)
 
-    # 8. Start Catalog Watchdog for instant ingestion
+    # 8. 3-Tier Staggered Re-Engagement Push Engine:
+    #    - 9:00 AM IST (3:30 UTC): Morning Outfit Drop
+    #    - 2:00 PM IST (8:30 UTC): Afternoon Mid-Day Boost for Unreturned Users
+    #    - 7:00 PM IST (13:30 UTC): Evening Final Call for Remaining Unreturned Users
+    from tasks.scheduler import (
+        send_smart_reminders_job, 
+        send_afternoon_followup_push_job, 
+        send_unreturned_followup_push_job, 
+        send_high_intent_fomo_push_job
+    )
+    scheduler.add_job(send_smart_reminders_job, "cron", hour=3, minute=30, misfire_grace_time=1800)
+    scheduler.add_job(send_afternoon_followup_push_job, "cron", hour=8, minute=30, misfire_grace_time=1800)
+    scheduler.add_job(send_unreturned_followup_push_job, "cron", hour=13, minute=30, misfire_grace_time=1800)
+
+    # 9. Automated High-Intent FOMO Push Engine (Runs every 10m: Targets repeat try-ons & quota-blocked users 15-35m later)
+    scheduler.add_job(
+        send_high_intent_fomo_push_job, 
+        "interval", 
+        minutes=10, 
+        next_run_time=now + timedelta(minutes=1),
+        misfire_grace_time=300
+    )
+
+    # 10. Start Catalog Watchdog for instant ingestion
     import asyncio
     loop = asyncio.get_running_loop()
     app.state.observer = start_watchdog(loop)
 
     scheduler.start()
-    log.info("✅ APScheduler started (Staggered Mode) — All heavy jobs delayed to prevent startup OOM")
+    log.info("✅ APScheduler started (Staggered Mode) — All heavy jobs & High-Intent FOMO Engine active")
 
     yield  # ─── app is running ───
 

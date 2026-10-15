@@ -399,6 +399,7 @@ public struct TryOnProcessingView: View {
     private func startPollingLoop() {
         Task {
             var stepCounter = 0
+            var consecutiveErrors = 0
             while isPolling {
                 do {
                     try await Task.sleep(nanoseconds: 150_000_000) // 150ms smooth ticker update
@@ -414,6 +415,7 @@ public struct TryOnProcessingView: View {
                     // Poll status every 2 seconds (~13 cycles of 150ms)
                     if stepCounter % 13 == 0 {
                         let status = try await apiClient.pollTaskStatus(sessionId: sessionId)
+                        consecutiveErrors = 0
 
                         if status.isCompleted {
                             await MainActor.run {
@@ -436,10 +438,13 @@ public struct TryOnProcessingView: View {
                         }
                     }
                 } catch {
-                    if stepCounter > 200 { // ~30 sec timeout
+                    consecutiveErrors += 1
+                    // Only abort if consecutive errors exceed 15 cycles (~30s continuous network failure)
+                    // or if total wait time exceeds ~180 seconds (1200 cycles of 150ms)
+                    if consecutiveErrors > 15 || stepCounter > 1200 {
                         await MainActor.run {
                             self.isPolling = false
-                            self.errorMessage = error.localizedDescription
+                            self.errorMessage = "Processing timed out. Please check your internet and try again."
                         }
                         break
                     }

@@ -29,6 +29,22 @@ class InteractionRequest(BaseModel):
     tags: list[str] | None = None
 
 
+def get_product_target_url(p: Product) -> str:
+    """Safely extracts product target URL across original_url, affiliate_url, or store-specific URLs."""
+    return getattr(p, "affiliate_url", None) or getattr(p, "original_url", None) or getattr(p, "amazon_url", None) or getattr(p, "ajio_url", None) or getattr(p, "meesho_url", None) or getattr(p, "myntra_url", None) or getattr(p, "flipkart_url", None) or ""
+
+
+def build_allowed_store_clause():
+    """Restricts catalog discovery & recommendations strictly to Amazon, AJIO, and Meesho."""
+    return or_(
+        Product.store.is_(None),
+        Product.store == "",
+        Product.store.ilike("%amazon%"),
+        Product.store.ilike("%ajio%"),
+        Product.store.ilike("%meesho%")
+    )
+
+
 @router.get("/feed")
 async def get_feed(
     current_user: User | None = Depends(get_optional_user),
@@ -37,7 +53,7 @@ async def get_feed(
 ):
     # Cold start or Guest: return featured products
     if not current_user:
-        stmt = select(Product).where(Product.is_featured == True, Product.is_active == True).order_by(func.random()).limit(limit)
+        stmt = select(Product).where(Product.is_featured == True, Product.is_active == True, build_allowed_store_clause()).order_by(func.random()).limit(limit)
         res = await db.execute(stmt)
         featured = res.scalars().all()
         return {
@@ -46,11 +62,13 @@ async def get_feed(
             "items": [
                 {
                     "id": str(p.id),
-                    "name": p.name,
-                    "brand": p.brand,
+                    "name": p.name or "",
+                    "brand": p.brand or "",
                     "price": int(p.current_price or 0),
-                    "image": p.image_url,
-                    "category": p.category,
+                    "image": p.image_url or "",
+                    "category": p.category or "",
+                    "store": p.store,
+                    "url": generate_affiliate_url(get_product_target_url(p), p.store),
                     "badge": "TRENDING"
                 } for p in featured
             ],
@@ -61,7 +79,7 @@ async def get_feed(
     
     if not items:
         # User Onboarding Preference-based smart fallback ranking engine
-        stmt = select(Product).where(Product.is_active == True)
+        stmt = select(Product).where(Product.is_active == True, build_allowed_store_clause())
         res = await db.execute(stmt)
         all_products = res.scalars().all()
         
@@ -120,12 +138,14 @@ async def get_feed(
             "count": len(top_recs),
             "items": [
                 {
-                    "id": p.id,
-                    "name": p.name,
-                    "brand": p.brand,
-                    "price": p.current_price,
-                    "image": p.image_url,
-                    "category": p.category,
+                    "id": str(p.id),
+                    "name": p.name or "",
+                    "brand": p.brand or "",
+                    "price": int(p.current_price or 0),
+                    "image": p.image_url or "",
+                    "category": p.category or "",
+                    "store": p.store,
+                    "url": generate_affiliate_url(get_product_target_url(p), p.store),
                     "badge": badge
                 } for score, p, badge in top_recs
             ],
@@ -149,12 +169,14 @@ async def get_feed(
         if p_id and p_id in products_map:
             p = products_map[p_id]
             enriched.append({
-                "id": p.id,
-                "name": p.name,
-                "brand": p.brand,
-                "price": p.current_price,
-                "image": p.image_url,
-                "category": p.category,
+                "id": str(p.id),
+                "name": p.name or "",
+                "brand": p.brand or "",
+                "price": int(p.current_price or 0),
+                "image": p.image_url or "",
+                "category": p.category or "",
+                "store": p.store,
+                "url": generate_affiliate_url(get_product_target_url(p), p.store),
                 "badge": f"{int(it['score']*100)}% Match" if "score" in it else "90% Match"
             })
 
@@ -230,7 +252,8 @@ async def get_catalog(
     stmt = select(Product).where(
         Product.is_active == True,
         Product.image_url != None,
-        Product.image_url != ""
+        Product.image_url != "",
+        build_allowed_store_clause()
     )
 
     # Regional Filter
@@ -243,9 +266,28 @@ async def get_catalog(
         )
         stmt = stmt.where(region_filter)
     
-    # Enforce Clothing only policy for discovery if no category specified
-    if category and category != "All":
-        stmt = stmt.where(Product.category == category)
+    # Flexible Category Filter Mapping
+    if category and category not in ("All", "All AI Outfits"):
+        if "Footwear" in category or "Shoes" in category:
+            stmt = stmt.where(Product.category == "Footwear")
+        elif "Bags" in category or "Accessories" in category or "Accessory" in category:
+            stmt = stmt.where(Product.category == "Accessory")
+        elif category.lower() == "clothing":
+            stmt = stmt.where(or_(Product.category == "Clothing", Product.category == "Premium", Product.category == "Casual"))
+        elif "Formal" in category or "Suit" in category:
+            stmt = stmt.where(or_(Product.category == "Suits & Formal", Product.category.ilike("%Formal%"), Product.category.ilike("%Suit%")))
+        elif "Luxury" in category or "Gown" in category:
+            stmt = stmt.where(or_(Product.category == "Gowns & Luxury", Product.category.ilike("%Luxury%"), Product.category.ilike("%Gown%")))
+        elif "Streetwear" in category or "Cyber" in category:
+            stmt = stmt.where(or_(Product.category == "Streetwear", Product.category.ilike("%Streetwear%"), Product.category.ilike("%Cyber%")))
+        elif "Ethnic" in category or "Traditional" in category:
+            stmt = stmt.where(or_(Product.category == "Ethnic", Product.category.ilike("%Ethnic%"), Product.category.ilike("%Traditional%")))
+        elif "Summer" in category or "Riviera" in category:
+            stmt = stmt.where(or_(Product.category.ilike("%Summer%"), Product.category.ilike("%Riviera%")))
+        elif "Alpine" in category or "Outdoor" in category:
+            stmt = stmt.where(or_(Product.category.ilike("%Alpine%"), Product.category.ilike("%Outdoor%")))
+        else:
+            stmt = stmt.where(or_(Product.category.ilike(f"%{category}%"), Product.name.ilike(f"%{category}%")))
     
     if brand:
         stmt = stmt.where(Product.brand.ilike(f"%{brand}%"))
@@ -255,17 +297,16 @@ async def get_catalog(
     
     if occasion:
         stmt = stmt.where(Product.clip_tags.ilike(f"%{occasion}%"))
-    if gender and gender != "All":
-        # Database gender column is currently unpopulated, fallback to keyword matching with word boundaries
-        # This prevents 'Men' from matching 'Women'
-        regex_pattern = rf"\b{gender}\b"
-        gender_filter = or_(
-            Product.gender == gender,
-            Product.category.op("~*")(regex_pattern),
-            Product.name.op("~*")(regex_pattern),
-            Product.clip_tags.op("~*")(regex_pattern)
-        )
-        stmt = stmt.where(gender_filter)
+    if gender and gender not in ("All", "All AI Outfits"):
+        g_clean = gender.strip().lower()
+        if g_clean == "men":
+            stmt = stmt.where(or_(Product.gender == "Men", Product.gender == "Unisex"))
+        elif g_clean == "women":
+            stmt = stmt.where(or_(Product.gender == "Women", Product.gender == "Unisex"))
+        elif g_clean == "unisex":
+            stmt = stmt.where(Product.gender == "Unisex")
+        else:
+            stmt = stmt.where(Product.gender == gender)
     
     if search:
         search_filter = or_(
@@ -341,6 +382,23 @@ async def get_unique_categories(db: AsyncSession = Depends(get_db)):
     return {"categories": ["All"] + sorted_cats}
 
 
+def build_gender_clause(gender: str | None):
+    """
+    Helper to construct robust gender filters for Product queries.
+    Fallback to regex keyword matching if Product.gender column is unpopulated/NULL.
+    """
+    if not gender or gender in ("All", "Unisex"):
+        return None
+    regex_pattern = rf"\b{gender}\b"
+    return or_(
+        Product.gender == gender,
+        Product.gender == None,
+        Product.category.op("~*")(regex_pattern),
+        Product.name.op("~*")(regex_pattern),
+        Product.clip_tags.op("~*")(regex_pattern)
+    )
+
+
 @router.get("/recommendations/similar")
 async def get_similar_products(
     product_id: int | None = Query(None),
@@ -352,7 +410,7 @@ async def get_similar_products(
     """
     Return visually similar products with multiple fallback layers.
     """
-    log.info(f"Similar recommendations request: product_id={product_id}, q={q}")
+    log.info(f"Similar recommendations request: product_id={product_id}, q={q}, gender={gender}")
     items = []
     
     # Layer 1: Vector Search
@@ -370,11 +428,13 @@ async def get_similar_products(
         stmt = select(Product).where(
             Product.is_active == True,
             Product.image_url != None,
-            Product.image_url != ""
+            Product.image_url != "",
+            build_allowed_store_clause()
         )
         stmt = stmt.where(Product.name.ilike(f"%{q}%"))
-        if gender and gender != "Unisex":
-            stmt = stmt.where(Product.gender == gender)
+        g_clause = build_gender_clause(gender)
+        if g_clause is not None:
+            stmt = stmt.where(g_clause)
         stmt = stmt.limit(limit)
         result = await db.execute(stmt)
         products = result.scalars().all()
@@ -398,50 +458,70 @@ async def get_similar_products(
 
     # Layer 3: Process Vector Results (if found)
     if items:
-        p_ids = [int(it["product_id"]) for it in items]
-        stmt = select(Product).where(Product.id.in_(p_ids))
-        result = await db.execute(stmt)
-        products_map = {p.id: p for p in result.scalars().all()}
-        
-        if products_map:
-            return {
-                "source": "vector_search",
-                "products": [
-                    {
-                        "id": p_id,
-                        "name": products_map[p_id].name,
-                        "brand": products_map[p_id].brand,
-                        "price": int(products_map[p_id].current_price or 0),
-                        "originalPrice": int((products_map[p_id].current_price / (1 - (products_map[p_id].discount_percent or 0) / 100)) if products_map[p_id].current_price and (products_map[p_id].discount_percent or 0) < 100 else (products_map[p_id].current_price or 0)),
-                        "image": products_map[p_id].image_url,
-                        "url": generate_affiliate_url(products_map[p_id].affiliate_url or products_map[p_id].original_url, products_map[p_id].store, None),
-                        "category": products_map[p_id].category
-                    }
-                    for p_id in p_ids if p_id in products_map
-                ]
-            }
+        p_ids = [int(it["product_id"]) for it in items if it["product_id"].isdigit()]
+        if p_ids:
+            stmt = select(Product).where(Product.id.in_(p_ids), build_allowed_store_clause())
+            result = await db.execute(stmt)
+            products_map = {p.id: p for p in result.scalars().all()}
+            
+            if products_map:
+                return {
+                    "source": "vector_search",
+                    "products": [
+                        {
+                            "id": p_id,
+                            "name": products_map[p_id].name,
+                            "brand": products_map[p_id].brand,
+                            "price": int(products_map[p_id].current_price or 0),
+                            "originalPrice": int((products_map[p_id].current_price / (1 - (products_map[p_id].discount_percent or 0) / 100)) if products_map[p_id].current_price and (products_map[p_id].discount_percent or 0) < 100 else (products_map[p_id].current_price or 0)),
+                            "image": products_map[p_id].image_url,
+                            "url": generate_affiliate_url(products_map[p_id].affiliate_url or products_map[p_id].original_url, products_map[p_id].store, None),
+                            "category": products_map[p_id].category
+                        }
+                        for p_id in p_ids if p_id in products_map
+                    ]
+                }
 
-    # Layer 4: Final Global Fallback (Featured or Random)
-    log.warning("Falling back to global catalog for recommendations")
-    # Try featured first
+    # Layer 4: Final Global Fallback (Featured or Random with robust gender matching)
+    log.warning(f"Falling back to global catalog for recommendations (product_id={product_id}, gender={gender})")
+    g_clause = build_gender_clause(gender)
+    
+    # Step A: Featured products matching gender filter
     stmt = select(Product).where(
         Product.is_active == True,
         Product.is_featured == True,
-        Product.image_url != None
-    ).limit(limit)
+        Product.image_url != None,
+        Product.image_url != "",
+        build_allowed_store_clause()
+    )
+    if g_clause is not None:
+        stmt = stmt.where(g_clause)
+    stmt = stmt.order_by(func.random()).limit(limit)
     result = await db.execute(stmt)
     products = result.scalars().all()
 
+    # Step B: Non-featured active products matching gender filter
     if not products:
-        # If no featured, just get random active products
         stmt = select(Product).where(
             Product.is_active == True,
-            Product.image_url != None
+            Product.image_url != None,
+            Product.image_url != "",
+            build_allowed_store_clause()
         )
-        if gender and gender != "Unisex":
-            stmt = stmt.where(Product.gender == gender)
-        
+        if g_clause is not None:
+            stmt = stmt.where(g_clause)
         stmt = stmt.order_by(func.random()).limit(limit)
+        result = await db.execute(stmt)
+        products = result.scalars().all()
+
+    # Step C: Absolute global fallback (ignore gender filter if too strict)
+    if not products:
+        stmt = select(Product).where(
+            Product.is_active == True,
+            Product.image_url != None,
+            Product.image_url != "",
+            build_allowed_store_clause()
+        ).order_by(func.random()).limit(limit)
         result = await db.execute(stmt)
         products = result.scalars().all()
 

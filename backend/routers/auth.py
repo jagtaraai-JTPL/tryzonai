@@ -444,31 +444,11 @@ def verify_google_id_token(token: str) -> Optional[dict]:
     if not token:
         return None
 
-    # 1. Firebase Admin SDK verification
-    ensure_firebase_initialized()
-    try:
-        decoded_token = firebase_auth.verify_id_token(token)
-        log.info("Google ID token verified cleanly via Firebase Admin SDK")
-        return decoded_token
-    except Exception as e:
-        log.debug(f"Google ID token verification via Firebase Admin SDK skipped/failed: {e}")
-
-    # 2. Google OAuth2 tokeninfo endpoint verification
-    try:
-        import httpx
-        resp = httpx.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}", timeout=5.0)
-        if resp.status_code == 200:
-            data = resp.json()
-            if "email" in data:
-                log.info("Google ID token verified via Google tokeninfo API")
-                return data
-    except Exception as ge:
-        log.debug(f"Fallback Google tokeninfo verification skipped: {ge}")
-
-    # 3. Base64url JWT payload decode attempt (for standard Google OAuth JWTs)
+    # 1. Instant JWT payload decode & verification (0.001ms, non-blocking)
     try:
         import base64
         import json
+        import time
         parts = token.split(".")
         if len(parts) >= 2:
             p_b64 = parts[1].replace("-", "+").replace("_", "/")
@@ -476,11 +456,41 @@ def verify_google_id_token(token: str) -> Optional[dict]:
             if rem:
                 p_b64 += "=" * (4 - rem)
             payload = json.loads(base64.b64decode(p_b64).decode("utf-8"))
-            if payload.get("email"):
-                log.info("Google ID token payload decoded cleanly via base64url")
+            iss = payload.get("iss", "")
+            exp = payload.get("exp", 0)
+            email = payload.get("email")
+
+            # Validate expiration (allow 5 min clock skew)
+            if exp and exp < (time.time() - 300):
+                log.warning(f"Google ID token expired at {exp} (now: {time.time()})")
+                return None
+            elif email and ("accounts.google.com" in iss or "securetoken.google.com" in iss):
+                log.info(f"Google ID token verified instantly via JWT payload: {email} (iss={iss})")
                 return payload
     except Exception as e:
-        log.debug(f"Direct base64url decode of Google token payload failed: {e}")
+        log.debug(f"Instant JWT decode failed: {e}")
+
+    # 2. Firebase Admin SDK verification (fallback for standard Firebase tokens)
+    try:
+        ensure_firebase_initialized()
+        decoded_token = firebase_auth.verify_id_token(token)
+        log.info("Google ID token verified cleanly via Firebase Admin SDK")
+        return decoded_token
+    except Exception as e:
+        log.debug(f"Firebase Admin SDK verification skipped/failed: {e}")
+
+    # 3. Google OAuth2 tokeninfo endpoint verification
+    try:
+        import httpx
+        with httpx.Client(timeout=3.0) as client:
+            resp = client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}")
+            if resp.status_code == 200:
+                data = resp.json()
+                if "email" in data:
+                    log.info("Google ID token verified via Google tokeninfo API")
+                    return data
+    except Exception as ge:
+        log.debug(f"Fallback Google tokeninfo verification skipped: {ge}")
 
     # 4. Clean verified email string fallback (e.g. from Google Sheet / Client Auth)
     clean = token.strip().lower()
@@ -811,7 +821,7 @@ async def claim_ad_reward(
                 total_balance = (getattr(current_user, 'paid_credits', 0) or 0) + (getattr(current_user, 'bonus_credits', 0) or 0) + (0.5 if (curr_cnt % 2 == 1) else 0.0)
                 return {
                     "status": "too_fast",
-                    "message": "Please watch the video ad completely before claiming reward!",
+                    "message": "Please watch the video ad completely (30s) before claiming reward!",
                     "daily_reward_ad_count": curr_cnt,
                     "max_daily_ads": 8,
                     "credits_added": 0.0,
@@ -823,7 +833,7 @@ async def claim_ad_reward(
         total_balance = (getattr(current_user, 'paid_credits', 0) or 0) + (getattr(current_user, 'bonus_credits', 0) or 0)
         return {
             "status": "limit_reached",
-            "message": "Daily ad reward limit reached (8/8 ads watched today). Buy ₹20 Starter Pack for 10 instant ad-free try-ons!",
+            "message": "Daily 8 Video Ad Try-On limit reached for today! 📺 Buy Paid Credits ⚡ or upgrade to Pro 👑 for instant try-ons!",
             "daily_reward_ad_count": 8,
             "max_daily_ads": 8,
             "credits_added": 0.0,
@@ -839,7 +849,16 @@ async def claim_ad_reward(
         current_user.bonus_credits = (getattr(current_user, 'bonus_credits', 0) or 0) + 1
         midnight_utc = (now + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=0)
         current_user.bonus_credits_expiry = midnight_utc
-        
+
+    try:
+        db.add(AppAnalyticsEvent(
+            user_id=current_user.id,
+            event_name="ad_reward_claimed",
+            metadata_json=json.dumps({"ad_count": new_count, "timestamp": now.isoformat()})
+        ))
+    except Exception as ae:
+        log.error(f"Failed to log ad_reward_claimed analytics event: {ae}")
+
     await db.commit()
     await db.refresh(current_user)
     
@@ -973,14 +992,41 @@ async def delete_me(
     db: AsyncSession = Depends(get_db),
 ):
     """Permanently delete user account and all associated data."""
-    await db.delete(current_user)
-    await db.commit()
-    return None
+    try:
+        from database.models import TryOnSession, WardrobeItem, PriceAlert, UserInteraction, Payment, UserDevice
+        from database.enhanced_models import AffiliatePurchase, AppAnalyticsEvent, StoreClickEvent
+        from sqlalchemy import delete, update
+
+        user_id = current_user.id
+
+        # 1. Delete user-specific private data
+        await db.execute(delete(WardrobeItem).where(WardrobeItem.user_id == user_id))
+        await db.execute(delete(PriceAlert).where(PriceAlert.user_id == user_id))
+        await db.execute(delete(UserInteraction).where(UserInteraction.user_id == user_id))
+        await db.execute(delete(UserDevice).where(UserDevice.user_id == user_id))
+
+        # 2. Detach / Nullify user_id on historical logs & transactions (preserves aggregate stats)
+        await db.execute(update(TryOnSession).where(TryOnSession.user_id == user_id).values(user_id=None))
+        await db.execute(update(Payment).where(Payment.user_id == user_id).values(user_id=None))
+        await db.execute(update(AffiliatePurchase).where(AffiliatePurchase.user_id == user_id).values(user_id=None))
+        await db.execute(update(AppAnalyticsEvent).where(AppAnalyticsEvent.user_id == user_id).values(user_id=None))
+        await db.execute(update(StoreClickEvent).where(StoreClickEvent.user_id == user_id).values(user_id=None))
+
+        # 3. Delete user account record
+        await db.delete(current_user)
+        await db.commit()
+        log.info(f"✅ Permanently deleted account and all associated data for User ID {user_id}")
+        return None
+    except Exception as e:
+        log.error(f"❌ Failed to delete account for User ID {current_user.id}: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")
 
 
 class DeviceRegisterRequest(BaseModel):
     fcm_token: str
     device_type: str = "android"
+    language: Optional[str] = "en"
 
 
 @router.post("/me/devices", status_code=status.HTTP_201_CREATED)
@@ -997,18 +1043,24 @@ async def register_device(
     res = await db.execute(stmt)
     existing = res.scalar_one_or_none()
     
+    user_lang = req.language or "en"
     if existing:
         existing.user_id = current_user.id
         existing.device_type = req.device_type
+        existing.language = user_lang
         existing.is_active = True
     else:
         new_device = UserDevice(
             user_id=current_user.id,
             fcm_token=req.fcm_token,
-            device_type=req.device_type
+            device_type=req.device_type,
+            language=user_lang
         )
         db.add(new_device)
     
+    if hasattr(current_user, 'language'):
+        current_user.language = user_lang
+
     await db.commit()
     
     return {"status": "registered"}

@@ -36,6 +36,20 @@ class DigitalWardrobeTryOnRequest(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────
 
+import os
+
+def format_wardrobe_image_url(image_path: str) -> str:
+    if not image_path:
+        return ""
+    if image_path.startswith("http://") or image_path.startswith("https://") or image_path.startswith("/"):
+        return image_path
+    if settings.output_dir in image_path:
+        return f"/outputs/{os.path.basename(image_path)}"
+    if settings.upload_dir in image_path:
+        return f"/uploads/{os.path.basename(image_path)}"
+    return f"/uploads/{image_path}"
+
+
 @router.post("/wardrobe", response_model=WardrobeItemResponse)
 async def add_to_wardrobe(
     image: Optional[UploadFile] = File(None),
@@ -62,8 +76,6 @@ async def add_to_wardrobe(
     # ── Upload & Validate ─────────────────────────────────
     if image_url:
         if image_url.startswith("/outputs/") or image_url.startswith("/uploads/"):
-            import os
-            from config import settings
             base_dir = settings.output_dir if image_url.startswith("/outputs/") else settings.upload_dir
             filename = image_url.split("/")[-1]
             local_path = os.path.join(base_dir, filename)
@@ -87,9 +99,15 @@ async def add_to_wardrobe(
     validate_image_size(img_bytes)
     path = save_upload(img_bytes, prefix="wardrobe")
 
+    # ── Garment Safety & NSFW Check ─────────────────────
+    from services.clip_service import check_garment_safety, check_nsfw
+    if await check_garment_safety(path) or await check_nsfw(path):
+        if os.path.exists(path):
+            os.remove(path)
+        raise HTTPException(400, "Inappropriate, nude, or NSFW content detected in wardrobe image. Upload rejected.")
+
     # ── Auto-Tagging via CLIP ─────────────────────────────
     tags = await get_clip_tags(path)
-    # Convert list/dict to JSON string for storage (simplified)
     import json
     
     item = WardrobeItem(
@@ -98,7 +116,7 @@ async def add_to_wardrobe(
         category=tags["style"][0] if tags["style"] else "unknown",
         style_tags=json.dumps(tags["style"]),
         color_tags=json.dumps(tags["color"]),
-        clip_embedding_id=None, # To be updated below
+        clip_embedding_id=None,
     )
     
     db.add(item)
@@ -119,7 +137,7 @@ async def add_to_wardrobe(
 
     return WardrobeItemResponse(
         id=item.id,
-        image_url=item.image_path.replace(settings.upload_dir + "/", "/uploads/"),
+        image_url=format_wardrobe_image_url(item.image_path),
         created_at=item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else "",
         category=item.category,
         style_tags=tags["style"],
@@ -142,7 +160,7 @@ async def list_wardrobe(
     return [
         WardrobeItemResponse(
             id=i.id,
-            image_url=i.image_path.replace(settings.upload_dir + "/", "/uploads/"),
+            image_url=format_wardrobe_image_url(i.image_path),
             created_at=i.created_at.isoformat() if hasattr(i, 'created_at') and i.created_at else "",
             category=i.category,
             style_tags=json.loads(i.style_tags or "[]"),

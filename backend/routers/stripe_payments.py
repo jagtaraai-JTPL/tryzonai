@@ -123,9 +123,12 @@ async def process_successful_payment(session):
                 log.info(f"User {user_id} upgraded to {plan_name} via Stripe")
             elif plan_name in CREDIT_PACKS:
                 credits_to_add = CREDIT_PACKS[plan_name]
+                if (user.paid_credits or 0) == 0 and plan_name == "Pocket":
+                    credits_to_add += 10  # 15 + 10 = 25 for first-time buyers
                 user.credits += credits_to_add
+                user.paid_credits = (user.paid_credits or 0) + credits_to_add
                 user.subscription_tier = plan_name
-                log.info(f"Added {credits_to_add} credits to User {user_id} via Stripe")
+                log.info(f"Added {credits_to_add} paid credits to User {user_id} via Stripe")
             
             # Save Stripe payment record if needed (using Payment model)
             payment = Payment(

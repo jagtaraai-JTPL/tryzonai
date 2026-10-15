@@ -52,15 +52,16 @@ async def price_compare(
     # Only use cache if it's the SAME region (simple logic: India vs others)
     # If the user is global but the cache only has IN prices, we re-scrape
     if cached and region == "IN" and (cached.amazon_price or cached.myntra_price or cached.flipkart_price):
+        from services.affiliate_engine import generate_affiliate_url
         log.debug(f"Price cache hit (IN) for: {q}")
         return {
             "query": q,
             "region": region,
             "source": "cache",
             "results": [
-                {"platform": "Amazon", "price": cached.amazon_price, "url": cached.amazon_url},
-                {"platform": "Myntra", "price": cached.myntra_price, "url": cached.myntra_url},
-                {"platform": "Flipkart", "price": cached.flipkart_price, "url": cached.flipkart_url},
+                {"platform": "Amazon", "price": cached.amazon_price, "url": generate_affiliate_url(cached.amazon_url, "amazon", region)},
+                {"platform": "Myntra", "price": cached.myntra_price, "url": generate_affiliate_url(cached.myntra_url, "myntra", region)},
+                {"platform": "Flipkart", "price": cached.flipkart_price, "url": generate_affiliate_url(cached.flipkart_url, "flipkart", region)},
             ],
             "best_price": min(
                 p for p in [cached.amazon_price, cached.myntra_price, cached.flipkart_price]

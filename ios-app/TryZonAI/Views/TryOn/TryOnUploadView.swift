@@ -38,6 +38,7 @@ public struct TryOnUploadView: View {
     @State private var selectedPersonItem: PhotosPickerItem? = nil
     @State private var selectedGarmentItem: PhotosPickerItem? = nil
     @State private var selectedOutfitUrl: String = ""
+    @State private var selectedProductId: String? = nil
 
     @State private var showingCameraForPerson = false
     @State private var showingCameraForGarment = false
@@ -73,12 +74,12 @@ public struct TryOnUploadView: View {
     ]
 
     private let sampleModels = [
-        ("Female Model", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp"),
-        ("Male Model", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp"),
-        ("Asian Model", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_formal_ceo_black_suit_1778055862174.webp")
+        ("Female Model", "https://tryzonai.com/hero/swiss_base.png"),
+        ("Male Model", "https://tryzonai.com/hero/monaco_base.png"),
+        ("Asian Model", "https://tryzonai.com/hero/korea_base.png")
     ]
 
-    private let samplePersonModelUrl = "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp"
+    private let samplePersonModelUrl = "https://tryzonai.com/hero/swiss_base.png"
 
     public init(
         apiClient: APIClient,
@@ -187,6 +188,8 @@ public struct TryOnUploadView: View {
         .fullScreenCover(isPresented: $showingCameraForGarment) {
             CameraCaptureView(initialMode: .garment) { img in
                 viewModel.selectedGarmentImage = img
+                selectedProductId = nil
+                selectedOutfitUrl = ""
             }
         }
         .confirmationDialog("Select Photo Source", isPresented: $showPersonOptionDialog, titleVisibility: .visible) {
@@ -303,7 +306,11 @@ public struct TryOnUploadView: View {
                             iconName: "tshirt.fill",
                             image: viewModel.selectedGarmentImage,
                             hint: "Upload Outfit",
-                            onClear: { viewModel.selectedGarmentImage = nil },
+                            onClear: {
+                                viewModel.selectedGarmentImage = nil
+                                selectedProductId = nil
+                                selectedOutfitUrl = ""
+                            },
                             pickerItem: $selectedGarmentItem,
                             onCamera: { showingCameraForGarment = true },
                             onCardTap: { showGarmentOptionDialog = true }
@@ -312,7 +319,11 @@ public struct TryOnUploadView: View {
                             Task {
                                 if let data = try? await newItem?.loadTransferable(type: Data.self),
                                    let img = UIImage(data: data) {
-                                    viewModel.selectedGarmentImage = img
+                                    DispatchQueue.main.async {
+                                        viewModel.selectedGarmentImage = img
+                                        selectedProductId = nil
+                                        selectedOutfitUrl = ""
+                                    }
                                 }
                             }
                         }
@@ -720,7 +731,11 @@ public struct TryOnUploadView: View {
     }
 
     private func loadGarmentFromCatalogItem(_ item: CatalogItem) {
-        let urlStr = item.image_url.hasPrefix("http") ? item.image_url : "https://tryzonai.com\(item.image_url.hasPrefix("/") ? "" : "/")\(item.image_url)"
+        selectedProductId = item.id
+        var urlStr = item.image_url.hasPrefix("http") ? item.image_url : "https://tryzonai.com\(item.image_url.hasPrefix("/") ? "" : "/")\(item.image_url)"
+        if urlStr.contains("amazon.com") || urlStr.contains("media-amazon.com") {
+            urlStr = urlStr.replacingOccurrences(of: #"\._[A-Za-z0-9_,]+_\."#, with: ".", options: .regularExpression)
+        }
         selectedOutfitUrl = urlStr
         Task {
             if let img = await downloadSampleImage(from: urlStr) {
@@ -766,7 +781,7 @@ public struct TryOnUploadView: View {
                 return
             }
 
-            await self.viewModel.startTryOn { sessionId in
+            await self.viewModel.startTryOn(productId: selectedProductId) { sessionId in
                 self.navPath = [.processing(sessionId)]
             }
         }
@@ -795,7 +810,11 @@ public struct TryOnUploadView: View {
     }
 
     private func downloadSampleImage(from urlStr: String) async -> UIImage? {
-        guard let url = URL(string: urlStr) else { return nil }
+        var cleanUrlStr = urlStr
+        if cleanUrlStr.contains("amazon.com") || cleanUrlStr.contains("media-amazon.com") {
+            cleanUrlStr = cleanUrlStr.replacingOccurrences(of: #"\._[A-Za-z0-9_,]+_\."#, with: ".", options: .regularExpression)
+        }
+        guard let url = URL(string: cleanUrlStr) else { return nil }
         var request = URLRequest(url: url)
         request.setValue("TryZonAI/1.0 (iOS; AppStore)", forHTTPHeaderField: "User-Agent")
         guard let (data, response) = try? await URLSession.shared.data(for: request),

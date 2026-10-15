@@ -52,7 +52,7 @@
   },
   "107": {
     "inputs": {
-      "text": "Replace the clothes in Image 1 with the clothes from Image 2, while keeping the colors consistent.",
+      "text": "Transfer FASHION in Image 1 from Image 2,",
       "clip": [
         "205",
         0
