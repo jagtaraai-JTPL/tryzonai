@@ -135,12 +135,6 @@ public struct MainTabView: View {
                 LoginView(apiClient: apiClient, onNavigateToRegister: { activeSheet = .register })
             case .register:
                 RegisterView(apiClient: apiClient, onNavigateToLogin: { activeSheet = .login })
-            case .adminDashboard:
-                AdminDashboardView(apiClient: apiClient)
-            case .dailyReward:
-                DailyRewardView(apiClient: apiClient)
-            case .spinWheel:
-                SpinWheelView(apiClient: apiClient)
             case .share:
                 ActivityViewController(activityItems: ["Try out TryZon AI Virtual Outfit Fitting! 🤩 Download now: https://tryzonai.com"])
             case .premium:

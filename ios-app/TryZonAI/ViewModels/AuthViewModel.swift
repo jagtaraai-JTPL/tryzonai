@@ -11,7 +11,6 @@ public class AuthViewModel: ObservableObject {
 
     @Published public var showLoginRequiredModal: Bool = false
     @Published public var showChoicePopupModal: Bool = false
-    @Published public var showSpinWheelModal: Bool = false
 
     private let apiClient = APIClient.shared
 

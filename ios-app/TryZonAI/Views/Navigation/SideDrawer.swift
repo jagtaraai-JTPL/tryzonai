@@ -1,12 +1,10 @@
 import SwiftUI
+import StoreKit
 
 public enum SideDrawerSheet: String, Identifiable {
     case userProfile
     case login
     case register
-    case adminDashboard
-    case dailyReward
-    case spinWheel
     case share
     case premium
     case subscriptionManagement
@@ -149,45 +147,9 @@ public struct SideDrawer: View {
                             .overlay(RoundedRectangle(cornerRadius: 16).stroke(TryZonTheme.primaryGold.opacity(0.2), lineWidth: 1))
                         }
 
-                        // ── FOUNDER & ADMIN PORTAL CARD (IF FOUNDER tryzonai@gmail.com) ──
-                        if isFounderUser {
-                            Button(action: {
-                                selectSheet(.adminDashboard)
-                            }) {
-                                HStack(spacing: 10) {
-                                    Text("👑")
-                                        .font(.system(size: 18))
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Founder & Admin Portal 👑")
-                                            .font(.system(size: 13, weight: .black))
-                                            .foregroundColor(TryZonTheme.primaryGold)
-                                        Text("Real-Time KPIs, Live GPUs & User CRM")
-                                            .font(.system(size: 10.5))
-                                            .foregroundColor(.white.opacity(0.7))
-                                    }
-                                    Spacer()
-                                    Image(systemName: "arrow.right")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(TryZonTheme.primaryGold)
-                                }
-                                .padding(12)
-                                .background(TryZonTheme.primaryGold.opacity(0.18))
-                                .cornerRadius(16)
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(TryZonTheme.primaryGold, lineWidth: 1.2))
-                            }
-                        }
-
-                        // ── SECTION 0: REWARDS & FREE CREDITS 🎁 ──
-                        sidebarSection(title: "REWARDS & FREE CREDITS 🎁") {
-                            sidebarItem(icon: "gift.fill", title: "Daily Ad Rewards 🎁", subtitle: "Watch 8 Ads • Earn +4.0⚡ Tries FREE", badge: "+0.5⚡/ad") {
-                                selectSheet(.dailyReward)
-                            }
-
-                            sidebarItem(icon: "sparkles", title: "Daily Spin & Win Wheel 🎡", subtitle: "Earn Free Try-On Credits", badge: "FREE CREDITS") {
-                                selectSheet(.spinWheel)
-                            }
-
-                            sidebarItem(icon: "square.and.arrow.up.fill", title: "Refer & Share App 🎁", subtitle: "Invite Friends & Earn Credits", badge: "+2 CREDITS") {
+                        // ── SECTION 0: COMMUNITY & SHARING ──
+                        sidebarSection(title: "COMMUNITY & SHARING") {
+                            sidebarItem(icon: "square.and.arrow.up.fill", title: "Refer & Share App", subtitle: "Share TryZon AI with Friends", badge: "SHARE") {
                                 selectSheet(.share)
                             }
                         }
@@ -237,12 +199,10 @@ public struct SideDrawer: View {
                                 showToast("⚡ Instant Daily AI Style Triggered!")
                             }
 
-                            sidebarItem(icon: "star.fill", title: "Rate 5★ on App Store ⭐", subtitle: "Support TryZon AI with a quick review", badge: "5★") {
+                            sidebarItem(icon: "star.fill", title: "Rate TryZon AI ⭐", subtitle: "Leave feedback on the App Store", badge: "REVIEW") {
                                 closeDrawer()
-                                UIPasteboard.general.string = "Mind-blowing AI try-on app! The outfit fitting and photo realism are unbelievable. 5/5 stars! 🔥✨"
-                                showToast("📋 5-Star Review copied! Opening App Store...")
-                                if let url = URL(string: "https://apps.apple.com") {
-                                    UIApplication.shared.open(url)
+                                if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+                                    SKStoreReviewController.requestReview(in: scene)
                                 }
                             }
                         }
@@ -265,20 +225,37 @@ public struct SideDrawer: View {
                         }
 
                         // ── FOOTER ──
-                        VStack(spacing: 6) {
-                            Text("TryZon AI v1.0.0 (Build 137)")
-                               .font(.system(size: 10, weight: .medium))
+                        VStack(spacing: 8) {
+                            Text("TryZon AI v1.0.0")
+                                .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(.white.opacity(0.4))
 
-                            Button(action: {
-                                if let url = URL(string: "https://tryzonai.com/privacy-policy") {
-                                    UIApplication.shared.open(url)
+                            HStack(spacing: 16) {
+                                Button(action: {
+                                    if let url = URL(string: "https://tryzonai.com/privacy-policy") {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }) {
+                                    Text("Privacy Policy")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.8))
+                                        .underline()
                                 }
-                            }) {
-                                Text("Privacy Policy & Terms")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(TryZonTheme.primaryGold.opacity(0.8))
-                                    .underline()
+
+                                Text("•")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.white.opacity(0.4))
+
+                                Button(action: {
+                                    if let url = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }) {
+                                    Text("Terms of Use (EULA)")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.8))
+                                        .underline()
+                                }
                             }
                         }
                         .frame(maxWidth: .infinity)

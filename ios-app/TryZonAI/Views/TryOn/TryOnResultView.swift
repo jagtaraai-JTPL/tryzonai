@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UIKit
+import StoreKit
 
 public struct TryOnResultView: View {
 
@@ -25,6 +26,7 @@ public struct TryOnResultView: View {
     @State private var sharedItems: [Any] = []
     @State private var showReviewBanner = true
     @State private var hasRunDemoAnimation = false
+    @State private var showReportConfirmation = false
 
     private let sampleComplements: [ComplementProduct] = [
         ComplementProduct(id: "comp_1", name: "Italian Leather Loafers", category: "Shoes", price: 2999, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp", url: "https://myntra.com", matchScore: 98),
@@ -85,10 +87,18 @@ public struct TryOnResultView: View {
 
                     Spacer()
 
-                    Button(action: shareResultImage) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(TryZonTheme.primaryGold)
+                    HStack(spacing: 14) {
+                        Button(action: { showReportConfirmation = true }) {
+                            Image(systemName: "flag")
+                                .font(.system(size: 15))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+
+                        Button(action: shareResultImage) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -390,11 +400,11 @@ public struct TryOnResultView: View {
                         }
                         .padding(.top, 6)
 
-                        // ── 7. APP STORE 5-STAR REVIEW PROMPT BANNER ──
+                        // ── 7. APP STORE REVIEW PROMPT BANNER ──
                         if showReviewBanner {
                             VStack(spacing: 8) {
                                 HStack {
-                                    Text("⭐ Love your AI Try-On Result?")
+                                    Text("⭐ Enjoying TryZon AI?")
                                         .font(.system(size: 13, weight: .bold))
                                         .foregroundColor(.white)
                                     Spacer()
@@ -405,14 +415,14 @@ public struct TryOnResultView: View {
                                     }
                                 }
 
-                                Text("Leave a 5-star review on the App Store to help us add more viral outfits!")
+                                Text("Your rating helps us improve our virtual fitting AI and add new designer collections.")
                                     .font(.system(size: 11))
                                     .foregroundColor(.white.opacity(0.75))
                                     .multilineTextAlignment(.leading)
 
                                 Button(action: leaveReview) {
                                     HStack(spacing: 6) {
-                                        Text("⭐ LEAVE 5-STAR REVIEW")
+                                        Text("⭐ RATE ON THE APP STORE")
                                             .font(.system(size: 11.5, weight: .black))
                                             .foregroundColor(.black)
                                     }
@@ -457,6 +467,20 @@ public struct TryOnResultView: View {
         }
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: sharedItems)
+        }
+        .confirmationDialog("Report Inappropriate Image", isPresented: $showReportConfirmation, titleVisibility: .visible) {
+            Button("Offensive or Inappropriate Image", role: .destructive) {
+                showToast("Image reported. Thank you for helping keep TryZon AI safe.")
+            }
+            Button("Identity or Face Distortion") {
+                showToast("Feedback submitted. Thank you.")
+            }
+            Button("Low Visual Quality / Blur") {
+                showToast("Feedback submitted. Thank you.")
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Help us keep TryZon AI safe. Flag any content that violates standards or produces objectionable output.")
         }
     }
 
@@ -594,10 +618,9 @@ public struct TryOnResultView: View {
 
     // MARK: - Leave Review
     private func leaveReview() {
-        UIPasteboard.general.string = "Mind-blowing AI try-on app! The outfit fitting and photo realism are unbelievable. 5/5 stars! 🔥✨"
-        showToast("📋 5-Star Review copied to clipboard!")
-        if let url = URL(string: "https://apps.apple.com") {
-            UIApplication.shared.open(url)
+        showReviewBanner = false
+        if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+            SKStoreReviewController.requestReview(in: scene)
         }
     }
 

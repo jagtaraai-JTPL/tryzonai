@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - HomeScreen — Exact Android Native Replica (Clean Proportional Hero & Cards)
+// MARK: - HomeScreen — High-Fashion Virtual Fitting Studio
 public struct HomeScreen: View {
     @ObservedObject var apiClient: APIClient
     let onNavigateToTryOn: (CatalogItem?) -> Void
@@ -9,7 +9,6 @@ public struct HomeScreen: View {
     @State private var trendingProducts: [CatalogItem] = []
     @State private var heroIndex: Int = 0
     @State private var isLoadingProducts = false
-    @State private var showSpinWheel = false
     @State private var showShareAndEarn = false
 
     private let heroOutfits: [(String, String, String)] = [
@@ -47,15 +46,10 @@ public struct HomeScreen: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 14)
 
-                // ── 3. GAMIFICATION ROW (Streak + Refer) ──
-                gamificationRow
+                // ── 3. STUDIO ACTION CARD ──
+                studioActionCard
                     .padding(.horizontal, 16)
                     .padding(.top, 14)
-
-                // ── 4. SPIN THE WHEEL BANNER ──
-                spinWheelBanner
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
 
                 // ── 5. FASHION QUOTE OF THE DAY ──
                 dailyFashionQuote
@@ -78,9 +72,6 @@ public struct HomeScreen: View {
         .onAppear {
             loadTrending()
             startTimers()
-        }
-        .sheet(isPresented: $showSpinWheel) {
-            SpinWheelView(apiClient: apiClient)
         }
         .sheet(isPresented: $showShareAndEarn) {
             ShareAndEarnView(apiClient: apiClient)
@@ -235,106 +226,40 @@ public struct HomeScreen: View {
     }
 
     // ─────────────────────────────────────
-    // MARK: 3. GAMIFICATION ROW
     // ─────────────────────────────────────
-    private var gamificationRow: some View {
-        HStack(spacing: 10) {
-            // Streak Widget
-            streakWidget
-
-            // Refer & Earn Banner
-            referAndEarnBanner
-        }
-    }
-
-    private var streakWidget: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Text("🔥")
-                    .font(.system(size: 14))
-                Text("STREAK")
-                    .font(.system(size: 8.5, weight: .black))
-                    .foregroundColor(TryZonTheme.primaryGold)
-                    .tracking(1)
-            }
-            Text("1 Day")
-                .font(.system(size: 16, weight: .black))
-                .foregroundColor(.white)
-            Text("Keep trying daily!")
-                .font(.system(size: 9))
-                .foregroundColor(.white.opacity(0.5))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(TryZonTheme.surfaceVariant)
-        .cornerRadius(16)
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(TryZonTheme.primaryGold.opacity(0.25), lineWidth: 1))
-    }
-
-    private var referAndEarnBanner: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("🎁 REFER & EARN")
-                .font(.system(size: 8.5, weight: .black))
-                .foregroundColor(TryZonTheme.primaryGold)
-                .tracking(1)
-            Text("Get 2 Free Credits")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Button("Share →") {
-                showShareAndEarn = true
-            }
-                .font(.system(size: 9.5, weight: .bold))
-                .foregroundColor(.black)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(TryZonTheme.primaryGold)
-                .cornerRadius(100)
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(TryZonTheme.primaryGold.opacity(0.08))
-        .cornerRadius(16)
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1))
-    }
-
+    // MARK: 3. STUDIO ACTION CARD
     // ─────────────────────────────────────
-    // MARK: 4. SPIN WHEEL BANNER
-    // ─────────────────────────────────────
-    private var spinWheelBanner: some View {
-        Button(action: { showSpinWheel = true }) {
-            HStack(spacing: 10) {
-                Text("🎡")
-                    .font(.system(size: 24))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("SPIN THE WHEEL")
-                        .font(.system(size: 10.5, weight: .black))
-                        .foregroundColor(TryZonTheme.primaryGold)
-                        .tracking(1)
-                    Text("Win Free Credits & Exclusive Try-Ons!")
-                        .font(.system(size: 10.5))
-                        .foregroundColor(.white.opacity(0.8))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+    private var studioActionCard: some View {
+        Button(action: { onNavigateToTryOn(nil) }) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(TryZonTheme.primaryGold)
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 19))
+                        .foregroundColor(.black)
                 }
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.right")
-                    .foregroundColor(.white.opacity(0.4))
-                    .font(.system(size: 11, weight: .bold))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("START VIRTUAL TRY-ON ⚡")
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                        .foregroundColor(TryZonTheme.primaryGold)
+                    Text("Upload your photo & drape outfits in seconds")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(TryZonTheme.primaryGold)
             }
-            .padding(12)
-            .background(
-                LinearGradient(
-                    colors: [TryZonTheme.primaryGold.opacity(0.12), Color.purple.opacity(0.08)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .cornerRadius(16)
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1))
+            .padding(14)
+            .background(TryZonTheme.surfaceVariant)
+            .cornerRadius(18)
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1))
         }
         .buttonStyle(BounceButtonStyle())
     }

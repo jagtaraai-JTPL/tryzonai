@@ -51,7 +51,6 @@ public struct TryOnUploadView: View {
     @State private var showChoicePopupModal = false
     @State private var showPremiumModal = false
     @State private var showLoginSheet = false
-    @State private var showDailyRewardModal = false
     @State private var showDemoTooltip = false
     @State private var demoStep = 0
 
@@ -177,9 +176,6 @@ public struct TryOnUploadView: View {
         .sheet(isPresented: $showLoginSheet) {
             LoginView(apiClient: apiClient, onNavigateToRegister: {})
         }
-        .sheet(isPresented: $showDailyRewardModal) {
-            DailyRewardView(apiClient: apiClient)
-        }
         .sheet(isPresented: $showCatalogPickerSheet) {
             CatalogPickerSheet(apiClient: apiClient, onSelectGarment: { selectedItem in
                 loadGarmentFromCatalogItem(selectedItem)
@@ -249,14 +245,14 @@ public struct TryOnUploadView: View {
                             .overlay(Text("💡").font(.system(size: 15)))
                     }
 
-                    // Daily Reward Icon Button (🎁)
+                    // VIP Pro Icon Button (👑)
                     Button(action: {
-                        showDailyRewardModal = true
+                        showPremiumModal = true
                     }) {
                         Circle()
                             .fill(TryZonTheme.primaryGold)
                             .frame(width: 34, height: 34)
-                            .overlay(Text("🎁").font(.system(size: 16)))
+                            .overlay(Text("👑").font(.system(size: 16)))
                     }
                 }
                 .padding(.horizontal, 16)
@@ -501,15 +497,16 @@ public struct TryOnUploadView: View {
 
                 // ── 5. AI SAFETY POLICY FOOTER NOTE ──
                 HStack(spacing: 6) {
-                    Image(systemName: "shield.fill")
+                    Image(systemName: "lock.shield.fill")
                         .font(.system(size: 11))
-                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.7))
+                        .foregroundColor(TryZonTheme.primaryGold)
 
-                    Text("AI Safety Policy: Standard apparel required. Nudity restricted.")
+                    Text("AI Safety & Privacy: Photos processed securely for virtual fitting. Nudity or objectionable content is strictly restricted.")
                         .font(.system(size: 10.5, weight: .medium))
-                        .foregroundColor(.white.opacity(0.65))
+                        .foregroundColor(.white.opacity(0.75))
                 }
-                .padding(.top, 2)
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
 
                 // ── 6. PRO FITTING TIPS & AI QUALITY CARD ──
                 VStack(alignment: .leading, spacing: 6) {

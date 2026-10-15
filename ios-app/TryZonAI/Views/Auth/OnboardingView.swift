@@ -36,8 +36,12 @@ public struct OnboardingView: View {
         case 2: return "Unlock My Free Daily Pass →"
         default:
             switch selectedPlanIndex {
-            case 1: return "Unlock 15 Credits (₹39) ⚡"
-            case 2: return "Upgrade to VIP Pro (₹379/mo) 👑"
+            case 1:
+                let price = StoreKitManager.shared.priceString(for: "credits_pocket", fallbackINR: "₹39.00", fallbackUSD: "$0.49")
+                return "Unlock 15 Credits (\(price)) ⚡"
+            case 2:
+                let price = StoreKitManager.shared.priceString(for: "sub_monthly_pro", fallbackINR: "₹379.00", fallbackUSD: "$4.99")
+                return "Upgrade to VIP Pro (\(price)/mo) 👑"
             default: return "Claim Free Pass & Try First Outfit 🚀"
             }
         }
@@ -46,12 +50,12 @@ public struct OnboardingView: View {
     private var footnoteText: String {
         switch currentPage {
         case 0: return "🔒 100% Private · Preserves your face & identity"
-        case 1: return "✨ Tailoring 8K neural engine to your fashion preferences"
-        case 2: return "⚡ Takes less than 5 seconds · Powered by ComfyUI GPU cluster"
+        case 1: return "✨ Tailoring neural engine to your fashion preferences"
+        case 2: return "⚡ Takes less than 5 seconds · Powered by TryZon AI Neural Engine"
         default:
             switch selectedPlanIndex {
             case 1: return "⚡ 15 Paid Credits added instantly · 100% Ad-Free Pass"
-            case 2: return "👑 VIP Turbo Speed Queue · Unlimited 8K AI Fitting"
+            case 2: return "👑 VIP Turbo Speed Queue · Unlimited High-Resolution AI Fitting"
             default: return "🎁 Zero credit card required · Instant free fitting access"
             }
         }
@@ -544,12 +548,18 @@ struct FunnelStep3_Simplicity: View {
 struct FunnelStep4_LossAversion: View {
     @Binding var selectedPlanIndex: Int
 
-    private let plans: [(Int, String, String, String, String, String)] = [
-        // (index, badge, title, subtitle, price, color)
-        (0, "🎁 FREE", "Free Daily Pass", "1 try-on/day + Welcome 2 Bonus Credits", "₹0 / Always Free", "white"),
-        (1, "⚡ POPULAR", "Pocket Credit Pack", "15 Credits = 15 Instant HD Try-Ons (100% Ad-Free)", "₹39 One-Time", "gold"),
-        (2, "👑 VIP", "Pro Unlimited", "Unlimited AI Try-Ons • Zero Ads • VIP GPU Queue", "₹379/month", "purple"),
-    ]
+    @ObservedObject private var storeKit = StoreKitManager.shared
+
+    private var plans: [(Int, String, String, String, String, String)] {
+        let pocketPrice = storeKit.priceString(for: "credits_pocket", fallbackINR: "₹39.00", fallbackUSD: "$0.49")
+        let proPrice = storeKit.priceString(for: "sub_monthly_pro", fallbackINR: "₹379.00", fallbackUSD: "$4.99")
+        return [
+            // (index, badge, title, subtitle, price, color)
+            (0, "🎁 FREE", "Free Daily Pass", "1 try-on/day + Welcome 2 Bonus Credits", "Free", "white"),
+            (1, "⚡ POPULAR", "Pocket Credit Pack", "15 Credits = 15 Instant HD Try-Ons (100% Ad-Free)", "\(pocketPrice) One-Time", "gold"),
+            (2, "👑 VIP", "Pro Unlimited", "Unlimited AI Try-Ons • Zero Ads • VIP GPU Queue", "\(proPrice)/month", "purple"),
+        ]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {

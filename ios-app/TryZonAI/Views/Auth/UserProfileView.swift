@@ -2,7 +2,6 @@ import SwiftUI
 
 public enum UserProfileSheet: String, Identifiable {
     case premium
-    case dailyReward
 
     public var id: String { rawValue }
 }
@@ -177,17 +176,14 @@ public struct UserProfileView: View {
                             .tracking(1)
 
                         VStack(spacing: 0) {
-                            Button(action: { activeSheet = .dailyReward }) {
+                            Button(action: { showLogoutConfirm = true }) {
                                 HStack {
-                                    Image(systemName: "gift.fill")
-                                        .foregroundColor(TryZonTheme.primaryGold)
-                                    Text("Daily Ad Rewards 🎁")
+                                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                                        .foregroundColor(TryZonTheme.textColor(for: colorScheme))
+                                    Text("Logout Account")
                                         .font(.system(size: 14, weight: .bold))
                                         .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                                     Spacer()
-                                    Text("+4.0⚡ Free")
-                                        .font(.system(size: 11, weight: .black))
-                                        .foregroundColor(TryZonTheme.primaryGold)
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 12, weight: .bold))
                                         .foregroundColor(.gray)
@@ -197,16 +193,41 @@ public struct UserProfileView: View {
 
                             Divider().padding(.horizontal, 14)
 
-                            Button(action: { showLogoutConfirm = true }) {
+                            Button(action: {
+                                if let url = URL(string: "https://tryzonai.com/privacy-policy") {
+                                    UIApplication.shared.open(url)
+                                }
+                            }) {
                                 HStack {
-                                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                                        .foregroundColor(.red)
-                                    Text("Logout Account")
+                                    Image(systemName: "hand.raised.fill")
+                                        .foregroundColor(TryZonTheme.primaryGold)
+                                    Text("Privacy Policy")
                                         .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.red)
+                                        .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                                     Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 12, weight: .bold))
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(14)
+                            }
+
+                            Divider().padding(.horizontal, 14)
+
+                            Button(action: {
+                                if let url = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
+                                    UIApplication.shared.open(url)
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "doc.text.fill")
+                                        .foregroundColor(TryZonTheme.primaryGold)
+                                    Text("Terms of Use (EULA)")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(TryZonTheme.textColor(for: colorScheme))
+                                    Spacer()
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.system(size: 11, weight: .bold))
                                         .foregroundColor(.gray)
                                 }
                                 .padding(14)
@@ -249,8 +270,6 @@ public struct UserProfileView: View {
                 switch item {
                 case .premium:
                     PremiumView(apiClient: apiClient)
-                case .dailyReward:
-                    DailyRewardView(apiClient: apiClient)
                 }
             }
             .confirmationDialog("Logout", isPresented: $showLogoutConfirm, titleVisibility: .visible) {

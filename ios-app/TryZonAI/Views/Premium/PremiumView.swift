@@ -184,12 +184,41 @@ public struct PremiumView: View {
                         }
                         .padding(.top, 2)
 
-                        Text("One-time purchases do not expire. Subscriptions auto-renew until cancelled in App Store settings.")
+                        Text("One-time purchases do not expire. Subscriptions auto-renew until cancelled in App Store account settings.")
                             .font(.system(size: 9.5))
                             .foregroundColor(.white.opacity(0.4))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
                             .padding(.top, 2)
+
+                        HStack(spacing: 16) {
+                            Button(action: {
+                                if let url = URL(string: "https://tryzonai.com/privacy-policy") {
+                                    UIApplication.shared.open(url)
+                                }
+                            }) {
+                                Text("Privacy Policy")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+                                    .underline()
+                            }
+
+                            Text("•")
+                                .font(.system(size: 10))
+                                .foregroundColor(.white.opacity(0.4))
+
+                            Button(action: {
+                                if let url = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
+                                    UIApplication.shared.open(url)
+                                }
+                            }) {
+                                Text("Terms of Use (EULA)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+                                    .underline()
+                            }
+                        }
+                        .padding(.top, 2)
                     }
                     .padding(.bottom, 16)
                 }

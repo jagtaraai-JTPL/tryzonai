@@ -65,7 +65,7 @@ public struct ChoicePopup: View {
     @Binding var isPresented: Bool
     @ObservedObject var apiClient: APIClient
     let onUseCredit: () -> Void
-    let onWatchAd: () -> Void
+    var onWatchAd: (() -> Void)? = nil
     let onNavigateToPremium: () -> Void
 
     public var body: some View {
@@ -75,17 +75,24 @@ public struct ChoicePopup: View {
             VStack(spacing: 18) {
                 // Title
                 VStack(spacing: 4) {
-                    Text("⚡ CHOOSE GENERATION MODE")
+                    Text("⚡ TRYZON AI CREDITS")
                         .font(.system(size: 18, weight: .black, design: .rounded))
                         .foregroundColor(TryZonTheme.primaryGold)
 
-                    Text("Daily free try used (0/1 Free) • \(apiClient.paidCredits + apiClient.bonusCredits) credits remaining")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.7))
+                    let totalCredits = apiClient.paidCredits + apiClient.bonusCredits
+                    if totalCredits > 0 {
+                        Text("\(totalCredits) Try-On Credit\(totalCredits > 1 ? "s" : "") available")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.8))
+                    } else {
+                        Text("Daily free try used (0/1 Free) • Refill to continue")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
                 }
 
                 VStack(spacing: 12) {
-                    // Option 1: Use Paid / Bonus Credit (Fast Pass Zero Ads)
+                    // Option 1: Use Paid / Bonus Credit (Fast Pass)
                     if (apiClient.paidCredits + apiClient.bonusCredits) > 0 {
                         Button(action: {
                             isPresented = false
@@ -96,7 +103,7 @@ public struct ChoicePopup: View {
                                     Text("⚡ Use 1 Credit (\(apiClient.paidCredits) Paid / \(apiClient.bonusCredits) Bonus)")
                                         .font(.system(size: 15, weight: .bold))
                                         .foregroundColor(.black)
-                                    Text("100% Zero Ads • Instant Fast Pass")
+                                    Text("Instant High-Speed AI Fitting")
                                         .font(.system(size: 11))
                                         .foregroundColor(.black.opacity(0.7))
                                 }
@@ -111,35 +118,7 @@ public struct ChoicePopup: View {
                         }
                     }
 
-                    // Option 2: Watch Video Ad
-                    Button(action: {
-                        isPresented = false
-                        onWatchAd()
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("📺 Watch Short Video Ad")
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(.white)
-                                Text("Keep your credits safe (0 deduct)")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.white.opacity(0.7))
-                            }
-                            Spacer()
-                            Image(systemName: "play.rectangle.fill")
-                                .font(.title3)
-                                .foregroundColor(TryZonTheme.primaryGold)
-                        }
-                        .padding(14)
-                        .background(TryZonTheme.surfaceVariant)
-                        .cornerRadius(14)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1)
-                        )
-                    }
-
-                    // Option 3: Buy Pocket Pack (25 Credits)
+                    // Option 2: Buy Pocket Pack (25 Credits)
                     Button(action: {
                         isPresented = false
                         onNavigateToPremium()
@@ -168,6 +147,34 @@ public struct ChoicePopup: View {
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
                                 .stroke(TryZonTheme.primaryGold, lineWidth: 1.5)
+                        )
+                    }
+
+                    // Option 3: Upgrade to Pro Unlimited
+                    Button(action: {
+                        isPresented = false
+                        onNavigateToPremium()
+                    }) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("👑 Upgrade to VIP Pro")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.white)
+                                Text("Unlimited Try-Ons • VIP Turbo Queue")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                            Spacer()
+                            Image(systemName: "crown.fill")
+                                .font(.title3)
+                                .foregroundColor(TryZonTheme.primaryGold)
+                        }
+                        .padding(14)
+                        .background(TryZonTheme.surfaceVariant)
+                        .cornerRadius(14)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
                         )
                     }
                 }
