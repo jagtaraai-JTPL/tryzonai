@@ -53,10 +53,10 @@ public struct SubscriptionManagementView: View {
                             .tracking(1)
 
                         VStack(spacing: 12) {
-                            benefitRow(icon: "infinity", title: "Unlimited Try-Ons", desc: "No daily limit, no credit deductions")
-                            benefitRow(icon: "nosign", title: "100% Zero Ads Forever", desc: "No video ads on try-ons, exports or app launch")
-                            benefitRow(icon: "bolt.fill", title: "VIP Fast Pass GPU Queue", desc: "Instant high-speed AI rendering in seconds")
-                            benefitRow(icon: "sparkles", title: "Daily AI Style Auto-Fitting", desc: "Automated daily outfit suggestions in background")
+                            benefitRow(icon: "infinity", title: "Unlimited Virtual Fittings", desc: "No daily limit, no credit deductions")
+                            benefitRow(icon: "sparkles", title: "VIP High-Resolution HD Output", desc: "Export pristine 2K Ultra HD try-on photos with zero watermark")
+                            benefitRow(icon: "bolt.fill", title: "Priority VIP Turbo GPU Queue", desc: "Instant high-speed AI rendering in seconds")
+                            benefitRow(icon: "wand.and.stars", title: "Daily AI Style Auto-Fitting", desc: "Automated daily outfit suggestions in background")
                         }
                     }
                     .padding(18)

@@ -386,16 +386,23 @@ public struct TryOnResultView: View {
 
                         // ── 6. MULTI-STORE SHOPPING PILLS ──
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("🛍️ SHOP THIS LOOK ON OFFICIAL STORES")
-                                .font(.system(size: 10, weight: .black))
-                                .foregroundColor(TryZonTheme.primaryGold)
-                                .tracking(1.2)
+                            HStack {
+                                Text("🛍️ SHOP SIMILAR LOOKS ON PARTNER STORES")
+                                    .font(.system(size: 10, weight: .black))
+                                    .foregroundColor(TryZonTheme.primaryGold)
+                                    .tracking(1.2)
+                                Spacer()
+                                Text("Verified Merchant Links")
+                                    .font(.system(size: 9.5, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
 
-                            HStack(spacing: 8) {
-                                storeButton(name: "Myntra 🛍️", urlStr: "https://myntra.com", color: Color.pink)
-                                storeButton(name: "Ajio 🏬", urlStr: "https://ajio.com", color: Color.yellow)
-                                storeButton(name: "Flipkart ⚡", urlStr: "https://flipkart.com", color: Color.blue)
-                                storeButton(name: "Amazon 📦", urlStr: "https://amazon.in", color: Color.orange)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(localizedStores, id: \.name) { store in
+                                        storeButton(name: store.name, urlStr: store.urlStr, color: store.color)
+                                    }
+                                }
                             }
                         }
                         .padding(.top, 6)
@@ -470,17 +477,17 @@ public struct TryOnResultView: View {
         }
         .confirmationDialog("Report Inappropriate Image", isPresented: $showReportConfirmation, titleVisibility: .visible) {
             Button("Offensive or Inappropriate Image", role: .destructive) {
-                showToast("Image reported. Thank you for helping keep TryZon AI safe.")
+                reportImage(reason: "offensive")
             }
             Button("Identity or Face Distortion") {
-                showToast("Feedback submitted. Thank you.")
+                reportImage(reason: "inappropriate_ai")
             }
             Button("Low Visual Quality / Blur") {
-                showToast("Feedback submitted. Thank you.")
+                reportImage(reason: "other")
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Help us keep TryZon AI safe. Flag any content that violates standards or produces objectionable output.")
+            Text("Help us keep TryZon AI safe. Flag any content that violates community standards or produces objectionable output.")
         }
     }
 
@@ -571,6 +578,64 @@ public struct TryOnResultView: View {
         }
     }
 
+    // MARK: - Geo-Localized Store Recommendations (Matching Android Country Logic)
+    private var detectedCountryCode: String {
+        Locale.current.region?.identifier.uppercased() ?? "US"
+    }
+
+    private var localizedStores: [(name: String, urlStr: String, color: Color)] {
+        switch detectedCountryCode {
+        case "IN":
+            return [
+                ("Myntra 🛍️", "https://www.myntra.com?subid=tryzonai", Color.pink),
+                ("Ajio ✨", "https://www.ajio.com?subid=tryzonai", Color.yellow),
+                ("Flipkart 📦", "https://www.flipkart.com?affid=tryzonai", Color.blue),
+                ("Amazon IN 🛒", "https://www.amazon.in/s?k=fashion&tag=tryzonai08-21", Color.orange)
+            ]
+        case "US", "UM":
+            return [
+                ("Amazon US 🛒", "https://www.amazon.com/fashion?tag=tryzonai-us-20", Color.orange),
+                ("Target 🎯", "https://www.target.com/c/clothing/-/N-5xtc0", Color.red),
+                ("Macy's 🏬", "https://www.macys.com", Color.red.opacity(0.8)),
+                ("ASOS US 👗", "https://www.asos.com/us/", Color.cyan)
+            ]
+        case "GB", "UK":
+            return [
+                ("Amazon UK 🛒", "https://www.amazon.co.uk/fashion?tag=tryzonai-uk-21", Color.orange),
+                ("ASOS UK 🛍️", "https://www.asos.com", Color.cyan),
+                ("Boohoo 👗", "https://www.boohoo.com", Color.pink),
+                ("Zalando UK ✨", "https://www.zalando.co.uk", Color.orange)
+            ]
+        default:
+            return [
+                ("Amazon 🛒", "https://www.amazon.com/fashion?tag=tryzonai-us-20", Color.orange),
+                ("ASOS 🛍️", "https://www.asos.com", Color.cyan),
+                ("Zara 👔", "https://www.zara.com", Color.gray),
+                ("SHEIN 💎", "https://www.shein.com", Color.purple)
+            ]
+        }
+    }
+
+    // MARK: - In-App Image Reporting (Apple Guideline 1.2 Compliance)
+    private func reportImage(reason: String) {
+        showToast("Reporting content to safety team...")
+        Task {
+            let success = (try? await APIClient.shared.submitContentReport(
+                imageUrl: displayUrl,
+                reason: reason,
+                details: "Flagged from TryZon AI iOS Result View"
+            )) ?? false
+            await MainActor.run {
+                if success {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    showToast("✅ Image reported. Our moderation team has flagged this item.")
+                } else {
+                    showToast("Feedback submitted. Thank you for keeping TryZon safe.")
+                }
+            }
+        }
+    }
+
     // MARK: - Download HD Image
     private func downloadHDImage() {
         guard let url = URL(string: displayUrl) else {
@@ -578,6 +643,7 @@ public struct TryOnResultView: View {
             return
         }
         isDownloading = true
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         Task {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
@@ -585,6 +651,7 @@ public struct TryOnResultView: View {
                     UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
                     await MainActor.run {
                         self.isDownloading = false
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                         self.showToast("📸 HD Photo Saved to Camera Roll!")
                     }
                 }
@@ -600,6 +667,7 @@ public struct TryOnResultView: View {
     // MARK: - Share Image
     private func shareResultImage() {
         guard let url = URL(string: displayUrl) else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         Task {
             if let (data, _) = try? await URLSession.shared.data(from: url),
                let image = UIImage(data: data) {

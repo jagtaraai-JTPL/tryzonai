@@ -468,7 +468,7 @@ struct FunnelStep3_Simplicity: View {
                 Text("3 Simple Steps")
                     .font(.system(size: 28, weight: .black, design: .rounded))
                     .foregroundColor(.white)
-                Text("Powered by ComfyUI GPU Cluster")
+                Text("Powered by Neural Fashion Vision Engine")
                     .font(.system(size: 12))
                     .foregroundColor(.white.opacity(0.5))
             }

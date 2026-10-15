@@ -76,16 +76,6 @@ public struct UserProfileView: View {
                                     .background(currentUser?.isPremium == true ? TryZonTheme.primaryGold : Color.gray.opacity(0.2))
                                     .foregroundColor(currentUser?.isPremium == true ? .black : TryZonTheme.textColor(for: colorScheme))
                                     .clipShape(Capsule())
-
-                                if currentUser?.isAdmin == true {
-                                    Text("FOUNDER / ADMIN 🛡️")
-                                        .font(.system(size: 10, weight: .black))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 4)
-                                        .background(Color.purple)
-                                        .foregroundColor(.white)
-                                        .clipShape(Capsule())
-                                }
                             }
                             .padding(.top, 4)
                         }

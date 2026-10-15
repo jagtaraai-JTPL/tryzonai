@@ -172,6 +172,28 @@ public class APIClient: ObservableObject {
         fetchUserProfile()
     }
 
+    // MARK: - In-App AI Content Reporting (Apple Guideline 1.2 Compliance)
+    public func submitContentReport(imageUrl: String, reason: String, details: String? = nil) async throws -> Bool {
+        let endpoint = baseURL.appendingPathComponent("report")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        for (k, v) in makeHeaders() {
+            request.setValue(v, forHTTPHeaderField: k)
+        }
+        let body: [String: Any] = [
+            "content_type": "tryon_result",
+            "image_url": imageUrl,
+            "reason": reason,
+            "details": details ?? "Reported via iOS App"
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await session.data(for: request)
+        if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
+            return true
+        }
+        return false
+    }
+
     // MARK: - Auth API
     public func loginWithGoogle(idToken: String) async throws -> AuthResponse {
         let cleanInput = idToken.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -16,10 +16,42 @@ public struct PurchaseHistoryView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var sampleTransactions: [PurchaseTransaction] = [
-        PurchaseTransaction(id: "TXN-90214", title: "Welcome First Buyer Offer ⚡", credits: 25, amount: "₹39", date: "Today, 11:20 AM", status: "SUCCESS", isPro: false),
-        PurchaseTransaction(id: "TXN-88102", title: "1 Daily Free Quota Try ✦", credits: 1, amount: "FREE", date: "Yesterday, 09:15 PM", status: "COMPLETED", isPro: false),
-        PurchaseTransaction(id: "TXN-84310", title: "Daily Ad Rewards Bonus 🎁", credits: 4, amount: "FREE", date: "Sep 18, 2026", status: "COMPLETED", isPro: false),
-        PurchaseTransaction(id: "TXN-79104", title: "Pro Subscription Trial 👑", credits: 999, amount: "₹379", date: "Sep 01, 2026", status: "ACTIVE", isPro: true)
+        PurchaseTransaction(
+            id: "TXN-90214",
+            title: "Welcome Pocket Pack ⚡",
+            credits: 25,
+            amount: StoreKitManager.shared.priceString(for: "credits_pocket", fallbackINR: "₹39", fallbackUSD: "$0.49"),
+            date: "Today, 11:20 AM",
+            status: "SUCCESS",
+            isPro: false
+        ),
+        PurchaseTransaction(
+            id: "TXN-88102",
+            title: "Daily Free Quota Try ✦",
+            credits: 1,
+            amount: "FREE",
+            date: "Yesterday, 09:15 PM",
+            status: "COMPLETED",
+            isPro: false
+        ),
+        PurchaseTransaction(
+            id: "TXN-84310",
+            title: "Starter Style Pack 👕",
+            credits: 50,
+            amount: StoreKitManager.shared.priceString(for: "credits_starter", fallbackINR: "₹99", fallbackUSD: "$1.29"),
+            date: "Sep 18, 2026",
+            status: "COMPLETED",
+            isPro: false
+        ),
+        PurchaseTransaction(
+            id: "TXN-79104",
+            title: "VIP Pro Monthly Membership 👑",
+            credits: 999,
+            amount: StoreKitManager.shared.priceString(for: "sub_monthly_pro", fallbackINR: "₹379", fallbackUSD: "$4.99"),
+            date: "Sep 01, 2026",
+            status: "ACTIVE",
+            isPro: true
+        )
     ]
 
     public init(apiClient: APIClient) {
@@ -60,7 +92,7 @@ public struct PurchaseHistoryView: View {
 
                 // Transactions List
                 List {
-                    Section(header: Text("RECENT TRANSACTIONS & REWARDS").font(.system(size: 10, weight: .black)).foregroundColor(TryZonTheme.primaryGold)) {
+                    Section(header: Text("RECENT TRANSACTIONS & ORDERS").font(.system(size: 10, weight: .black)).foregroundColor(TryZonTheme.primaryGold)) {
                         ForEach(sampleTransactions) { txn in
                             HStack(spacing: 12) {
                                 Circle()

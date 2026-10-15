@@ -8,10 +8,9 @@ public struct ShareAndEarnView: View {
 
     @State private var isCopied: Bool = false
     @State private var showShareSheet: Bool = false
-    @State private var hasClaimedReward: Bool = false
 
-    private let referralLink = "https://tryzonai.com?ref=TRYZON_VIP"
-    private let shareMessage = "Try any outfit virtually on TryZon AI! Download & get 2 FREE credits: https://tryzonai.com"
+    private let shareLink = "https://tryzonai.com"
+    private let shareMessage = "Try on any outfit virtually with TryZon AI Virtual Fitting Room! 🤩 Download now: https://tryzonai.com"
 
     public init(apiClient: APIClient) {
         self.apiClient = apiClient
@@ -40,18 +39,19 @@ public struct ShareAndEarnView: View {
                         .fill(TryZonTheme.primaryGold.opacity(0.15))
                         .frame(width: 84, height: 84)
 
-                    Text("🎁")
-                        .font(.system(size: 48))
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 42))
+                        .foregroundColor(TryZonTheme.primaryGold)
                 }
 
                 // Title & Description
                 VStack(spacing: 8) {
-                    Text("REFER & EARN")
+                    Text("INVITE FRIENDS & SHARE")
                         .font(.system(size: 24, weight: .black, design: .rounded))
                         .foregroundColor(TryZonTheme.primaryGold)
                         .tracking(1)
 
-                    Text("Invite your friends to TryZon AI and get 2 FREE Try-On credits for every install!")
+                    Text("Share TryZon AI Virtual Fitting Studio with your friends and family to help them style outfits effortlessly.")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
                         .multilineTextAlignment(.center)
@@ -60,14 +60,14 @@ public struct ShareAndEarnView: View {
 
                 // Referral Link Copy Box
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("YOUR EXCLUSIVE REFERRAL LINK")
+                    Text("APP LINK")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(TryZonTheme.primaryGold)
                         .tracking(1)
 
                     HStack {
-                        Text(referralLink)
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        Text(shareLink)
+                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
                             .foregroundColor(TryZonTheme.textColor(for: colorScheme))
                             .lineLimit(1)
 
@@ -116,7 +116,7 @@ public struct ShareAndEarnView: View {
                     Button(action: triggerShareSheet) {
                         HStack(spacing: 8) {
                             Image(systemName: "square.and.arrow.up.fill")
-                            Text("More Share Options")
+                            Text("Share via Messages / AirDrop")
                                 .font(.system(size: 15, weight: .bold))
                         }
                         .foregroundColor(.black)
@@ -130,13 +130,6 @@ public struct ShareAndEarnView: View {
                 }
                 .padding(.horizontal, 24)
 
-                if hasClaimedReward {
-                    Text("🎉 +2 Bonus Credits added to your balance!")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.green)
-                        .transition(.opacity)
-                }
-
                 Spacer(minLength: 20)
             }
             .padding(.top, 16)
@@ -147,20 +140,11 @@ public struct ShareAndEarnView: View {
     }
 
     private func copyLink() {
-        UIPasteboard.general.string = referralLink
+        UIPasteboard.general.string = shareLink
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-
         withAnimation {
             isCopied = true
         }
-
-        if !hasClaimedReward {
-            hasClaimedReward = true
-            Task {
-                try? await apiClient.claimRewardCredit(amount: 2)
-            }
-        }
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             withAnimation {
                 isCopied = false
@@ -169,31 +153,19 @@ public struct ShareAndEarnView: View {
     }
 
     private func shareToWhatsApp() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let encodedMessage = shareMessage.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         if let whatsappURL = URL(string: "whatsapp://send?text=\(encodedMessage)"),
            UIApplication.shared.canOpenURL(whatsappURL) {
             UIApplication.shared.open(whatsappURL)
         } else {
             triggerShareSheet()
-            return
-        }
-
-        if !hasClaimedReward {
-            hasClaimedReward = true
-            Task {
-                try? await apiClient.claimRewardCredit(amount: 2)
-            }
         }
     }
 
     private func triggerShareSheet() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         showShareSheet = true
-        if !hasClaimedReward {
-            hasClaimedReward = true
-            Task {
-                try? await apiClient.claimRewardCredit(amount: 2)
-            }
-        }
     }
 }
 

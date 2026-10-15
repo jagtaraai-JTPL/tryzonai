@@ -27,7 +27,7 @@
     <key>UIRequiresFullScreen</key>
     <true/>
     <key>NSCameraUsageDescription</key>
-    <string>TryZon AI requires camera access to capture your body photo for instant virtual outfit fitting.</string>
+    <string>TryZon AI requires camera access to capture your body photo with live alignment guidelines for virtual outfit fitting.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>TryZon AI requires photo library access to select outfit garments and model pictures for try-on.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>

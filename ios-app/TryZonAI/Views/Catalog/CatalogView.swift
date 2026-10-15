@@ -27,19 +27,77 @@ public struct CatalogView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // ── 1. SINGLE COMPACT FILTER & CATEGORY BAR ──
+            // ── 1. SEARCH BAR ──
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 15))
+                    .foregroundColor(TryZonTheme.primaryGold)
+
+                TextField("Search suits, dresses, brands, styles...", text: $searchText)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .onChange(of: searchText) { _ in
+                        loadCatalogData()
+                    }
+
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                        loadCatalogData()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 15))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(TryZonTheme.surfaceVariant)
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+
+            // ── 2. SINGLE COMPACT FILTER & CATEGORY BAR ──
             filterBar
                 .padding(.vertical, 8)
                 .background(TryZonTheme.darkBackground)
 
-            // ── 2. CATALOG GRID CONTENT ──
+            // ── 3. CATALOG GRID CONTENT ──
             if isLoading && items.isEmpty {
                 shimmerLoadingGrid
+            } else if !searchText.isEmpty && items.isEmpty {
+                // Empty Search State
+                VStack(spacing: 14) {
+                    Spacer(minLength: 60)
+                    Image(systemName: "tshirt")
+                        .font(.system(size: 48))
+                        .foregroundColor(TryZonTheme.primaryGold.opacity(0.6))
+                    Text("No Outfits Found")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                    Text("No results matching \"\(searchText)\". Try another style or category.")
+                        .font(.system(size: 12.5))
+                        .foregroundColor(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                    Button("Clear Search") {
+                        searchText = ""
+                        loadCatalogData()
+                    }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(TryZonTheme.primaryGold)
+                    .padding(.top, 6)
+                    Spacer()
+                }
             } else {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 16) {
                         // ── FEATURED #1 VIRAL HERO BANNER (Android Replica) ──
-                        if selectedCategory == "All AI Outfits" && !displayedItems.isEmpty {
+                        if selectedCategory == "All AI Outfits" && searchText.isEmpty && !displayedItems.isEmpty {
                             featuredHeroBanner(displayedItems.first!)
                         }
 
@@ -66,6 +124,9 @@ public struct CatalogView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
+                }
+                .refreshable {
+                    loadCatalogData()
                 }
             }
         }

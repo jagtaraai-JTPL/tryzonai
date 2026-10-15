@@ -156,27 +156,55 @@ public struct ProductDetailView: View {
                     .buttonStyle(BounceButtonStyle())
 
                     Button(action: {
-                        let targetStoreUrl = (item.store_url != nil && !item.store_url!.isEmpty) ? item.store_url! : "https://myntra.com"
-                        if let url = URL(string: targetStoreUrl) {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        if let url = URL(string: defaultStoreURL) {
                             UIApplication.shared.open(url)
                         }
                     }) {
                         HStack(spacing: 6) {
                             Image(systemName: "bag.fill")
-                            Text("Buy on Myntra / Ajio Store")
-                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(TryZonTheme.primaryGold)
+                            Text(partnerStoreTitle)
+                                .font(.system(size: 12.5, weight: .bold))
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(TryZonTheme.primaryGold)
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 11)
                         .background(TryZonTheme.surfaceVariant)
                         .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(TryZonTheme.primaryGold.opacity(0.3), lineWidth: 1))
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(TryZonTheme.darkSurface)
             }
+        }
+    }
+
+    private var isIndiaUser: Bool {
+        let region = Locale.current.region?.identifier.uppercased() ?? "US"
+        return region == "IN"
+    }
+
+    private var partnerStoreTitle: String {
+        if let store = item.store, !store.isEmpty, store != "TryZon AI" {
+            return "Shop on \(store)"
+        }
+        return isIndiaUser ? "Shop on Myntra / Ajio / Amazon" : "Shop on Official Partner Stores"
+    }
+
+    private var defaultStoreURL: String {
+        if let url = item.store_url, !url.isEmpty {
+            return url
+        }
+        if isIndiaUser {
+            return "https://www.myntra.com?subid=tryzonai"
+        } else {
+            return "https://www.amazon.com/fashion?tag=tryzonai-us-20"
         }
     }
 

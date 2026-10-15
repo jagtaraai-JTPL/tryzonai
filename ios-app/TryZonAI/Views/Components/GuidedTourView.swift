@@ -6,10 +6,10 @@ public struct GuidedTourView: View {
     @State private var tourStep = 0
 
     private let steps: [(icon: String, title: String, subtitle: String, desc: String)] = [
-        ("photo.on.rectangle.angled", "1. Pick an Outfit or Garment", "Explore AI Catalog or Upload Your Own Photo", "Browse thousands of high-fashion catalog outfits or upload any clothing item screenshot from Myntra, Ajio, Amazon, Zara or Shein."),
-        ("person.crop.rectangle.stack", "2. Choose Model or Body Photo", "Select High-Definition Base Photo", "Select from studio model presets or upload your own body photo. TryZon AI seamlessly warps and drapes the outfit onto your body with realistic lighting."),
-        ("sparkles", "3. 1-Tap AI Virtual Fitting", "Instant High-Speed Rendering", "Tap 'TRY ON THIS OUTFIT' to process via our VIP ComfyUI GPU cluster. Get ultra-realistic 4K results in seconds with zero effort!"),
-        ("gift.fill", "4. Daily Rewards & 2 Free Credits", "Earn Free Credits Every Day", "Enjoy 1 Free Try every day. Spin the Daily Wheel, watch short video ads, or refer friends to earn extra try-on credits forever!")
+        ("photo.on.rectangle.angled", "1. Curated Designer Catalog", "Explore Outfits or Upload Any Photo", "Browse trending designer pieces across formal, western, and ethnic categories, or simply upload any garment photo from your favorite fashion store."),
+        ("person.crop.rectangle.stack", "2. Smart Silhouette Camera", "Precision Alignment & Body Guidance", "Use our built-in AI Camera with live pose silhouettes to snap the perfect photo, or choose a studio model preset."),
+        ("sparkles", "3. Neural Virtual Fitting", "Photorealistic Draping & Lighting", "Our advanced neural fashion engine drapes garments naturally over your body contours with photorealistic cloth texture and real shadows."),
+        ("slider.horizontal.2.square", "4. Compare & Shop Verified Stores", "Interactive Slider & Stylist Accessories", "Swipe the side-by-side comparison slider to inspect the fit, discover matching accessories, and shop verified partner stores with 1 tap.")
     ]
 
     public var body: some View {

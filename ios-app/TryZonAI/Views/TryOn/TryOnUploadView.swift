@@ -160,9 +160,6 @@ public struct TryOnUploadView: View {
                             authViewModel.deductTryOnCredit()
                             startSubmissionTask()
                         },
-                        onWatchAd: {
-                            startSubmissionTask()
-                        },
                         onNavigateToPremium: {
                             showPremiumModal = true
                         }
@@ -182,13 +179,13 @@ public struct TryOnUploadView: View {
                 showCatalogPickerSheet = false
             })
         }
-        .sheet(isPresented: $showingCameraForPerson) {
-            CameraImagePicker(sourceType: .camera) { img in
+        .fullScreenCover(isPresented: $showingCameraForPerson) {
+            CameraCaptureView(initialMode: .person) { img in
                 viewModel.selectedPersonImage = img
             }
         }
-        .sheet(isPresented: $showingCameraForGarment) {
-            CameraImagePicker(sourceType: .camera) { img in
+        .fullScreenCover(isPresented: $showingCameraForGarment) {
+            CameraCaptureView(initialMode: .garment) { img in
                 viewModel.selectedGarmentImage = img
             }
         }

@@ -92,7 +92,7 @@ public struct PremiumView: View {
                                     id: "credits_pocket",
                                     name: "🎁 Pocket Special (25 Fits)",
                                     price: storeKit.priceString(for: "credits_pocket", fallbackINR: "₹39.00", fallbackUSD: "$0.49"),
-                                    subtitle: "15 + 10 BONUS Credits • 100% Zero Ads",
+                                    subtitle: "15 + 10 BONUS Credits • Ultra HD 2K Quality",
                                     tag: "BEST OFFER ⭐",
                                     isSelected: selectedPackId == "credits_pocket",
                                     onSelect: { selectedPackId = "credits_pocket" }
@@ -146,7 +146,7 @@ public struct PremiumView: View {
                                     id: "sub_monthly_pro",
                                     name: "Monthly Pro",
                                     price: storeKit.priceString(for: "sub_monthly_pro", fallbackINR: "₹299.00", fallbackUSD: "$3.99", suffix: " / mo"),
-                                    subtitle: "Unlimited AI Try-Ons • 100% Zero Ads • VIP Turbo Speed",
+                                    subtitle: "Unlimited AI Try-Ons • VIP Turbo Speed • 2K HD Quality",
                                     tag: "RECOMMENDED ⭐",
                                     isSelected: selectedPackId == "sub_monthly_pro",
                                     onSelect: { selectedPackId = "sub_monthly_pro" }

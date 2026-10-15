@@ -60,12 +60,11 @@ public struct LoginRequiredDialog: View {
     }
 }
 
-// MARK: - Smart Choice Popup (Ad / Fast Pass / Pocket Pack)
+// MARK: - Smart Choice Popup (Fast Pass / Pocket Pack / VIP Pro)
 public struct ChoicePopup: View {
     @Binding var isPresented: Bool
     @ObservedObject var apiClient: APIClient
     let onUseCredit: () -> Void
-    var onWatchAd: (() -> Void)? = nil
     let onNavigateToPremium: () -> Void
 
     public var body: some View {
