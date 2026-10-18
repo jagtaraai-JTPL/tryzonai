@@ -455,10 +455,23 @@ final class CameraManager: NSObject, ObservableObject, AVCapturePhotoCaptureDele
             session.addOutput(photoOutput)
         }
 
+        updateConnectionOrientation()
+
         session.commitConfiguration()
 
         DispatchQueue.global(qos: .userInitiated).async {
             self.session.startRunning()
+        }
+    }
+
+    private func updateConnectionOrientation() {
+        if let connection = photoOutput.connection(with: .video) {
+            if connection.isVideoOrientationSupported {
+                connection.videoOrientation = .portrait
+            }
+            if connection.isVideoMirroringSupported {
+                connection.isVideoMirrored = (currentPosition == .front)
+            }
         }
     }
 
@@ -480,6 +493,7 @@ final class CameraManager: NSObject, ObservableObject, AVCapturePhotoCaptureDele
            let input = try? AVCaptureDeviceInput(device: device) {
             if session.canAddInput(input) { session.addInput(input) }
         }
+        updateConnectionOrientation()
         session.commitConfiguration()
     }
 
@@ -513,6 +527,7 @@ final class CameraManager: NSObject, ObservableObject, AVCapturePhotoCaptureDele
     }
 
     func capturePhoto() {
+        updateConnectionOrientation()
         let settings = AVCapturePhotoSettings()
         if photoOutput.supportedFlashModes.contains(flashMode) {
             settings.flashMode = flashMode
@@ -522,15 +537,8 @@ final class CameraManager: NSObject, ObservableObject, AVCapturePhotoCaptureDele
 
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         guard let data = photo.fileDataRepresentation(), let img = UIImage(data: data) else { return }
-        // Fix mirror orientation for front camera
-        let finalImage: UIImage
-        if currentPosition == .front, let cg = img.cgImage {
-            finalImage = UIImage(cgImage: cg, scale: img.scale, orientation: .leftMirrored)
-        } else {
-            finalImage = img
-        }
         DispatchQueue.main.async {
-            self.capturedImage = finalImage
+            self.capturedImage = img
         }
     }
 }
@@ -545,10 +553,17 @@ struct CameraPreviewView: UIViewRepresentable {
         let view = PreviewUIView()
         view.videoPreviewLayer.session = session
         view.videoPreviewLayer.videoGravity = .resizeAspectFill
+        if let connection = view.videoPreviewLayer.connection, connection.isVideoOrientationSupported {
+            connection.videoOrientation = .portrait
+        }
         return view
     }
 
-    func updateUIView(_ uiView: PreviewUIView, context: Context) {}
+    func updateUIView(_ uiView: PreviewUIView, context: Context) {
+        if let connection = uiView.videoPreviewLayer.connection, connection.isVideoOrientationSupported {
+            connection.videoOrientation = .portrait
+        }
+    }
 
     class PreviewUIView: UIView {
         override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }

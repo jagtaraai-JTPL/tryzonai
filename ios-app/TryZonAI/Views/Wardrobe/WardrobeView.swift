@@ -554,6 +554,33 @@ public struct CompareOutfitsModal: View {
                             .accentColor(Color.green)
                         }
                     }
+                } else {
+                    VStack(spacing: 14) {
+                        Image(systemName: "square.split.2x1")
+                            .font(.system(size: 48))
+                            .foregroundColor(TryZonTheme.primaryGold.opacity(0.8))
+                            .padding(.top, 40)
+
+                        Text("Need At Least 2 Saved Outfits")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+
+                        Text("Save at least 2 looks to your Wardrobe from your Try-On results to compare them side-by-side.")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.6))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+
+                        Button(action: { isPresented = false }) {
+                            Text("Got It")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.black)
+                                .frame(width: 140, height: 44)
+                                .background(TryZonTheme.primaryGold)
+                                .cornerRadius(22)
+                        }
+                        .padding(.top, 10)
+                    }
                 }
 
                 Spacer()

@@ -237,7 +237,7 @@ public class APIClient: ObservableObject {
         return authRes
     }
 
-    public func loginWithApple(email: String? = nil, name: String? = nil, identityToken: String? = nil) async throws -> AuthResponse {
+    public func loginWithApple(email: String? = nil, name: String? = nil, identityToken: String? = nil, appleUser: String? = nil) async throws -> AuthResponse {
         var cleanEmail = (email != nil && !email!.isEmpty) ? email! : ""
         let cleanName = (name != nil && !name!.isEmpty) ? name! : "Apple User"
 
@@ -259,8 +259,13 @@ public class APIClient: ObservableObject {
         }
         if let token = identityToken, !token.isEmpty {
             bodyObj["id_token"] = token
+        } else if let user = appleUser, !user.isEmpty {
+            bodyObj["id_token"] = user
         } else if !cleanEmail.isEmpty {
             bodyObj["id_token"] = cleanEmail
+        }
+        if let user = appleUser, !user.isEmpty {
+            bodyObj["apple_user"] = user
         }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyObj)

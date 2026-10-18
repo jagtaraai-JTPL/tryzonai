@@ -117,6 +117,7 @@ class AppleLoginRequest(BaseModel):
     idToken: Optional[str] = None
     email: Optional[str] = None
     name: Optional[str] = None
+    apple_user: Optional[str] = None
 
 
 
@@ -681,6 +682,9 @@ async def apple_login(req: AppleLoginRequest, request: Request, db: AsyncSession
                     name = payload.get("name")
             elif "@" not in token_str and len(token_str) >= 6:
                 apple_sub = token_str
+
+    if not apple_sub and req.apple_user:
+        apple_sub = req.apple_user
 
     if not email and jwt_email:
         email = jwt_email

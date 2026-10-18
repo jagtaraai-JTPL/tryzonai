@@ -309,10 +309,15 @@ public struct PremiumView: View {
 
     private func restorePurchases() {
         Task {
-            showToast("Checking App Store for existing purchases...")
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            DispatchQueue.main.async {
-                showToast("Purchases restored!")
+            showToast("Restoring purchases from App Store...")
+            await storeKit.restorePurchases()
+            await MainActor.run {
+                if let msg = storeKit.statusMessage {
+                    showToast(msg)
+                } else {
+                    showToast("Purchases restored!")
+                }
+                apiClient.fetchUserProfile()
             }
         }
     }

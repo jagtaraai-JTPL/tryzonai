@@ -320,9 +320,10 @@ public struct LoginView: View {
             isLoading = true
             var userEmail: String? = nil
             var userName: String? = nil
-            var identityTokenStr: String? = nil
+            var appleUserIdentifier: String? = nil
             if let appleIDCredential = auth.credential as? ASAuthorizationAppleIDCredential {
                 userEmail = appleIDCredential.email
+                appleUserIdentifier = appleIDCredential.user
                 if let tokenData = appleIDCredential.identityToken,
                    let tokenString = String(data: tokenData, encoding: .utf8), !tokenString.isEmpty {
                     identityTokenStr = tokenString
@@ -335,7 +336,7 @@ public struct LoginView: View {
             }
             Task {
                 do {
-                    _ = try await apiClient.loginWithApple(email: userEmail, name: userName, identityToken: identityTokenStr)
+                    _ = try await apiClient.loginWithApple(email: userEmail, name: userName, identityToken: identityTokenStr, appleUser: appleUserIdentifier)
                     await MainActor.run {
                         self.isLoading = false
                         dismiss()

@@ -388,6 +388,9 @@ public struct TryOnProcessingView: View {
             startAnimations()
             startPollingLoop()
         }
+        .onDisappear {
+            isPolling = false
+        }
     }
 
     private func startAnimations() {

@@ -13,6 +13,7 @@ public class AuthViewModel: ObservableObject {
     @Published public var showChoicePopupModal: Bool = false
 
     private let apiClient = APIClient.shared
+    private var cancellables = Set<AnyCancellable>()
 
     private init() {
         self.isLifetimeFirstTryOnDone = UserDefaults.standard.bool(forKey: "is_lifetime_first_tryon_done")
@@ -28,13 +29,22 @@ public class AuthViewModel: ObservableObject {
             self.dailyTryCount = UserDefaults.standard.integer(forKey: "daily_try_count")
         }
         
-        if apiClient.authToken != nil && apiClient.isRealUser {
-            self.isLoggedIn = true
-            self.currentUser = apiClient.currentUser
-        } else {
-            self.isLoggedIn = false
-            self.currentUser = nil
-        }
+        self.isLoggedIn = apiClient.isLoggedIn
+        self.currentUser = apiClient.currentUser
+
+        apiClient.$currentUser
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] user in
+                self?.currentUser = user
+            }
+            .store(in: &cancellables)
+
+        apiClient.$isLoggedIn
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] loggedIn in
+                self?.isLoggedIn = loggedIn
+            }
+            .store(in: &cancellables)
     }
 
     public static func todayDateString() -> String {

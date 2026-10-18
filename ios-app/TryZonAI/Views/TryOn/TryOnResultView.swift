@@ -6,6 +6,7 @@
 import SwiftUI
 import UIKit
 import StoreKit
+import Photos
 
 // MARK: - Result Display Mode Enum
 public enum ResultDisplayMode: String, CaseIterable {
@@ -565,32 +566,43 @@ public struct TryOnResultView: View {
         }
         isDownloading = true
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        Task {
-            do {
-                if let cached = ImageCacheManager.shared.image(for: url.absoluteString) {
-                    UIImageWriteToSavedPhotosAlbum(cached, nil, nil, nil)
-                    await MainActor.run {
-                        self.isDownloading = false
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        self.showToast("📸 HD Photo Saved to Camera Roll!")
-                    }
-                    return
-                }
 
-                let (data, _) = try await URLSession.shared.data(from: url)
-                if let image = UIImage(data: data) {
-                    ImageCacheManager.shared.cacheImage(image, for: url.absoluteString)
-                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { authStatus in
+            guard authStatus == .authorized || authStatus == .limited else {
+                DispatchQueue.main.async {
+                    self.isDownloading = false
+                    self.showToast("Please allow Photos permission in iOS Settings to save")
+                }
+                return
+            }
+
+            Task {
+                do {
+                    if let cached = ImageCacheManager.shared.image(for: url.absoluteString) {
+                        UIImageWriteToSavedPhotosAlbum(cached, nil, nil, nil)
+                        await MainActor.run {
+                            self.isDownloading = false
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            self.showToast("📸 HD Photo Saved to Camera Roll!")
+                        }
+                        return
+                    }
+
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    if let image = UIImage(data: data) {
+                        ImageCacheManager.shared.cacheImage(image, for: url.absoluteString)
+                        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                        await MainActor.run {
+                            self.isDownloading = false
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            self.showToast("📸 HD Photo Saved to Camera Roll!")
+                        }
+                    }
+                } catch {
                     await MainActor.run {
                         self.isDownloading = false
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        self.showToast("📸 HD Photo Saved to Camera Roll!")
+                        self.showToast("Download failed — please retry")
                     }
-                }
-            } catch {
-                await MainActor.run {
-                    self.isDownloading = false
-                    self.showToast("Download failed — please retry")
                 }
             }
         }
@@ -664,9 +676,8 @@ private struct ResultComparisonViewport: View {
                     case .result:
                         CachedAsyncImage(url: resultImageUrl) { img in
                             img.resizable()
-                                .aspectRatio(contentMode: .fill)
+                                .aspectRatio(contentMode: .fit)
                                 .frame(width: geo.size.width, height: geo.size.height)
-                                .clipped()
                         } placeholder: {
                             VStack(spacing: 12) {
                                 ProgressView().tint(TryZonTheme.primaryGold)
@@ -681,15 +692,13 @@ private struct ResultComparisonViewport: View {
                             if let origImg = originalImage {
                                 Image(uiImage: origImg)
                                     .resizable()
-                                    .aspectRatio(contentMode: .fill)
+                                    .aspectRatio(contentMode: .fit)
                                     .frame(width: geo.size.width, height: geo.size.height)
-                                    .clipped()
                             } else if let origUrl = originalPhotoUrl {
                                 CachedAsyncImage(url: origUrl) { img in
                                     img.resizable()
-                                        .aspectRatio(contentMode: .fill)
+                                        .aspectRatio(contentMode: .fit)
                                         .frame(width: geo.size.width, height: geo.size.height)
-                                        .clipped()
                                 } placeholder: {
                                     VStack(spacing: 6) {
                                         Image(systemName: "photo")
@@ -717,9 +726,8 @@ private struct ResultComparisonViewport: View {
                             // Base Layer: AI Result (Always Full Frame)
                             CachedAsyncImage(url: resultImageUrl) { img in
                                 img.resizable()
-                                    .aspectRatio(contentMode: .fill)
+                                    .aspectRatio(contentMode: .fit)
                                     .frame(width: geo.size.width, height: geo.size.height)
-                                    .clipped()
                             } placeholder: {
                                 TryZonTheme.darkSurface
                                     .overlay(ProgressView().tint(TryZonTheme.primaryGold))
@@ -732,15 +740,13 @@ private struct ResultComparisonViewport: View {
                                 if let origImg = originalImage {
                                     Image(uiImage: origImg)
                                         .resizable()
-                                        .aspectRatio(contentMode: .fill)
+                                        .aspectRatio(contentMode: .fit)
                                         .frame(width: geo.size.width, height: geo.size.height)
-                                        .clipped()
                                 } else if let origUrl = originalPhotoUrl {
                                     CachedAsyncImage(url: origUrl) { img in
                                         img.resizable()
-                                            .aspectRatio(contentMode: .fill)
+                                            .aspectRatio(contentMode: .fit)
                                             .frame(width: geo.size.width, height: geo.size.height)
-                                            .clipped()
                                     } placeholder: {
                                         Color.clear
                                     }
@@ -754,17 +760,19 @@ private struct ResultComparisonViewport: View {
                                     .position(x: (geo.size.width * sliderOffset) / 2, y: geo.size.height / 2)
                             )
 
-                            // Vertical Comparison Divider Line
-                            Rectangle()
-                                .fill(TryZonTheme.primaryGold)
-                                .frame(width: 3, height: geo.size.height)
-                                .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
-
-                            // Centered Compare Arrow Handle
+                            // Comparison Divider Line & Handle (60pt touch area for effortless dragging)
                             ZStack {
+                                Color.clear
+                                    .frame(width: 60, height: geo.size.height)
+                                    .contentShape(Rectangle())
+
+                                Rectangle()
+                                    .fill(TryZonTheme.primaryGold)
+                                    .frame(width: 3, height: geo.size.height)
+
                                 Circle()
                                     .fill(TryZonTheme.primaryGold)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 42, height: 42)
                                     .shadow(color: Color.black.opacity(0.6), radius: 6, x: 0, y: 2)
                                     .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
                                     .overlay(
@@ -804,7 +812,7 @@ private struct ResultComparisonViewport: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                         .contentShape(Rectangle())
                         .highPriorityGesture(
-                            DragGesture(minimumDistance: 1, coordinateSpace: .local)
+                            DragGesture(minimumDistance: 0, coordinateSpace: .local)
                                 .onChanged { val in
                                     let newRatio = val.location.x / geo.size.width
                                     sliderOffset = min(max(newRatio, 0.0), 1.0)
@@ -889,6 +897,7 @@ private struct ResultComparisonViewport: View {
             .clipped()
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { location in
+                guard displayMode != .compare else { return }
                 heartPosition = location
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
                     showHeartAnimation = true
@@ -994,15 +1003,20 @@ public struct FullscreenResultViewer: View {
                                     .position(x: (geo.size.width * sliderOffset) / 2, y: geo.size.height / 2)
                             )
 
-                            Rectangle()
-                                .fill(TryZonTheme.primaryGold)
-                                .frame(width: 3, height: geo.size.height)
-                                .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
-
+                            // Comparison Divider Line & Handle (60pt touch area for effortless dragging)
                             ZStack {
+                                Color.clear
+                                    .frame(width: 60, height: geo.size.height)
+                                    .contentShape(Rectangle())
+
+                                Rectangle()
+                                    .fill(TryZonTheme.primaryGold)
+                                    .frame(width: 3, height: geo.size.height)
+
                                 Circle()
                                     .fill(TryZonTheme.primaryGold)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 42, height: 42)
+                                    .shadow(color: Color.black.opacity(0.6), radius: 6, x: 0, y: 2)
                                     .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
                                     .overlay(
                                         Image(systemName: "arrow.left.and.right")
@@ -1015,7 +1029,7 @@ public struct FullscreenResultViewer: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                         .contentShape(Rectangle())
                         .highPriorityGesture(
-                            DragGesture(minimumDistance: 1, coordinateSpace: .local)
+                            DragGesture(minimumDistance: 0, coordinateSpace: .local)
                                 .onChanged { val in
                                     if scale <= 1.0 {
                                         let ratio = val.location.x / geo.size.width
@@ -1058,6 +1072,7 @@ public struct FullscreenResultViewer: View {
                         }
                 )
                 .onTapGesture(count: 2) {
+                    guard activeMode != .compare else { return }
                     withAnimation(.spring()) {
                         if scale > 1.0 {
                             scale = 1.0
