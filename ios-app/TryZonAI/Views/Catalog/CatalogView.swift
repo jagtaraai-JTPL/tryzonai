@@ -109,7 +109,7 @@ public struct CatalogView: View {
                         }
 
                         // Load More Button
-                        Button(action: loadCatalogData) {
+                        Button(action: { loadCatalogData() }) {
                             Text("LOAD MORE AI STYLES")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(TryZonTheme.primaryGold)
