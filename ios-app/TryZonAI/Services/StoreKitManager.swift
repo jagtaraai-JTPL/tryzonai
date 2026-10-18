@@ -116,6 +116,11 @@ public class StoreKitManager: ObservableObject {
                     let transaction = try Self.checkVerified(result)
                     await self.updatePurchasedProducts()
                     await transaction.finish()
+                    _ = try? await APIClient.shared.verifyApplePurchase(
+                        transactionId: String(transaction.id),
+                        productId: transaction.productID
+                    )
+                    APIClient.shared.fetchUserProfile()
                 } catch {
                     print("Transaction update unverified: \(error)")
                 }

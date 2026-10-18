@@ -27,8 +27,8 @@ public class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         center.removePendingNotificationRequests(withIdentifiers: ["tryzon_daily_reminder"])
 
         let content = UNMutableNotificationContent()
-        content.title = "🎁 3 Free AI Try-Ons Waiting For You!"
-        content.body = "Your daily free try-ons have reset! Tap to upload a photo & try on trending outfits now. 👗✨"
+        content.title = "🎁 Your Daily Free AI Try-On Is Ready!"
+        content.body = "Your daily free try-on has reset! Tap to upload a photo & try on trending outfits now. 👗✨"
         content.sound = .default
 
         // Trigger after 20 hours

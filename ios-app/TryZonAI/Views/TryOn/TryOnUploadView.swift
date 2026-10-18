@@ -885,7 +885,6 @@ public struct TryOnUploadView: View {
             return
         }
 
-        self.authViewModel.deductTryOnCredit()
         startSubmissionTask()
     }
 
@@ -910,6 +909,7 @@ public struct TryOnUploadView: View {
             }
 
             await self.viewModel.startTryOn(personImage: person, garmentImage: garment, productId: selectedProductId) { sessionId in
+                self.authViewModel.deductTryOnCredit()
                 self.isSubmitting = false
                 self.submissionStatusText = ""
                 self.navPath = [.processing(sessionId)]
@@ -919,8 +919,14 @@ public struct TryOnUploadView: View {
                 if let err = self.viewModel.errorMessage, !err.isEmpty {
                     self.isSubmitting = false
                     self.submissionStatusText = ""
-                    self.alertErrorMessage = err
-                    self.showErrorAlert = true
+                    if err.localizedCaseInsensitiveContains("login required") || err.contains("401") {
+                        self.showLoginRequiredModal = true
+                    } else if err.localizedCaseInsensitiveContains("limit") || err.localizedCaseInsensitiveContains("daily") || err.contains("402") || err.contains("429") {
+                        self.showChoicePopupModal = true
+                    } else {
+                        self.alertErrorMessage = err
+                        self.showErrorAlert = true
+                    }
                 }
             }
         }

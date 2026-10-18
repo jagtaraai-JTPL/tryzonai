@@ -6,12 +6,20 @@ struct TryZonAIApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if onboardingCompleted {
-                MainTabView()
-            } else {
-                OnboardingView(onFinish: {
-                    onboardingCompleted = true
-                })
+            Group {
+                if onboardingCompleted {
+                    MainTabView()
+                } else {
+                    OnboardingView(onFinish: {
+                        onboardingCompleted = true
+                    })
+                }
+            }
+            .onAppear {
+                NotificationManager.shared.requestAuthorization()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                NotificationManager.shared.checkClipboardForShoppingLink()
             }
         }
     }

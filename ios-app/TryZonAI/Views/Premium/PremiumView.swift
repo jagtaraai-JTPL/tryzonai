@@ -296,13 +296,12 @@ public struct PremiumView: View {
                     }
                 }
             } else {
-                // Fallback simulation for sandbox / direct test mode
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                // Product unavailable in StoreKit cache — trigger refresh
                 DispatchQueue.main.async {
                     self.isPurchasing = false
-                    self.showToast("✨ Selected plan \(self.selectedPackId) processed!")
-                    self.apiClient.fetchUserProfile()
+                    self.showToast("Product loading from App Store. Please try again in a moment...")
                 }
+                await StoreKitManager.shared.fetchProducts()
             }
         }
     }

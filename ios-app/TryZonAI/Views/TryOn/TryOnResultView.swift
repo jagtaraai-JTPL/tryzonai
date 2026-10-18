@@ -100,6 +100,16 @@ public struct TryOnResultView: View {
         }
     }
 
+    private var viewportDimensions: (width: CGFloat, height: CGFloat) {
+        let screenH = UIScreen.main.bounds.height
+        let screenW = UIScreen.main.bounds.width
+        let maxH: CGFloat = min(560, screenH * 0.60)
+        let idealW: CGFloat = maxH * (9.0 / 16.0)
+        let finalW = min(idealW, screenW - 32)
+        let finalH = finalW / (9.0 / 16.0)
+        return (finalW, finalH)
+    }
+
     public var body: some View {
         ZStack {
             TryZonTheme.darkBackground.ignoresSafeArea()
@@ -194,7 +204,7 @@ public struct TryOnResultView: View {
                             }
                         }
 
-                        // ── 3. ISOLATED HIGH-RES VIEWPORT (Zero Parent Re-evaluations on Slider Drag) ──
+                        let dims = viewportDimensions
                         ResultComparisonViewport(
                             resultImageUrl: resolvedDisplayUrl,
                             originalPhotoUrl: resolvedOrigUrl,
@@ -205,12 +215,12 @@ public struct TryOnResultView: View {
                                 showFullscreenViewer = true
                             }
                         )
-                        .aspectRatio(9.0 / 16.0, contentMode: .fit)
-                        .frame(maxHeight: 560)
+                        .frame(width: dims.width, height: dims.height)
                         .background(TryZonTheme.surfaceVariant)
                         .cornerRadius(24)
                         .clipped()
                         .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                        .frame(maxWidth: .infinity, alignment: .center)
 
                         // Caption below slider
                         Text(captionText)
@@ -755,9 +765,12 @@ private struct ResultComparisonViewport: View {
                             .frame(width: geo.size.width, height: geo.size.height)
                             .clipped()
                             .mask(
-                                Rectangle()
-                                    .frame(width: max(0, geo.size.width * sliderOffset), height: geo.size.height)
-                                    .position(x: (geo.size.width * sliderOffset) / 2, y: geo.size.height / 2)
+                                HStack(spacing: 0) {
+                                    Rectangle()
+                                        .frame(width: max(0, geo.size.width * sliderOffset))
+                                    Spacer(minLength: 0)
+                                }
+                                .frame(width: geo.size.width, height: geo.size.height)
                             )
 
                             // Comparison Divider Line & Handle (60pt touch area for effortless dragging)
@@ -781,7 +794,7 @@ private struct ResultComparisonViewport: View {
                                             .foregroundColor(.black)
                                     )
                             }
-                            .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
+                            .position(x: min(max(geo.size.width * sliderOffset, 0), geo.size.width), y: geo.size.height / 2)
 
                             // Bottom Badges
                             HStack {
@@ -998,9 +1011,12 @@ public struct FullscreenResultViewer: View {
                             }
                             .frame(width: geo.size.width, height: geo.size.height)
                             .mask(
-                                Rectangle()
-                                    .frame(width: max(0, geo.size.width * sliderOffset), height: geo.size.height)
-                                    .position(x: (geo.size.width * sliderOffset) / 2, y: geo.size.height / 2)
+                                HStack(spacing: 0) {
+                                    Rectangle()
+                                        .frame(width: max(0, geo.size.width * sliderOffset))
+                                    Spacer(minLength: 0)
+                                }
+                                .frame(width: geo.size.width, height: geo.size.height)
                             )
 
                             // Comparison Divider Line & Handle (60pt touch area for effortless dragging)
@@ -1024,7 +1040,7 @@ public struct FullscreenResultViewer: View {
                                             .foregroundColor(.black)
                                     )
                             }
-                            .position(x: geo.size.width * sliderOffset, y: geo.size.height / 2)
+                            .position(x: min(max(geo.size.width * sliderOffset, 0), geo.size.width), y: geo.size.height / 2)
                         }
                         .frame(width: geo.size.width, height: geo.size.height)
                         .contentShape(Rectangle())
