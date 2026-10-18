@@ -15,9 +15,17 @@ public final class ImageCacheManager {
     private let lock = NSLock()
 
     private init() {
-        // High performance limits: 250 images, 120MB memory limit
-        memoryCache.countLimit = 250
-        memoryCache.totalCostLimit = 120 * 1024 * 1024
+        // High performance limits: 150 images, 80MB memory limit
+        memoryCache.countLimit = 150
+        memoryCache.totalCostLimit = 80 * 1024 * 1024
+
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.clearCache()
+        }
     }
 
     public func image(for key: String) -> UIImage? {
@@ -126,12 +134,14 @@ public struct CachedAsyncImage<Content: View, Placeholder: View>: View {
             }
         }
         .onAppear {
-            if let url = url, let cached = ImageCacheManager.shared.image(for: url.absoluteString) {
+            if loadedImage == nil, let url = url, let cached = ImageCacheManager.shared.image(for: url.absoluteString) {
                 self.loadedImage = cached
             }
         }
         .task(id: url?.absoluteString) {
-            await fetchImage()
+            if loadedImage == nil {
+                await fetchImage()
+            }
         }
     }
 
@@ -164,5 +174,47 @@ extension CachedAsyncImage where Placeholder == EmptyView {
         self.content = nil
         self.placeholder = nil
         self.phaseContent = content
+    }
+}
+
+// MARK: - High-Performance UIImage Optimization Extensions
+extension UIImage {
+    /// Normalizes orientation and downscales image to fit within maxDimension preserving aspect ratio.
+    public func optimizedForUpload(maxDimension: CGFloat = 1920) -> UIImage {
+        let maxCurrent = max(size.width, size.height)
+        let scale = maxCurrent > maxDimension ? (maxDimension / maxCurrent) : 1.0
+        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
+
+    /// Crops the image to a target aspect ratio (default 9:16) centered on the photo, orientation-safe.
+    public func centerCroppedToAspect(targetRatio: CGFloat = 9.0 / 16.0) -> UIImage {
+        let normalized = self.optimizedForUpload(maxDimension: 1920)
+        let currentRatio = normalized.size.width / normalized.size.height
+        let cropRect: CGRect
+
+        if currentRatio > targetRatio {
+            let newWidth = normalized.size.height * targetRatio
+            let xOffset = (normalized.size.width - newWidth) / 2.0
+            cropRect = CGRect(x: xOffset, y: 0, width: newWidth, height: normalized.size.height)
+        } else {
+            let newHeight = normalized.size.width / targetRatio
+            let yOffset = (normalized.size.height - newHeight) / 2.0
+            cropRect = CGRect(x: 0, y: yOffset, width: normalized.size.width, height: newHeight)
+        }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let renderer = UIGraphicsImageRenderer(size: cropRect.size, format: format)
+        return renderer.image { _ in
+            normalized.draw(at: CGPoint(x: -cropRect.origin.x, y: -cropRect.origin.y))
+        }
     }
 }

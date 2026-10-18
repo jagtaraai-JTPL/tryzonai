@@ -11,6 +11,7 @@ public struct LoginView: View {
     @State private var isLoading = false
     @State private var errorMessage: String? = nil
     @State private var currentHeroIndex = 0
+    @State private var heroTimer: Timer? = nil
 
     @State private var showGooglePrompt = false
     @State private var googleEmailInput = ""
@@ -262,11 +263,16 @@ public struct LoginView: View {
             }
         }
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            heroTimer?.invalidate()
+            heroTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
                 withAnimation(.easeInOut(duration: 0.6)) {
                     currentHeroIndex = (currentHeroIndex + 1) % heroOutfits.count
                 }
             }
+        }
+        .onDisappear {
+            heroTimer?.invalidate()
+            heroTimer = nil
         }
     }
 

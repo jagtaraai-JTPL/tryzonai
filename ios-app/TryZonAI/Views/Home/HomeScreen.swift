@@ -10,6 +10,8 @@ public struct HomeScreen: View {
     @State private var heroIndex: Int = 0
     @State private var isLoadingProducts = false
     @State private var showShareAndEarn = false
+    @State private var heroTimer: Timer? = nil
+    @State private var quoteTimer: Timer? = nil
 
     private let heroOutfits: [(String, String, String)] = [
         ("Monaco Riviera Linen 🇲🇨", "👑 OLD MONEY", "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp"),
@@ -72,6 +74,9 @@ public struct HomeScreen: View {
         .onAppear {
             loadTrending()
             startTimers()
+        }
+        .onDisappear {
+            stopTimers()
         }
         .sheet(isPresented: $showShareAndEarn) {
             ShareAndEarnView(apiClient: apiClient)
@@ -507,6 +512,7 @@ public struct HomeScreen: View {
     // MARK: Helpers
     // ─────────────────────────────────────
     private func loadTrending() {
+        guard trendingProducts.isEmpty else { return }
         isLoadingProducts = true
         Task {
             if let items = try? await apiClient.fetchCatalog() {
@@ -520,13 +526,21 @@ public struct HomeScreen: View {
         }
     }
 
+    private func stopTimers() {
+        heroTimer?.invalidate()
+        heroTimer = nil
+        quoteTimer?.invalidate()
+        quoteTimer = nil
+    }
+
     private func startTimers() {
-        Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+        stopTimers()
+        heroTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
             withAnimation(.easeInOut(duration: 0.8)) {
                 heroIndex = (heroIndex + 1) % heroOutfits.count
             }
         }
-        Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { _ in
+        quoteTimer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { _ in
             withAnimation(.easeInOut(duration: 0.5)) {
                 quoteIndex = (quoteIndex + 1) % fashionQuotes.count
             }

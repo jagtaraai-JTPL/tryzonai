@@ -230,6 +230,7 @@ struct FunnelStep1_AttentionDesire: View {
 
     @State private var currentIndex: Int = 0
     @State private var sliderOffset: CGFloat = 0.5
+    @State private var timer: Timer? = nil
 
     var body: some View {
         VStack(spacing: 20) {
@@ -308,11 +309,16 @@ struct FunnelStep1_AttentionDesire: View {
         }
         .padding(.horizontal, 20)
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
+            timer?.invalidate()
+            timer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
                 withAnimation(.easeInOut(duration: 0.6)) {
                     currentIndex = (currentIndex + 1) % outfits.count
                 }
             }
+        }
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
         }
     }
 

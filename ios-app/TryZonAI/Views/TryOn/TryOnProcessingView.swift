@@ -565,6 +565,7 @@ private struct PhotoPreviewCardView: View {
         }
         .frame(width: 88, height: 124)
         .cornerRadius(18)
+        .clipped()
         .shadow(color: TryZonTheme.primaryGold.opacity(0.25), radius: 6, y: 3)
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(TryZonTheme.primaryGold.opacity(0.7), lineWidth: 1.2))
     }

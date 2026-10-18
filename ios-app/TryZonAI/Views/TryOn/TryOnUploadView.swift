@@ -128,7 +128,7 @@ public struct TryOnUploadView: View {
                             resultImageUrl: statusRes.fullResultURL?.absoluteString ?? "",
                             highresUrl: statusRes.fullHighresURL?.absoluteString,
                             originalPhotoUrl: statusRes.fullOriginalURL?.absoluteString,
-                            originalImage: viewModel.selectedPersonImage,
+                            originalImage: viewModel.selectedPersonImage?.centerCroppedToAspect(targetRatio: 9.0 / 16.0),
                             onTryAnother: {
                                 navPath = []
                                 viewModel.reset()
@@ -469,9 +469,9 @@ public struct TryOnUploadView: View {
                         }
 
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
+                            LazyHStack(spacing: 6) {
                                 if !realCatalogItems.isEmpty {
-                                    ForEach(realCatalogItems) { item in
+                                    ForEach(Array(realCatalogItems.prefix(30))) { item in
                                         let isSelected = selectedOutfitUrl == item.image_url || selectedOutfitUrl.contains(item.id)
                                         CachedAsyncImage(url: item.fullImageURL) { phase in
                                             if let img = phase.image {
@@ -614,7 +614,7 @@ public struct TryOnUploadView: View {
                             .tracking(0.5)
                     }
 
-                    Text("For crisp 8K results, use well-lit front-facing photos. TryZon AI automatically handles lighting, texture warping, & pose alignment.")
+                    Text("For crisp Ultra HD results, use well-lit front-facing photos. TryZon AI automatically handles lighting, texture warping, & pose alignment.")
                         .font(.system(size: 11, weight: .regular))
                         .foregroundColor(.white.opacity(0.75))
                         .lineSpacing(2)
@@ -865,8 +865,9 @@ public struct TryOnUploadView: View {
     }
 
     private func fetchRealCatalog() {
+        guard realCatalogItems.isEmpty else { return }
         Task {
-            if let fetched = try? await apiClient.fetchCatalog(category: "All", gender: "All", limit: 100) {
+            if let fetched = try? await apiClient.fetchCatalog(category: "All", gender: "All", limit: 60) {
                 DispatchQueue.main.async {
                     self.realCatalogItems = fetched
                 }

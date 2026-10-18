@@ -204,9 +204,11 @@ public struct TryOnResultView: View {
                                 showFullscreenViewer = true
                             }
                         )
-                        .frame(height: 500)
+                        .aspectRatio(9.0 / 16.0, contentMode: .fit)
+                        .frame(maxHeight: 560)
                         .background(TryZonTheme.surfaceVariant)
                         .cornerRadius(24)
+                        .clipped()
                         .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
 
                         // Caption below slider
@@ -662,8 +664,9 @@ private struct ResultComparisonViewport: View {
                     case .result:
                         CachedAsyncImage(url: resultImageUrl) { img in
                             img.resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geo.size.width, height: geo.size.height)
+                                .clipped()
                         } placeholder: {
                             VStack(spacing: 12) {
                                 ProgressView().tint(TryZonTheme.primaryGold)
@@ -678,13 +681,15 @@ private struct ResultComparisonViewport: View {
                             if let origImg = originalImage {
                                 Image(uiImage: origImg)
                                     .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geo.size.width, height: geo.size.height)
+                                    .clipped()
                             } else if let origUrl = originalPhotoUrl {
                                 CachedAsyncImage(url: origUrl) { img in
                                     img.resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: geo.size.width, height: geo.size.height)
+                                        .clipped()
                                 } placeholder: {
                                     VStack(spacing: 6) {
                                         Image(systemName: "photo")
@@ -712,30 +717,37 @@ private struct ResultComparisonViewport: View {
                             // Base Layer: AI Result (Always Full Frame)
                             CachedAsyncImage(url: resultImageUrl) { img in
                                 img.resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geo.size.width, height: geo.size.height)
+                                    .clipped()
                             } placeholder: {
                                 TryZonTheme.darkSurface
                                     .overlay(ProgressView().tint(TryZonTheme.primaryGold))
                             }
                             .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
 
                             // Overlay Layer: Original Photo Masked
                             Group {
                                 if let origImg = originalImage {
                                     Image(uiImage: origImg)
                                         .resizable()
-                                        .aspectRatio(contentMode: .fit)
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: geo.size.width, height: geo.size.height)
+                                        .clipped()
                                 } else if let origUrl = originalPhotoUrl {
                                     CachedAsyncImage(url: origUrl) { img in
                                         img.resizable()
-                                            .aspectRatio(contentMode: .fit)
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(width: geo.size.width, height: geo.size.height)
+                                            .clipped()
                                     } placeholder: {
                                         Color.clear
                                     }
                                 }
                             }
                             .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
                             .mask(
                                 Rectangle()
                                     .frame(width: max(0, geo.size.width * sliderOffset), height: geo.size.height)

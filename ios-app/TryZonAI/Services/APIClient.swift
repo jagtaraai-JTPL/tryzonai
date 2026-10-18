@@ -398,8 +398,9 @@ public class APIClient: ObservableObject {
             body.append("\(category)\r\n".data(using: .utf8)!)
         }
 
-        // Append Person Image
-        if let personData = personImage.jpegData(compressionQuality: 0.85) {
+        // Append Person Image (Optimized & Downscaled to max 1920 to prevent 25MB upload lags & memory bloat)
+        let optimizedPerson = personImage.optimizedForUpload(maxDimension: 1920)
+        if let personData = optimizedPerson.jpegData(compressionQuality: 0.85) {
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"person_image\"; filename=\"person.jpg\"\r\n".data(using: .utf8)!)
             body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
@@ -407,8 +408,9 @@ public class APIClient: ObservableObject {
             body.append("\r\n".data(using: .utf8)!)
         }
 
-        // Append Garment Image
-        if let garmentData = garmentImage.jpegData(compressionQuality: 0.85) {
+        // Append Garment Image (Optimized & Downscaled to max 1920)
+        let optimizedGarment = garmentImage.optimizedForUpload(maxDimension: 1920)
+        if let garmentData = optimizedGarment.jpegData(compressionQuality: 0.85) {
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"garment_image\"; filename=\"garment.jpg\"\r\n".data(using: .utf8)!)
             body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)

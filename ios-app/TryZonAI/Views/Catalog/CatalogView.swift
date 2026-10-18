@@ -132,7 +132,7 @@ public struct CatalogView: View {
         }
         .background(TryZonTheme.darkBackground)
         .onAppear {
-            loadCatalogData()
+            loadCatalogData(forceReload: false)
         }
         .sheet(item: $selectedProductDetail) { product in
             ProductDetailView(item: product, onTryOn: { item in
@@ -382,8 +382,13 @@ public struct CatalogView: View {
         return items
     }
 
-    private func loadCatalogData() {
-        isLoading = true
+    private func loadCatalogData(forceReload: Bool = true) {
+        if !forceReload && !items.isEmpty {
+            return
+        }
+        if items.isEmpty {
+            isLoading = true
+        }
         Task {
             do {
                 let fetched = try await apiClient.fetchCatalog(category: selectedCategory == "All AI Outfits" ? "All" : selectedCategory, gender: selectedGender, search: searchText)
