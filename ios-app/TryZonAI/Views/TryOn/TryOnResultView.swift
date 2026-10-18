@@ -44,9 +44,9 @@ public struct TryOnResultView: View {
     @State private var showFullscreenViewer = false
 
     private let sampleComplements: [ComplementProduct] = [
-        ComplementProduct(id: "comp_1", name: "Italian Leather Loafers", category: "Shoes", price: 2999, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp", url: "https://myntra.com", matchScore: 98),
-        ComplementProduct(id: "comp_2", name: "Gold Chronograph Watch", category: "Accessories", price: 4500, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_formal_ceo_black_suit_1778055862174.webp", url: "https://ajio.com", matchScore: 95),
-        ComplementProduct(id: "comp_3", name: "Silk Designer Clutch", category: "Bags", price: 1999, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp", url: "https://myntra.com", matchScore: 92)
+        ComplementProduct(id: "comp_1", name: "Italian Leather Loafers", category: "Shoes", price: 2999, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_mens_italian_riviera_linen_suit.webp", url: nil, matchScore: 98),
+        ComplementProduct(id: "comp_2", name: "Gold Chronograph Watch", category: "Accessories", price: 4500, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_outfit_formal_ceo_black_suit_1778055862174.webp", url: nil, matchScore: 95),
+        ComplementProduct(id: "comp_3", name: "Silk Designer Clutch", category: "Bags", price: 1999, imageUrl: "https://tryzonai.com/api/v1/outfits/premium_catalog/ai_premium_women_teal_knit_dress.webp", url: nil, matchScore: 92)
     ]
 
     public init(
@@ -313,28 +313,6 @@ public struct TryOnResultView: View {
                         }
                         .padding(.top, 6)
 
-                        // ── 6. MULTI-STORE SHOPPING PILLS ──
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Text("🛍️ SHOP SIMILAR LOOKS ON PARTNER STORES")
-                                    .font(.system(size: 10, weight: .black))
-                                    .foregroundColor(TryZonTheme.primaryGold)
-                                    .tracking(1.2)
-                                Spacer()
-                                Text("Verified Merchant Links")
-                                    .font(.system(size: 9.5, weight: .semibold))
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(localizedStores, id: \.name) { store in
-                                        storeButton(name: store.name, urlStr: store.urlStr, color: store.color)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.top, 6)
 
                         // ── 7. APP STORE REVIEW PROMPT BANNER ──
                         if showReviewBanner {
@@ -444,8 +422,8 @@ public struct TryOnResultView: View {
         Button(action: {
             if let cb = onTryComplement {
                 cb(item)
-            } else if let urlStr = item.url, let url = URL(string: urlStr) {
-                UIApplication.shared.open(url)
+            } else {
+                showToast("✨ \(item.name) added to your styling board!")
             }
         }) {
             VStack(alignment: .leading, spacing: 4) {
@@ -489,63 +467,6 @@ public struct TryOnResultView: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.08), lineWidth: 1))
         }
         .buttonStyle(BounceButtonStyle())
-    }
-
-    // MARK: - Store Button
-    private func storeButton(name: String, urlStr: String, color: Color) -> some View {
-        Button(action: {
-            if let url = URL(string: urlStr) {
-                UIApplication.shared.open(url)
-            }
-        }) {
-            Text(name)
-                .font(.system(size: 10.5, weight: .bold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
-                .background(color.opacity(0.3))
-                .cornerRadius(10)
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(color.opacity(0.6), lineWidth: 1))
-        }
-    }
-
-    // MARK: - Geo-Localized Store Recommendations
-    private var detectedCountryCode: String {
-        Locale.current.region?.identifier.uppercased() ?? "US"
-    }
-
-    private var localizedStores: [(name: String, urlStr: String, color: Color)] {
-        switch detectedCountryCode {
-        case "IN":
-            return [
-                ("Myntra 🛍️", "https://www.myntra.com?subid=tryzonai", Color.pink),
-                ("Ajio ✨", "https://www.ajio.com?subid=tryzonai", Color.yellow),
-                ("Flipkart 📦", "https://www.flipkart.com?affid=tryzonai", Color.blue),
-                ("Amazon IN 🛒", "https://www.amazon.in/s?k=fashion&tag=tryzonai08-21", Color.orange)
-            ]
-        case "US", "UM":
-            return [
-                ("Amazon US 🛒", "https://www.amazon.com/fashion?tag=tryzonai-us-20", Color.orange),
-                ("Target 🎯", "https://www.target.com/c/clothing/-/N-5xtc0", Color.red),
-                ("Macy's 🏬", "https://www.macys.com", Color.red.opacity(0.8)),
-                ("ASOS US 👗", "https://www.asos.com/us/", Color.cyan)
-            ]
-        case "GB", "UK":
-            return [
-                ("Amazon UK 🛒", "https://www.amazon.co.uk/fashion?tag=tryzonai-uk-21", Color.orange),
-                ("ASOS UK 🛍️", "https://www.asos.com", Color.cyan),
-                ("Boohoo 👗", "https://www.boohoo.com", Color.pink),
-                ("Zalando UK ✨", "https://www.zalando.co.uk", Color.orange)
-            ]
-        default:
-            return [
-                ("Amazon 🛒", "https://www.amazon.com/fashion?tag=tryzonai-us-20", Color.orange),
-                ("ASOS 🛍️", "https://www.asos.com", Color.cyan),
-                ("Zara 👔", "https://www.zara.com", Color.gray),
-                ("SHEIN 💎", "https://www.shein.com", Color.purple)
-            ]
-        }
     }
 
     // MARK: - In-App Image Reporting
