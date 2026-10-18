@@ -321,6 +321,7 @@ public struct LoginView: View {
             var userEmail: String? = nil
             var userName: String? = nil
             var appleUserIdentifier: String? = nil
+            var identityTokenStr: String? = nil
             if let appleIDCredential = auth.credential as? ASAuthorizationAppleIDCredential {
                 userEmail = appleIDCredential.email
                 appleUserIdentifier = appleIDCredential.user
