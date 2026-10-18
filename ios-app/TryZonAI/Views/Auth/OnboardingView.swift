@@ -54,7 +54,7 @@ public struct OnboardingView: View {
         case 2: return "⚡ High-Speed GPU Virtual Fitting · Powered by TryZon AI Neural Engine"
         default:
             switch selectedPlanIndex {
-            case 1: return "⚡ 15 Paid Credits added instantly · 100% Ad-Free Pass"
+            case 1: return "⚡ 15 Paid Credits added instantly · Ultra HD 2K Output"
             case 2: return "👑 VIP Turbo Speed Queue · Unlimited High-Resolution AI Fitting"
             default: return "🎁 Zero credit card required · Instant free fitting access"
             }
@@ -560,8 +560,8 @@ struct FunnelStep4_LossAversion: View {
         return [
             // (index, badge, title, subtitle, price, color)
             (0, "🎁 FREE", "Free Daily Pass", "1 try-on/day + Welcome 2 Bonus Credits", "Free", "white"),
-            (1, "⚡ POPULAR", "Pocket Credit Pack", "15 Credits = 15 Instant HD Try-Ons (100% Ad-Free)", "\(pocketPrice) One-Time", "gold"),
-            (2, "👑 VIP", "Pro Unlimited", "Unlimited AI Try-Ons • Zero Ads • VIP GPU Queue", "\(proPrice)/month", "purple"),
+            (1, "⚡ POPULAR", "Pocket Credit Pack", "15 Credits = 15 Instant Ultra HD (2K) Try-Ons", "\(pocketPrice) One-Time", "gold"),
+            (2, "👑 VIP", "Pro Unlimited", "Unlimited AI Try-Ons • Ultra HD 2K • VIP GPU Queue", "\(proPrice)/month", "purple"),
         ]
     }
 

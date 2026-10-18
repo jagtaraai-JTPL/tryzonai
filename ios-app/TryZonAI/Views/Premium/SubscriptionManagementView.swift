@@ -34,7 +34,7 @@ public struct SubscriptionManagementView: View {
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(TryZonTheme.textColor(for: colorScheme))
 
-                        Text(isPro ? "Unlimited Daily Try-Ons • 100% Ad-Free • VIP Fast Pass Queue" : "Upgrade to Pro for unlimited try-ons and zero ads")
+                        Text(isPro ? "Unlimited Daily Try-Ons • Ultra HD 2K Output • VIP Fast Pass Queue" : "Upgrade to Pro for unlimited try-ons and VIP GPU speed")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(TryZonTheme.subtextColor(for: colorScheme))
                             .multilineTextAlignment(.center)

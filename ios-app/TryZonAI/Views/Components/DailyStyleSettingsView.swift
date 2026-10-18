@@ -123,7 +123,7 @@ public struct DailyStyleSettingsView: View {
                                         .font(.system(size: 14, weight: .black))
                                 } else {
                                     Image(systemName: "bolt.fill")
-                                    Text("TEST DAILY AI STYLE NOW ⚡")
+                                    Text("GENERATE DAILY AI STYLE NOW ⚡")
                                         .font(.system(size: 14, weight: .black, design: .rounded))
                                 }
                             }
@@ -159,7 +159,7 @@ public struct DailyStyleSettingsView: View {
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             await MainActor.run {
                 self.isTesting = false
-                self.showToast("⚡ Instant Daily AI Style push triggered!")
+                self.showToast("⚡ Today's AI Style curated successfully!")
             }
         }
     }

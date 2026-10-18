@@ -128,7 +128,7 @@ public struct SideDrawer: View {
                                         .foregroundColor(TryZonTheme.primaryGold)
 
                                     if apiClient.isLoggedIn {
-                                        let usageLine = currentUser?.isPremium == true ? "Pro Unlimited • Ad-Free" : "\(apiClient.paidCredits) Paid • \(authViewModel.dailyTryCount)/1 Today"
+                                        let usageLine = currentUser?.isPremium == true ? "Pro Unlimited • VIP Speed" : "\(apiClient.paidCredits) Paid • \(authViewModel.dailyTryCount)/1 Today"
                                         Text(usageLine)
                                             .font(.system(size: 10))
                                             .foregroundColor(.white.opacity(0.6))
@@ -194,9 +194,9 @@ public struct SideDrawer: View {
                                 selectSheet(.guidedTour)
                             }
 
-                            sidebarItem(icon: "bolt.fill", title: "Test Daily AI Style Now ⚡", subtitle: "Trigger instant background style generation") {
+                            sidebarItem(icon: "bolt.fill", title: "Generate Today's Style ⚡", subtitle: "Instant personalized AI style recommendation") {
                                 closeDrawer()
-                                showToast("⚡ Instant Daily AI Style Triggered!")
+                                showToast("⚡ Today's AI Style Curated!")
                             }
 
                             sidebarItem(icon: "star.fill", title: "Rate TryZon AI ⭐", subtitle: "Leave feedback on the App Store", badge: "REVIEW") {

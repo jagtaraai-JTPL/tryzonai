@@ -18,6 +18,7 @@ targets:
       - path: TryZonAI/ViewModels
       - path: TryZonAI/Views
     settings:
+      TARGETED_DEVICE_FAMILY: "1"
       PRODUCT_NAME: TryZonAI
       SWIFT_VERSION: "5.0"
       SWIFT_COMPILATION_MODE: wholemodule
